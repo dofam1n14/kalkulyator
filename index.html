@@ -180,36 +180,50 @@ footer code { font-family: var(--font-mono); }
     <section class="mod wide" id="color">
       <h2>Цветовая маркировка <small>IEC 60062</small></h2>
       <div class="seg" role="group" aria-label="Число полос">
+        <button type="button" id="b3" aria-pressed="false">3 полосы</button>
         <button type="button" id="b4" aria-pressed="true">4 полосы</button>
         <button type="button" id="b5" aria-pressed="false">5 полос</button>
+        <button type="button" id="b6" aria-pressed="false">6 полос</button>
       </div>
-      <svg class="resistor" viewBox="0 0 560 150" role="img" aria-label="Резистор с выбранными полосами">
+      <svg class="resistor" viewBox="0 0 560 230" role="img" aria-label="Резистор с выбранными полосами">
         <defs>
-          <!-- Металл выводов, керамический корпус и объём (блик сверху, тень снизу) -->
+          <!-- Металл выводов: светлая полоса по центру, как у луженой проволоки -->
           <linearGradient id="gLead" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#f1f3f5"/><stop offset=".5" stop-color="#a9adb2"/><stop offset="1" stop-color="#6d7277"/>
+            <stop offset="0" stop-color="#7d8287"/><stop offset=".35" stop-color="#eef0f2"/><stop offset=".6" stop-color="#b9bdc2"/><stop offset="1" stop-color="#5f6469"/>
           </linearGradient>
+          <!-- Корпус: матовый бежевый цилиндр, блик ближе к верху -->
           <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#f1e2bd"/><stop offset=".45" stop-color="#dcc493"/><stop offset="1" stop-color="#a88d5c"/>
+            <stop offset="0" stop-color="#b98c58"/><stop offset=".28" stop-color="#f2d8ab"/><stop offset=".5" stop-color="#e3c08c"/><stop offset="1" stop-color="#8f6738"/>
           </linearGradient>
+          <!-- Объём поверх полос: полосы тоже «обнимают» цилиндр -->
           <linearGradient id="gShade" x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".22" stop-color="#fff" stop-opacity=".12"/>
-            <stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/>
+            <stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset=".28" stop-color="#fff" stop-opacity=".35"/>
+            <stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/>
           </linearGradient>
-          <!-- Форма корпуса «косточка»: утолщения на концах + тонкая середина -->
-          <clipPath id="cBody">
-            <ellipse cx="150" cy="75" rx="50" ry="44"/><rect x="150" y="41" width="260" height="68"/><ellipse cx="410" cy="75" rx="50" ry="44"/>
-          </clipPath>
-          <filter id="fShadow" x="-10%" y="-20%" width="120%" height="160%">
-            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".25"/>
+          <!-- Металлические полосы допуска -->
+          <linearGradient id="gGold" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#7a5a12"/><stop offset=".3" stop-color="#fff2b0"/><stop offset=".55" stop-color="#d8ab3c"/><stop offset="1" stop-color="#6e4f0e"/>
+          </linearGradient>
+          <linearGradient id="gSilver" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#6c7176"/><stop offset=".3" stop-color="#ffffff"/><stop offset=".55" stop-color="#c3c7cc"/><stop offset="1" stop-color="#5c6166"/>
+          </linearGradient>
+          <!-- Профиль «косточки»: плавные утолщения на концах, тонкая шейка, конусы к выводам -->
+          <path id="pBody" d="M112 71 C116 49 126 37 150 37 C173 37 179 46 202 46 L358 46 C381 46 387 37 410 37 C434 37 444 49 448 71
+                              L448 79 C444 101 434 113 410 113 C387 113 381 104 358 104 L202 104 C179 104 173 113 150 113 C126 113 116 101 112 79 Z"/>
+          <clipPath id="cBody"><use href="#pBody"/></clipPath>
+          <filter id="fShadow" x="-10%" y="-30%" width="120%" height="180%">
+            <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#000" flood-opacity=".28"/>
           </filter>
         </defs>
-        <rect x="0" y="71" width="560" height="8" rx="4" fill="url(#gLead)"/>
-        <g filter="url(#fShadow)">
-          <g clip-path="url(#cBody)">
-            <rect x="90" y="25" width="380" height="100" fill="url(#gBody)"/>
-            <g id="bands"></g>
-            <rect x="90" y="25" width="380" height="100" fill="url(#gShade)"/>
+        <!-- Весь резистор наклонён, как на фото -->
+        <g transform="translate(0 40) rotate(-20 280 75)">
+          <rect x="60" y="71.5" width="440" height="7" rx="3.5" fill="url(#gLead)"/>
+          <g filter="url(#fShadow)">
+            <use href="#pBody" fill="url(#gBody)"/>
+            <g clip-path="url(#cBody)">
+              <g id="bands"></g>
+              <rect x="100" y="30" width="360" height="90" fill="url(#gShade)"/>
+            </g>
           </g>
         </g>
       </svg>
@@ -218,6 +232,7 @@ footer code { font-family: var(--font-mono); }
         <div class="big" id="rval">—</div>
         <div class="row"><span>Как читается</span><span id="rread">—</span></div>
         <div class="row"><span>Диапазон с допуском</span><span id="rrange">—</span></div>
+        <div class="row" id="rtcRow" hidden><span>ТКС: изменение при нагреве на 1 °C</span><span id="rtc">—</span></div>
       </div>
     </section>
 
@@ -414,30 +429,34 @@ const $ = id => document.getElementById(id);
 const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
 
 /* ---------- Цветовая маркировка ---------- */
+// d — цифра, m — множитель, t — допуск в %, tc — ТКС в ppm/°C (6-я полоса)
 const COLORS = [
-  { n: "Чёрный", c: "#1b1b1b", d: 0, m: 1 },
-  { n: "Коричневый", c: "#7a4a24", d: 1, m: 10, t: 1 },
-  { n: "Красный", c: "#d32f2f", d: 2, m: 100, t: 2 },
-  { n: "Оранжевый", c: "#f57c00", d: 3, m: 1e3 },
-  { n: "Жёлтый", c: "#fbc02d", d: 4, m: 1e4 },
-  { n: "Зелёный", c: "#2e7d32", d: 5, m: 1e5, t: 0.5 },
-  { n: "Синий", c: "#1565c0", d: 6, m: 1e6, t: 0.25 },
-  { n: "Фиолетовый", c: "#7b1fa2", d: 7, m: 1e7, t: 0.1 },
-  { n: "Серый", c: "#8a8a8a", d: 8, m: 1e8, t: 0.05 },
+  { n: "Чёрный", c: "#1b1b1b", d: 0, m: 1, tc: 250 },
+  { n: "Коричневый", c: "#7a4a24", d: 1, m: 10, t: 1, tc: 100 },
+  { n: "Красный", c: "#d32f2f", d: 2, m: 100, t: 2, tc: 50 },
+  { n: "Оранжевый", c: "#f57c00", d: 3, m: 1e3, tc: 15 },
+  { n: "Жёлтый", c: "#fbc02d", d: 4, m: 1e4, tc: 25 },
+  { n: "Зелёный", c: "#2e7d32", d: 5, m: 1e5, t: 0.5, tc: 20 },
+  { n: "Синий", c: "#1565c0", d: 6, m: 1e6, t: 0.25, tc: 10 },
+  { n: "Фиолетовый", c: "#7b1fa2", d: 7, m: 1e7, t: 0.1, tc: 5 },
+  { n: "Серый", c: "#8a8a8a", d: 8, m: 1e8, t: 0.05, tc: 1 },
   { n: "Белый", c: "#f5f5f5", d: 9, m: 1e9 },
   { n: "Золотой", c: "#c9a227", m: 0.1, t: 5 },
   { n: "Серебряный", c: "#b8bcc0", m: 0.01, t: 10 },
 ];
+const BAND_COUNTS = [3, 4, 5, 6];
 let bandCount = 4;
-const sel = { 4: [1, 0, 2, 10], 5: [1, 0, 0, 1, 1] }; // 1 кОм ±5%, 1 кОм ±1%
+// По умолчанию везде 1 кОм: ±20% / ±5% / ±1% / ±1% и 100 ppm/°C
+const sel = { 3: [1, 0, 2], 4: [1, 0, 2, 10], 5: [1, 0, 0, 1, 1], 6: [1, 0, 0, 1, 1, 1] };
+// Сколько полос-цифр: у 3- и 4-полосных две, у 5- и 6-полосных три
+const digitsOf = n => (n <= 4 ? 2 : 3);
 
 function bandDefs() {
-  const digits = bandCount === 4 ? ["1-я полоса", "2-я полоса"] : ["1-я полоса", "2-я полоса", "3-я полоса"];
-  return [
-    ...digits.map(n => ({ n, opts: COLORS.filter(c => c.d !== undefined) })),
-    { n: "Множитель", opts: COLORS.filter(c => c.m !== undefined) },
-    { n: "Допуск", opts: COLORS.filter(c => c.t !== undefined) },
-  ];
+  const defs = Array.from({ length: digitsOf(bandCount) }, (_, i) => ({ n: `${i + 1}-я полоса`, opts: COLORS.filter(c => c.d !== undefined) }));
+  defs.push({ n: "Множитель", opts: COLORS.filter(c => c.m !== undefined) });
+  if (bandCount >= 4) defs.push({ n: "Допуск", opts: COLORS.filter(c => c.t !== undefined) });
+  if (bandCount === 6) defs.push({ n: "ТКС", opts: COLORS.filter(c => c.tc !== undefined) });
+  return defs;
 }
 // Для каждой полосы — ряд цветных кнопок; рядом с заголовком пишем название выбранного цвета
 function buildBands() {
@@ -459,31 +478,36 @@ $("bandsel").addEventListener("click", e => {
 function updateColor() {
   const idx = sel[bandCount];
   const n = bandCount;
-  // Центры полос на корпусе: первые — на левом утолщении, допуск — на правом
-  const xs = n === 4 ? [140, 205, 250, 420] : [132, 195, 237, 279, 422];
-  $("bands").innerHTML = idx.map((ci, i) =>
-    `<rect class="band" x="${xs[i] - 9}" y="25" width="18" height="100" fill="${COLORS[ci].c}"/>`).join("");
+  // Центры полос: первая — на левом утолщении, цифры на шейке, допуск — на правом утолщении
+  const xs = { 3: [165, 222, 262], 4: [165, 222, 262, 405], 5: [160, 214, 248, 282, 408], 6: [160, 214, 248, 282, 393, 423] }[n];
+  // Полоса чуть изогнута, будто обёрнута вокруг цилиндра; золото и серебро — с металлическим бликом
+  const bandPath = x => `M${x - 8} 30 Q${x - 2} 75 ${x - 8} 120 L${x + 8} 120 Q${x + 14} 75 ${x + 8} 30 Z`;
+  const fillOf = ci => (COLORS[ci].n === "Золотой" ? "url(#gGold)" : COLORS[ci].n === "Серебряный" ? "url(#gSilver)" : COLORS[ci].c);
+  $("bands").innerHTML = idx.map((ci, i) => `<path class="band" d="${bandPath(xs[i])}" fill="${fillOf(ci)}"/>`).join("");
   $("bandsel").querySelectorAll("button[data-band]").forEach(b =>
     b.setAttribute("aria-pressed", idx[+b.dataset.band] === +b.dataset.c));
   idx.forEach((ci, i) => { $("bname" + i).textContent = COLORS[ci].n; });
-  const digitCount = n - 2;
+  const digitCount = digitsOf(n);
   let base = 0;
   for (let i = 0; i < digitCount; i++) base = base * 10 + COLORS[idx[i]].d;
   const mult = COLORS[idx[digitCount]].m;
   const R = base * mult;
-  const tol = COLORS[idx[n - 1]].t;
+  const tol = n === 3 ? 20 : COLORS[idx[digitCount + 1]].t; // без полосы допуска — ±20%
+  $("rtcRow").hidden = n !== 6;
+  if (n === 6) {
+    const tc = COLORS[idx[5]].tc;
+    $("rtc").textContent = `${tc} ppm/°C (≈ ${fmt((R * tc) / 1e6, "Ом")})`;
+  }
   $("rval").textContent = fmt(R, "Ом", 4) + "  ±" + tol + "%";
   $("rrange").textContent = fmt(R * (1 - tol / 100), "Ом", 4) + " … " + fmt(R * (1 + tol / 100), "Ом", 4);
   $("rread").textContent = `${idx.slice(0, digitCount).map(ci => COLORS[ci].d).join("")} × ${mult >= 1 ? mult.toLocaleString("ru-RU") : String(mult).replace(".", ",")}`;
 }
 function setBands(n) {
   bandCount = n;
-  $("b4").setAttribute("aria-pressed", n === 4);
-  $("b5").setAttribute("aria-pressed", n === 5);
+  BAND_COUNTS.forEach(k => $("b" + k).setAttribute("aria-pressed", k === n));
   buildBands();
 }
-$("b4").onclick = () => setBands(4);
-$("b5").onclick = () => setBands(5);
+BAND_COUNTS.forEach(k => { $("b" + k).onclick = () => setBands(k); });
 
 /* ---------- Закон Ома ---------- */
 // Все 12 формул «круга Ома»: [известная 1, известная 2, запись, расчёт]
@@ -943,8 +967,8 @@ if (saved) {
     else if (el.tagName === "INPUT" || el.tagName === "SELECT") el.value = v;
   });
   if (["main", "net", "wire"].includes(saved.ohmTab)) ohmTab = saved.ohmTab;
-  if (saved.bandCount === 4 || saved.bandCount === 5) bandCount = saved.bandCount;
-  if (saved.sel) [4, 5].forEach(n => { if (Array.isArray(saved.sel[n]) && saved.sel[n].length === n) sel[n] = saved.sel[n]; });
+  if (BAND_COUNTS.includes(saved.bandCount)) bandCount = saved.bandCount;
+  if (saved.sel) BAND_COUNTS.forEach(n => { if (Array.isArray(saved.sel[n]) && saved.sel[n].length === n) sel[n] = saved.sel[n]; });
   if (Array.isArray(saved.ohmOrder) && saved.ohmOrder.length === 2 && saved.ohmOrder.every(id => ohmIds.includes(id))) ohmOrder = saved.ohmOrder;
   if (saved.smdKind === "C") smdKind = "C";
   if (["a", "r", "m"].includes(saved.mode555)) mode555 = saved.mode555;
