@@ -116,7 +116,16 @@ input.computed { background: var(--accent-soft); border-color: var(--accent); }
 .stack { display: grid; gap: 14px; min-width: 0; align-content: start; }
 .split { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
 .split > .stack { flex: 1 1 300px; }
-.wheel { flex: 0 1 300px; width: 100%; max-width: 300px; height: auto; margin-inline: auto; }
+.wheel-box { flex: 0 1 300px; width: 100%; max-width: 300px; margin-inline: auto; display: grid; gap: 10px; }
+.wheel { width: 100%; height: auto; display: block; }
+.wheel .wf { cursor: pointer; }
+.wheel .wf:hover { stroke: var(--accent); }
+.wheel .wf.pick { stroke: var(--fg); stroke-width: 2.5; }
+.wheel .wf:focus-visible { outline: none; stroke: var(--fg); stroke-width: 2.5; }
+.wheel text { pointer-events: none; }
+.explain { border-top: 1px dashed var(--line); padding-top: 10px; display: grid; gap: 4px; font-size: 14px; }
+.explain b { font: 600 16px var(--font-mono); color: var(--accent); }
+.explain .calc { font-family: var(--font-mono); color: var(--result); overflow-wrap: anywhere; }
 .wheel .q { fill: var(--bg); stroke: var(--line); }
 .wheel .wf { fill: var(--panel); stroke: var(--line); }
 .wheel .wf.on { fill: var(--accent-soft); stroke: var(--accent); }
@@ -255,7 +264,10 @@ footer code { font-family: var(--font-mono); }
           </div>
           <div class="out" id="ohmOut"></div>
         </div>
-        <svg class="wheel" id="ohmWheel" viewBox="0 0 320 320" role="img" aria-label="Круг формул закона Ома"></svg>
+        <div class="wheel-box">
+          <svg class="wheel" id="ohmWheel" viewBox="0 0 320 320" aria-label="Круг формул закона Ома"></svg>
+          <div class="explain" id="ohmExplain"></div>
+        </div>
       </div>
 
       <div class="stack" id="ohmNet" hidden>
@@ -546,12 +558,64 @@ function drawWheel(knownKeys, used) {
     s += `<path class="q" d="${pie(64, a0, a0 + 90)}"/><text class="letter${knownKeys.includes(k) ? " known" : ""}" x="${lx}" y="${ly}">${k}</text>`;
     OHM_F[k].forEach((f, j) => {
       const a1 = a0 + j * 30, a2 = a1 + 30, on = used[k] === j ? " on" : "";
+      const pick = ohmPick && ohmPick[0] === k && ohmPick[1] === j ? " pick" : "";
       const [tx, ty] = pt(112, a1 + 15);
-      s += `<path class="wf${on}" d="${ring(72, 154, a1, a2)}"/><text class="${on.trim()}" x="${tx}" y="${ty}">${k}=${f[2].replace(/ /g, "")}</text>`;
+      // Каждая формула — кнопка: data-k/data-j говорят, какая именно
+      s += `<path class="wf${on}${pick}" d="${ring(72, 154, a1, a2)}" data-k="${k}" data-j="${j}" tabindex="0" role="button" aria-label="Формула ${k} = ${f[2]}"/>` +
+        `<text class="${on.trim()}" x="${tx}" y="${ty}">${k}=${f[2].replace(/ /g, "")}</text>`;
     });
   });
   $("ohmWheel").innerHTML = s;
 }
+// Откуда берётся каждая формула (в том же порядке, что в OHM_F)
+const OHM_WHY = {
+  U: ["Сам закон Ома: напряжение равно току, умноженному на сопротивление.",
+      "Берём P = U·I и делим обе части на I.",
+      "Берём P = U² / R, получаем U² = P·R и извлекаем корень."],
+  I: ["Закон Ома для тока: чем больше сопротивление, тем меньше ток.",
+      "Берём P = U·I и делим обе части на U.",
+      "Берём P = I²·R, получаем I² = P / R и извлекаем корень."],
+  R: ["Закон Ома, выраженный через сопротивление.",
+      "Берём P = U² / R и меняем местами R и P.",
+      "Берём P = I²·R и делим обе части на I²."],
+  P: ["Определение мощности: напряжение, умноженное на ток.",
+      "В P = U·I подставляем I = U / R. Удобно, когда известно напряжение на резисторе.",
+      "В P = U·I подставляем U = I·R. По этой формуле считают, как греется резистор."],
+};
+let ohmPick = null; // [величина, номер формулы] — что выбрано на круге
+// Подставляем текущие числа в формулу: «R = 12 / 0.02 = 600 Ом»
+function ohmCalcLine(k, j, r) {
+  const f = OHM_F[k][j];
+  if (![f[0], f[1], k].every(x => isFinite(r[x]))) return "";
+  const expr = f[2].replace(/[UIRP]/g, x => String(+r[x].toPrecision(4)));
+  return `${k} = ${expr} = ${fmt(r[k], OHM_NAMES[k][1])}`;
+}
+function renderExplain(r) {
+  if (!ohmPick) {
+    $("ohmExplain").innerHTML = `<span class="hint" style="margin:0">Нажми на любую формулу на круге: калькулятор переключится на неё и объяснит, откуда она берётся.</span>`;
+    return;
+  }
+  const [k, j] = ohmPick, f = OHM_F[k][j];
+  $("ohmExplain").innerHTML = `<b>${k} = ${f[2]}</b>` +
+    `<span>Нужно знать: <strong>${OHM_NAMES[f[0]][0].toLowerCase()} ${f[0]}</strong> и <strong>${OHM_NAMES[f[1]][0].toLowerCase()} ${f[1]}</strong>.</span>` +
+    `<span class="hint" style="margin:0">${OHM_WHY[k][j]}</span>` +
+    `<span class="calc">${ohmCalcLine(k, j, r)}</span>`;
+}
+function pickFormula(k, j) {
+  ohmPick = [k, j];
+  const f = OHM_F[k][j];
+  ohmOrder = ["o" + f[0], "o" + f[1]]; // эти два поля становятся вводом, остальные — результатом
+  updateOhm();
+  saveState();
+}
+$("ohmWheel").addEventListener("click", e => {
+  const p = e.target.closest("[data-k]");
+  if (p) pickFormula(p.dataset.k, +p.dataset.j);
+});
+$("ohmWheel").addEventListener("keydown", e => {
+  const p = e.target.closest("[data-k]");
+  if (p && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickFormula(p.dataset.k, +p.dataset.j); }
+});
 function wattFor(P) {
   const w = [0.125, 0.25, 0.5, 1, 2, 3, 5, 10].find(x => x >= P * 2);
   return w ? w + " Вт (запас ×2)" : "больше 10 Вт";
@@ -562,6 +626,7 @@ function updateOhm() {
   const { r, used } = solveOhm(known);
   ohmIds.forEach(id => $(id).classList.toggle("computed", !ohmOrder.includes(id)));
   drawWheel(Object.keys(known), used);
+  renderExplain(r);
   const ok = OHM_KEYS.every(k => isFinite(r[k]));
   if (!ok) { $("ohmOut").innerHTML = `<span class="warn">Нужно два числа. Проверь, что в полях нет опечаток.</span>`; return; }
   let html = OHM_KEYS.map(k => row(OHM_NAMES[k][0] + (k in used ? `<em>${k} = ${OHM_F[k][used[k]][2]}</em>` : ""), fmt(r[k], OHM_NAMES[k][1]))).join("");
@@ -573,6 +638,11 @@ function updateOhm() {
 }
 ohmIds.forEach(id => $(id).addEventListener("input", () => {
   ohmOrder = [id, ...ohmOrder.filter(x => x !== id)].slice(0, 2);
+  // Если ввод больше не подходит к выбранной формуле — снимаем выбор
+  if (ohmPick) {
+    const f = OHM_F[ohmPick[0]][ohmPick[1]];
+    if (!(ohmOrder.includes("o" + f[0]) && ohmOrder.includes("o" + f[1]))) ohmPick = null;
+  }
   updateOhm();
 }));
 
