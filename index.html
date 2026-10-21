@@ -45,7 +45,7 @@ body {
   padding-right: max(16px, env(safe-area-inset-right, 0px));
   padding-block: 28px 48px;
 }
-.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; }
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; grid-template-columns: minmax(0, 1fr); gap: 24px; }
 header h1 {
   font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4vw, 38px);
   margin: 0; letter-spacing: .01em; text-wrap: balance;
@@ -55,12 +55,29 @@ header p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; }
 .mod {
   background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
-  padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0;
+  padding: 18px; display: grid; grid-template-columns: minmax(0, 1fr); gap: 14px; align-content: start; min-width: 0;
 }
 .mod.wide { grid-column: 1 / -1; }
+.mod { scroll-margin-top: 120px; }
+/* Липкая панель: поиск, тема, сброс + меню модулей */
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.bar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 5; background: var(--bg);
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
+  padding-block: 10px; border-bottom: 1px solid var(--line); min-width: 0;
+}
+.bar #search { flex: 1 1 220px; font: 400 15px var(--font-body); }
+.chips { display: flex; gap: 6px; overflow-x: auto; flex: 1 1 100%; min-width: 0; padding-bottom: 2px; scrollbar-width: thin; }
+.chips button, .tool {
+  font: 500 13px var(--font-body); background: var(--panel); color: var(--fg);
+  border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; white-space: nowrap;
+}
+.chips button:hover, .tool:hover { border-color: var(--accent); color: var(--accent); }
+.chips button:focus-visible, .tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.tool.danger { border-color: var(--warn); color: var(--warn); }
 .mod h2 {
   font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0;
-  display: flex; align-items: baseline; gap: 10px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
 }
 .mod h2 small { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
 .hint { margin: -8px 0 0; color: var(--muted); font-size: 13px; }
@@ -82,7 +99,7 @@ input.computed { background: var(--accent-soft); border-color: var(--accent); }
 .warn { color: var(--warn); font-family: var(--font-body); font-size: 13px; }
 .resistor { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
 .bandsel { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
-.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: max-content; max-width: 100%; }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: fit-content; max-width: 100%; }
 .seg button {
   font: 500 13px var(--font-body); background: transparent; color: var(--muted);
   border: 0; padding: 6px 12px; cursor: pointer;
@@ -120,6 +137,14 @@ footer code { font-family: var(--font-mono); }
     <h1>Калькулятор <span>электронщика</span></h1>
     <p>Маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода, таймер NE555 и перевод единиц. Значения можно вводить с приставками: <code>4.7k</code>, <code>100n</code>, <code>2M</code>, <code>20m</code>.</p>
   </header>
+
+  <nav class="bar" aria-label="Модули калькулятора">
+    <input id="search" type="search" placeholder="Поиск: резистор, 555, дБ, антенна…" aria-label="Поиск модуля" autocomplete="off">
+    <button type="button" class="tool" id="themeBtn">Тема</button>
+    <button type="button" class="tool" id="resetBtn">Сбросить значения</button>
+    <div class="chips" id="chips"></div>
+  </nav>
+  <p class="hint" id="noHits" hidden style="margin:0">Ничего не нашлось. Попробуй другое слово, например «конденсатор» или «частота».</p>
 
   <div class="grid">
     <section class="mod wide" id="color">
@@ -635,7 +660,102 @@ $("copyMail").addEventListener("click", () => {
   try { navigator.clipboard.writeText(text).then(() => done("Скопировано"), selectIt); } catch (e) { selectIt(); }
 });
 
-buildBands(); updateOhm(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); update555();
+/* ---------- Меню и поиск ---------- */
+// Короткое имя для кнопки меню и слова, по которым модуль ищется
+const MODS = {
+  color: ["Цвета", "резистор цвет полосы маркировка номинал"],
+  ohm: ["Закон Ома", "ом ток напряжение мощность сопротивление"],
+  div: ["Делитель", "делитель напряжения ацп"],
+  rc: ["RC", "rc фильтр конденсатор частота среза постоянная времени"],
+  led: ["LED", "светодиод led резистор ток"],
+  t555: ["NE555", "555 таймер генератор импульс мигалка частота"],
+  smd: ["SMD", "smd smt маркировка код корпус конденсатор резистор"],
+  db: ["дБ", "децибел дб dbm усиление мощность"],
+  freq: ["Частота", "частота период длина волны антенна"],
+  len: ["Размеры", "мм mil дюйм плата дорожка шаг"],
+};
+const mods = [...document.querySelectorAll(".mod")];
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+$("chips").innerHTML = mods.map(m => `<button type="button" data-go="${m.id}">${(MODS[m.id] || [m.id])[0]}</button>`).join("");
+$("chips").addEventListener("click", e => {
+  const id = e.target.dataset && e.target.dataset.go;
+  if (!id) return;
+  if ($(id).hidden) { $("search").value = ""; filterMods(); }
+  $(id).scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+});
+function filterMods() {
+  const q = $("search").value.trim().toLowerCase();
+  let hits = 0;
+  mods.forEach(m => {
+    const hay = (m.querySelector("h2").textContent + " " + (MODS[m.id] || ["", ""])[1]).toLowerCase();
+    const ok = !q || hay.includes(q);
+    m.hidden = !ok;
+    $("chips").querySelector(`[data-go="${m.id}"]`).hidden = !ok;
+    if (ok) hits++;
+  });
+  $("noHits").hidden = hits > 0;
+}
+$("search").addEventListener("input", filterMods);
+
+/* ---------- Тема ---------- */
+const root = document.documentElement;
+const isDark = () => root.dataset.theme === "dark" || (!root.dataset.theme && matchMedia("(prefers-color-scheme: dark)").matches);
+const themeLabel = () => { $("themeBtn").textContent = isDark() ? "☀ Светлая тема" : "☾ Тёмная тема"; };
+try { const t = localStorage.getItem("calc-theme"); if (t === "dark" || t === "light") root.dataset.theme = t; } catch (e) {}
+$("themeBtn").addEventListener("click", () => {
+  root.dataset.theme = isDark() ? "light" : "dark";
+  try { localStorage.setItem("calc-theme", root.dataset.theme); } catch (e) {}
+  themeLabel();
+});
+matchMedia("(prefers-color-scheme: dark)").addEventListener("change", themeLabel);
+themeLabel();
+
+/* ---------- Запоминание значений ---------- */
+// Всё хранится только в браузере того, кто открыл сайт
+const KEY = "calc-state-v1";
+function saveState() {
+  try {
+    const vals = {};
+    document.querySelectorAll(".mod input[id]").forEach(i => { vals[i.id] = i.value; });
+    localStorage.setItem(KEY, JSON.stringify({ vals, bandCount, sel, smdKind, mode555, ohmOrder }));
+  } catch (e) {}
+}
+function loadState() {
+  try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; }
+}
+const saved = loadState();
+if (saved) {
+  if (saved.vals) Object.entries(saved.vals).forEach(([id, v]) => { const el = $(id); if (el && el.tagName === "INPUT") el.value = v; });
+  if (saved.bandCount === 4 || saved.bandCount === 5) bandCount = saved.bandCount;
+  if (saved.sel) [4, 5].forEach(n => { if (Array.isArray(saved.sel[n]) && saved.sel[n].length === n) sel[n] = saved.sel[n]; });
+  if (Array.isArray(saved.ohmOrder) && saved.ohmOrder.length === 2 && saved.ohmOrder.every(id => ohmIds.includes(id))) ohmOrder = saved.ohmOrder;
+  if (saved.smdKind === "C") smdKind = "C";
+  if (["a", "r", "m"].includes(saved.mode555)) mode555 = saved.mode555;
+}
+document.addEventListener("input", e => { if (e.target.id !== "search") saveState(); });
+document.addEventListener("change", saveState);
+document.querySelectorAll(".seg button").forEach(b => b.addEventListener("click", () => setTimeout(saveState, 0)));
+
+// Сброс в два нажатия: первое спрашивает, второе сбрасывает
+let resetArmed = null;
+$("resetBtn").addEventListener("click", () => {
+  const btn = $("resetBtn");
+  if (!resetArmed) {
+    btn.textContent = "Точно сбросить?";
+    btn.classList.add("danger");
+    resetArmed = setTimeout(() => { resetArmed = null; btn.textContent = "Сбросить значения"; btn.classList.remove("danger"); }, 3000);
+    return;
+  }
+  clearTimeout(resetArmed);
+  try { localStorage.removeItem(KEY); } catch (e) {}
+  location.reload();
+});
+
+/* ---------- Запуск ---------- */
+setBands(bandCount);
+$("smdR").setAttribute("aria-pressed", smdKind === "R");
+$("smdC").setAttribute("aria-pressed", smdKind === "C");
+updateOhm(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); set555(mode555);
 </script>
 
 </body>
