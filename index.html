@@ -1,0 +1,520 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="description" content="Калькулятор электронщика: маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода, перевод единиц.">
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style><title>Калькулятор электронщика</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: верстак — сетка модулей-калькуляторов, как платы на столе; медь как акцент */
+:root {
+  --bg: #eef1ee;
+  --panel: #fbfcfb;
+  --fg: #17211c;
+  --muted: #5b6a62;
+  --line: #d3dbd5;
+  --accent: #b5652a;
+  --accent-soft: #f3e3d5;
+  --result: #0f5d45;
+  --warn: #a8461f;
+  --font-display: "Chakra Petch", "Segoe UI", sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
+    --accent: #e08a4b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
+  --accent: #e08a4b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  background: var(--bg); color: var(--fg);
+  font-family: var(--font-body); font-size: 15px; line-height: 1.5;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+  padding-block: 28px 48px;
+}
+.wrap { max-width: 1100px; margin: 0 auto; display: grid; gap: 24px; }
+header h1 {
+  font-family: var(--font-display); font-weight: 700; font-size: clamp(26px, 4vw, 38px);
+  margin: 0; letter-spacing: .01em; text-wrap: balance;
+}
+header h1 span { color: var(--accent); }
+header p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
+.grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 16px; }
+.mod {
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px; display: grid; gap: 14px; align-content: start; min-width: 0;
+}
+.mod.wide { grid-column: 1 / -1; }
+.mod h2 {
+  font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0;
+  display: flex; align-items: baseline; gap: 10px;
+}
+.mod h2 small { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
+.hint { margin: -8px 0 0; color: var(--muted); font-size: 13px; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 10px; }
+label { display: grid; gap: 4px; font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+input, select {
+  font: 500 15px var(--font-mono); color: var(--fg); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0;
+}
+input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
+input.computed { background: var(--accent-soft); border-color: var(--accent); }
+.out {
+  border-top: 1px dashed var(--line); padding-top: 12px;
+  display: grid; gap: 4px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+}
+.out .big { font-size: 26px; font-weight: 500; color: var(--result); }
+.out .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; flex-wrap: wrap; }
+.out .row span:first-child { color: var(--muted); font-family: var(--font-body); }
+.warn { color: var(--warn); font-family: var(--font-body); font-size: 13px; }
+.resistor { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
+.bandsel { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: max-content; }
+.seg button {
+  font: 500 13px var(--font-body); background: transparent; color: var(--muted);
+  border: 0; padding: 6px 12px; cursor: pointer;
+}
+.seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
+.seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid var(--line); }
+footer { color: var(--muted); font-size: 13px; }
+footer code { font-family: var(--font-mono); }
+.contact {
+  border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px;
+  padding: 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
+}
+.contact h2 { font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0; }
+.contact p { margin: 2px 0 0; color: var(--muted); }
+.mail { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; min-width: 0; }
+.mail a { font: 500 16px var(--font-mono); color: var(--fg); user-select: all; overflow-wrap: anywhere; }
+.mail button {
+  font: 600 13px var(--font-body); background: var(--accent); color: #fff; border: 0;
+  border-radius: 6px; padding: 8px 14px; cursor: pointer;
+}
+.mail button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) { .band { transition: fill .15s; } }
+</style>
+
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>Калькулятор <span>электронщика</span></h1>
+    <p>Маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода и перевод единиц. Значения можно вводить с приставками: <code>4.7k</code>, <code>100n</code>, <code>2M</code>, <code>20m</code>.</p>
+  </header>
+
+  <div class="grid">
+    <section class="mod wide" id="color">
+      <h2>Цветовая маркировка <small>IEC 60062</small></h2>
+      <div class="seg" role="group" aria-label="Число полос">
+        <button type="button" id="b4" aria-pressed="true">4 полосы</button>
+        <button type="button" id="b5" aria-pressed="false">5 полос</button>
+      </div>
+      <svg class="resistor" viewBox="0 0 520 120" aria-label="Резистор">
+        <line x1="0" y1="60" x2="520" y2="60" stroke="var(--muted)" stroke-width="5"/>
+        <rect x="90" y="22" width="340" height="76" rx="34" fill="#d9c49a" stroke="#a8906a" stroke-width="2"/>
+        <g id="bands"></g>
+      </svg>
+      <div class="bandsel" id="bandsel"></div>
+      <div class="out">
+        <div class="big" id="rval">—</div>
+        <div class="row"><span>Диапазон с допуском</span><span id="rrange">—</span></div>
+      </div>
+    </section>
+
+    <section class="mod" id="ohm">
+      <h2>Закон Ома <small>U = I·R, P = U·I</small></h2>
+      <p class="hint">Введи любые два значения, остальные посчитаются.</p>
+      <div class="fields">
+        <label>Напряжение, В<input id="oU" value="12"></label>
+        <label>Ток, А<input id="oI" value="20m"></label>
+        <label>Сопротивление, Ом<input id="oR"></label>
+        <label>Мощность, Вт<input id="oP"></label>
+      </div>
+      <div class="out" id="ohmOut"></div>
+    </section>
+
+    <section class="mod" id="div">
+      <h2>Делитель напряжения <small>Uвых = Uвх·R2/(R1+R2)</small></h2>
+      <div class="fields">
+        <label>Uвх, В<input id="dVin" value="5"></label>
+        <label>R1, Ом<input id="dR1" value="10k"></label>
+        <label>R2, Ом<input id="dR2" value="4.7k"></label>
+      </div>
+      <div class="out" id="divOut"></div>
+    </section>
+
+    <section class="mod" id="rc">
+      <h2>RC-фильтр <small>fc = 1/(2πRC)</small></h2>
+      <div class="fields">
+        <label>R, Ом<input id="rcR" value="1k"></label>
+        <label>C, Ф<input id="rcC" value="100n"></label>
+      </div>
+      <div class="out" id="rcOut"></div>
+    </section>
+
+    <section class="mod" id="led">
+      <h2>Резистор для светодиода <small>R = (Uпит − Uпр)/I</small></h2>
+      <div class="fields">
+        <label>Питание, В<input id="lVs" value="5"></label>
+        <label>Падение на LED, В<input id="lVf" value="2"></label>
+        <label>Ток, А<input id="lI" value="20m"></label>
+        <label>Кол-во LED подряд<input id="lN" value="1"></label>
+      </div>
+      <div class="out" id="ledOut"></div>
+    </section>
+
+    <section class="mod" id="smd">
+      <h2>SMD-маркировка <small>3/4 цифры, R, EIA-96</small></h2>
+      <div class="seg" role="group" aria-label="Тип компонента">
+        <button type="button" id="smdR" aria-pressed="true">Резистор</button>
+        <button type="button" id="smdC" aria-pressed="false">Конденсатор</button>
+      </div>
+      <div class="fields">
+        <label>Код на корпусе<input id="smdCode" value="103" autocomplete="off"></label>
+      </div>
+      <p class="hint" id="smdHint"></p>
+      <div class="out" id="smdOut"></div>
+    </section>
+
+    <section class="mod" id="db">
+      <h2>Децибелы <small>дБ, дБм</small></h2>
+      <p class="hint">Меняй любое поле, остальные пересчитаются.</p>
+      <div class="fields">
+        <label>Усиление, дБ<input id="dbDb" value="20"></label>
+        <label>Раз по напряжению<input id="dbV"></label>
+        <label>Раз по мощности<input id="dbP"></label>
+      </div>
+      <div class="fields">
+        <label>Уровень, дБм<input id="dbm" value="0"></label>
+        <label>Мощность, Вт<input id="dbmW"></label>
+        <label>Uэфф на 50 Ом, В<input id="dbmV"></label>
+      </div>
+    </section>
+
+    <section class="mod" id="freq">
+      <h2>Частота и длина волны <small>λ = c/f</small></h2>
+      <div class="fields">
+        <label>Частота, Гц<input id="fF" value="2.4G"></label>
+        <label>Период, с<input id="fT"></label>
+        <label>Длина волны, м<input id="fL"></label>
+      </div>
+      <p class="hint" style="margin:0">Длина волны в вакууме. Четвертьволновая антенна: <span id="fQ" style="font-family:var(--font-mono)">—</span></p>
+    </section>
+
+    <section class="mod" id="len">
+      <h2>Размеры на плате <small>мм, mil, дюймы</small></h2>
+      <div class="fields">
+        <label>Миллиметры<input id="lenMm" value="2.54"></label>
+        <label>mil (0.001″)<input id="lenMil"></label>
+        <label>Дюймы<input id="lenIn"></label>
+      </div>
+      <p class="hint" style="margin:0">Шаг выводов DIP = 100 mil = 2.54 мм. Типичная дорожка 10 mil ≈ 0.25 мм.</p>
+    </section>
+  </div>
+
+  <footer>Типичные падения на светодиодах: красный ≈ 2 В, жёлтый ≈ 2.1 В, зелёный ≈ 2.2–3 В, синий и белый ≈ 3–3.3 В.</footer>
+
+  <section class="contact">
+    <div>
+      <h2>Есть идея, как улучшить сайт?</h2>
+      <p>Присылайте темы для улучшения и найденные ошибки на почту.</p>
+    </div>
+    <div class="mail">
+      <a id="mail" href="mailto:dofam1n9514@gmail.com?subject=%D0%9A%D0%B0%D0%BB%D1%8C%D0%BA%D1%83%D0%BB%D1%8F%D1%82%D0%BE%D1%80%20%D1%8D%D0%BB%D0%B5%D0%BA%D1%82%D1%80%D0%BE%D0%BD%D1%89%D0%B8%D0%BA%D0%B0">dofam1n9514@gmail.com</a>
+      <button type="button" id="copyMail">Скопировать</button>
+    </div>
+  </section>
+</div>
+
+<script>
+const PREFIX = { p: 1e-12, n: 1e-9, u: 1e-6, "µ": 1e-6, "мк": 1e-6, m: 1e-3, "м": 1e-3, k: 1e3, K: 1e3, "к": 1e3, M: 1e6, "М": 1e6, G: 1e9 };
+function parse(str) {
+  if (str == null) return NaN;
+  const s = String(str).trim().replace(",", ".");
+  if (!s) return NaN;
+  const m = s.match(/^(-?\d*\.?\d+(?:e-?\d+)?)\s*(мк|[pnuµmkKMGмкМ])?/);
+  if (!m) return NaN;
+  return parseFloat(m[1]) * (m[2] ? PREFIX[m[2]] : 1);
+}
+function fmt(v, unit, digits = 3) {
+  if (!isFinite(v)) return "—";
+  if (v === 0) return "0 " + unit;
+  const steps = [[1e9, "Г"], [1e6, "М"], [1e3, "к"], [1, ""], [1e-3, "м"], [1e-6, "мк"], [1e-9, "н"], [1e-12, "п"]];
+  const a = Math.abs(v);
+  for (const [k, p] of steps) {
+    if (a >= k * 0.9995) return +(v / k).toPrecision(digits) + " " + p + unit;
+  }
+  return +(v / 1e-12).toPrecision(digits) + " п" + unit;
+}
+const $ = id => document.getElementById(id);
+const row = (k, v) => `<div class="row"><span>${k}</span><span>${v}</span></div>`;
+
+/* ---------- Цветовая маркировка ---------- */
+const COLORS = [
+  { n: "Чёрный", c: "#1b1b1b", d: 0, m: 1 },
+  { n: "Коричневый", c: "#7a4a24", d: 1, m: 10, t: 1 },
+  { n: "Красный", c: "#d32f2f", d: 2, m: 100, t: 2 },
+  { n: "Оранжевый", c: "#f57c00", d: 3, m: 1e3 },
+  { n: "Жёлтый", c: "#fbc02d", d: 4, m: 1e4 },
+  { n: "Зелёный", c: "#2e7d32", d: 5, m: 1e5, t: 0.5 },
+  { n: "Синий", c: "#1565c0", d: 6, m: 1e6, t: 0.25 },
+  { n: "Фиолетовый", c: "#7b1fa2", d: 7, m: 1e7, t: 0.1 },
+  { n: "Серый", c: "#8a8a8a", d: 8, m: 1e8, t: 0.05 },
+  { n: "Белый", c: "#f5f5f5", d: 9, m: 1e9 },
+  { n: "Золотой", c: "#c9a227", m: 0.1, t: 5 },
+  { n: "Серебряный", c: "#b8bcc0", m: 0.01, t: 10 },
+];
+let bandCount = 4;
+const sel = { 4: [1, 0, 2, 10], 5: [1, 0, 0, 1, 1] }; // 1 кОм ±5%, 1 кОм ±1%
+
+function bandDefs() {
+  const digits = bandCount === 4 ? ["1-я цифра", "2-я цифра"] : ["1-я цифра", "2-я цифра", "3-я цифра"];
+  return [
+    ...digits.map(n => ({ n, opts: COLORS.filter(c => c.d !== undefined) })),
+    { n: "Множитель", opts: COLORS.filter(c => c.m !== undefined) },
+    { n: "Допуск", opts: COLORS.filter(c => c.t !== undefined) },
+  ];
+}
+function buildBands() {
+  const defs = bandDefs();
+  $("bandsel").innerHTML = defs.map((d, i) => `
+    <label>${d.n}<select id="band${i}">${d.opts.map(o =>
+      `<option value="${COLORS.indexOf(o)}">${o.n}${d.n === "Допуск" ? " ±" + o.t + "%" : d.n === "Множитель" ? " ×" + (o.m >= 1e3 ? fmt(o.m, "", 3).trim() : o.m) : " " + o.d}</option>`).join("")}</select></label>`).join("");
+  defs.forEach((d, i) => {
+    const s = $("band" + i);
+    s.value = sel[bandCount][i];
+    s.addEventListener("change", () => { sel[bandCount][i] = +s.value; updateColor(); });
+  });
+  updateColor();
+}
+function updateColor() {
+  const idx = sel[bandCount];
+  const n = bandCount;
+  const xs = n === 4 ? [140, 185, 230, 360] : [135, 175, 215, 255, 365];
+  $("bands").innerHTML = idx.map((ci, i) =>
+    `<rect class="band" x="${xs[i]}" y="${i === 0 || i === n - 1 ? 26 : 22}" width="22" height="${i === 0 || i === n - 1 ? 68 : 76}" fill="${COLORS[ci].c}" stroke="rgba(0,0,0,.25)"/>`).join("");
+  const digitCount = n - 2;
+  let base = 0;
+  for (let i = 0; i < digitCount; i++) base = base * 10 + COLORS[idx[i]].d;
+  const R = base * COLORS[idx[digitCount]].m;
+  const tol = COLORS[idx[n - 1]].t;
+  $("rval").textContent = fmt(R, "Ом", 4) + "  ±" + tol + "%";
+  $("rrange").textContent = fmt(R * (1 - tol / 100), "Ом", 4) + " … " + fmt(R * (1 + tol / 100), "Ом", 4);
+}
+function setBands(n) {
+  bandCount = n;
+  $("b4").setAttribute("aria-pressed", n === 4);
+  $("b5").setAttribute("aria-pressed", n === 5);
+  buildBands();
+}
+$("b4").onclick = () => setBands(4);
+$("b5").onclick = () => setBands(5);
+
+/* ---------- Закон Ома ---------- */
+const ohmIds = ["oU", "oI", "oR", "oP"];
+let ohmOrder = ["oU", "oI"]; // два последних введённых поля
+function solveOhm(k) {
+  let { U, I, R, P } = k;
+  const has = x => isFinite(x);
+  if (has(U) && has(I)) { R = U / I; P = U * I; }
+  else if (has(U) && has(R)) { I = U / R; P = U * I; }
+  else if (has(U) && has(P)) { I = P / U; R = U / I; }
+  else if (has(I) && has(R)) { U = I * R; P = U * I; }
+  else if (has(I) && has(P)) { U = P / I; R = U / I; }
+  else if (has(R) && has(P)) { I = Math.sqrt(P / R); U = I * R; }
+  return { U, I, R, P };
+}
+function updateOhm() {
+  const map = { oU: "U", oI: "I", oR: "R", oP: "P" };
+  const known = {};
+  ohmOrder.forEach(id => { known[map[id]] = parse($(id).value); });
+  const r = solveOhm(known);
+  ohmIds.forEach(id => $(id).classList.toggle("computed", !ohmOrder.includes(id)));
+  const ok = Object.values(r).every(isFinite);
+  $("ohmOut").innerHTML = ok
+    ? row("Напряжение", fmt(r.U, "В")) + row("Ток", fmt(r.I, "А")) + row("Сопротивление", fmt(r.R, "Ом")) + row("Мощность", fmt(r.P, "Вт"))
+    : `<span class="warn">Нужно два числа. Проверь, что в полях нет опечаток.</span>`;
+  if (ok) ohmIds.forEach(id => { if (!ohmOrder.includes(id)) $(id).value = +r[map[id]].toPrecision(4); });
+}
+ohmIds.forEach(id => $(id).addEventListener("input", () => {
+  ohmOrder = [id, ...ohmOrder.filter(x => x !== id)].slice(0, 2);
+  updateOhm();
+}));
+
+/* ---------- Делитель ---------- */
+function updateDiv() {
+  const Vin = parse($("dVin").value), R1 = parse($("dR1").value), R2 = parse($("dR2").value);
+  const Vout = Vin * R2 / (R1 + R2), I = Vin / (R1 + R2);
+  $("divOut").innerHTML = isFinite(Vout)
+    ? `<div class="big">${fmt(Vout, "В")}</div>` + row("Ток через делитель", fmt(I, "А")) + row("Коэффициент", (R2 / (R1 + R2)).toFixed(4)) + row("Мощность на R1 / R2", fmt(I * I * R1, "Вт") + " / " + fmt(I * I * R2, "Вт"))
+    : `<span class="warn">Заполни все три поля.</span>`;
+}
+
+/* ---------- RC ---------- */
+function updateRC() {
+  const R = parse($("rcR").value), C = parse($("rcC").value);
+  const fc = 1 / (2 * Math.PI * R * C), tau = R * C;
+  $("rcOut").innerHTML = isFinite(fc) && fc > 0
+    ? `<div class="big">${fmt(fc, "Гц")}</div>` + row("Постоянная времени τ", fmt(tau, "с")) + row("Заряд до 99% (5τ)", fmt(5 * tau, "с"))
+    : `<span class="warn">Заполни R и C.</span>`;
+}
+
+/* ---------- LED ---------- */
+const E24 = [1.0, 1.1, 1.2, 1.3, 1.5, 1.6, 1.8, 2.0, 2.2, 2.4, 2.7, 3.0, 3.3, 3.6, 3.9, 4.3, 4.7, 5.1, 5.6, 6.2, 6.8, 7.5, 8.2, 9.1];
+function e24Up(v) {
+  const dec = Math.pow(10, Math.floor(Math.log10(v)));
+  const n = v / dec;
+  const hit = E24.find(x => x >= n - 1e-9);
+  return hit ? hit * dec : 10 * dec;
+}
+function updateLED() {
+  const Vs = parse($("lVs").value), Vf = parse($("lVf").value), I = parse($("lI").value);
+  const N = Math.max(1, Math.round(parse($("lN").value) || 1));
+  const drop = Vs - Vf * N;
+  if (!(isFinite(drop) && isFinite(I) && I > 0)) { $("ledOut").innerHTML = `<span class="warn">Заполни все поля.</span>`; return; }
+  if (drop <= 0) { $("ledOut").innerHTML = `<span class="warn">Питания не хватает: светодиодам нужно ${fmt(Vf * N, "В")}, а есть ${fmt(Vs, "В")}. Уменьши число LED или подними напряжение.</span>`; return; }
+  const R = drop / I, Rstd = e24Up(R), Ireal = drop / Rstd, P = drop * Ireal;
+  const watt = [0.125, 0.25, 0.5, 1, 2].find(w => w >= P * 2) || "больше 2";
+  $("ledOut").innerHTML = `<div class="big">${fmt(Rstd, "Ом")}</div>` +
+    row("Точный расчёт", fmt(R, "Ом")) + row("Ток с этим резистором", fmt(Ireal, "А")) +
+    row("Мощность на резисторе", fmt(P, "Вт")) + row("Бери резистор от", (typeof watt === "number" ? watt + " Вт" : watt + " Вт") + " (запас ×2)");
+}
+
+[["dVin", updateDiv], ["dR1", updateDiv], ["dR2", updateDiv], ["rcR", updateRC], ["rcC", updateRC],
+ ["lVs", updateLED], ["lVf", updateLED], ["lI", updateLED], ["lN", updateLED]]
+  .forEach(([id, fn]) => $(id).addEventListener("input", fn));
+
+/* ---------- SMD-маркировка ---------- */
+const E96 = [100,102,105,107,110,113,115,118,121,124,127,130,133,137,140,143,147,150,154,158,162,165,169,174,178,182,187,191,196,200,205,210,215,221,226,232,237,243,249,255,261,267,274,280,287,294,301,309,316,324,332,340,348,357,365,374,383,392,402,412,422,432,442,453,464,475,487,499,511,523,536,549,562,576,590,604,619,634,649,665,681,698,715,732,750,768,787,806,825,845,866,887,909,931,953,976];
+const EIA_MULT = { Z: 0.001, Y: 0.01, X: 0.1, S: 0.1, A: 1, B: 10, H: 10, C: 100, D: 1e3, E: 1e4, F: 1e5 };
+const CAP_TOL = { B: "±0.1 пФ", C: "±0.25 пФ", D: "±0.5 пФ", F: "±1%", G: "±2%", J: "±5%", K: "±10%", M: "±20%", Z: "+80/−20%" };
+let smdKind = "R";
+
+function decodeSMD(code, kind) {
+  const s = code.trim().toUpperCase().replace(",", ".").replace(/\s/g, "");
+  if (!s) return { err: "Введи код с корпуса." };
+  let m;
+  if (kind === "R") {
+    if (/^0+$/.test(s)) return { v: 0, notes: [["Тип", "Перемычка, 0 Ом"]] };
+    if ((m = s.match(/^(\d{2})([ZYXSABHCDEF])$/))) {
+      const i = +m[1];
+      if (i < 1 || i > 96) return { err: "В коде EIA-96 номер идёт от 01 до 96." };
+      return { v: E96[i - 1] * EIA_MULT[m[2]], notes: [["Формат", "EIA-96"], ["Точность", "±1%"]] };
+    }
+    if ((m = s.match(/^(\d*)([RKM])(\d*)$/)) && (m[1] || m[3])) {
+      const mult = { R: 1, K: 1e3, M: 1e6 }[m[2]];
+      return { v: parseFloat((m[1] || "0") + "." + (m[3] || "0")) * mult, notes: [["Формат", "буква стоит на месте запятой"]] };
+    }
+    if ((m = s.match(/^(\d{2,3})(\d)$/))) {
+      return { v: +m[1] * 10 ** +m[2], notes: [["Формат", m[1].length === 2 ? "3 цифры" : "4 цифры"], ["Точность обычно", m[1].length === 2 ? "±5%" : "±1%"]] };
+    }
+    return { err: "Не узнаю код. Резисторы маркируют так: 103, 1002, 4R7, 01C." };
+  }
+  const notes = [];
+  let body = s;
+  if ((m = s.match(/^(\d{3}|\d*[RPNU]\d*)([BCDFGJKMZ])$/))) {
+    body = m[1];
+    notes.push(["Допуск", CAP_TOL[m[2]]]);
+  }
+  if ((m = body.match(/^(\d*)([RPNU])(\d*)$/)) && (m[1] || m[3])) {
+    const mult = { R: 1e-12, P: 1e-12, N: 1e-9, U: 1e-6 }[m[2]];
+    return { v: parseFloat((m[1] || "0") + "." + (m[3] || "0")) * mult, notes: [["Формат", "буква стоит на месте запятой"], ...notes] };
+  }
+  if ((m = body.match(/^(\d{2})(\d)$/))) {
+    const d = +m[2];
+    const mult = d === 9 ? 0.1 : d === 8 ? 0.01 : 10 ** d;
+    return { v: +m[1] * mult * 1e-12, notes: [["Формат", "3 цифры, база в пикофарадах"], ...notes] };
+  }
+  return { err: "Не узнаю код. Конденсаторы маркируют так: 104, 104K, 4n7, 2R2." };
+}
+function updateSMD() {
+  const r = decodeSMD($("smdCode").value, smdKind);
+  $("smdHint").textContent = smdKind === "R" ? "Примеры: 103, 1002, 4R7, R10, 01C, 000" : "Примеры: 104, 104K, 220, 4n7, 2R2, 109";
+  if (r.err) { $("smdOut").innerHTML = `<span class="warn">${r.err}</span>`; return; }
+  const unit = smdKind === "R" ? "Ом" : "Ф";
+  let html = `<div class="big">${fmt(r.v, unit, 4)}</div>`;
+  if (smdKind === "C") html += row("В пФ / нФ / мкФ", `${+(r.v / 1e-12).toPrecision(4)} / ${+(r.v / 1e-9).toPrecision(4)} / ${+(r.v / 1e-6).toPrecision(4)}`);
+  r.notes.forEach(([k, v]) => { html += row(k, v); });
+  $("smdOut").innerHTML = html;
+}
+function setSMD(kind) {
+  smdKind = kind;
+  $("smdR").setAttribute("aria-pressed", kind === "R");
+  $("smdC").setAttribute("aria-pressed", kind === "C");
+  $("smdCode").value = kind === "R" ? "103" : "104";
+  updateSMD();
+}
+$("smdR").onclick = () => setSMD("R");
+$("smdC").onclick = () => setSMD("C");
+$("smdCode").addEventListener("input", updateSMD);
+
+/* ---------- Перевод единиц ---------- */
+// Числа в полях пишем с латинскими приставками, чтобы их можно было снова прочитать parse()
+function num(v) {
+  if (!isFinite(v)) return "";
+  const a = Math.abs(v);
+  if (a === 0) return "0";
+  const steps = [[1e9, "G"], [1e6, "M"], [1e3, "k"], [1, ""], [1e-3, "m"], [1e-6, "u"], [1e-9, "n"], [1e-12, "p"]];
+  for (const [k, p] of steps) if (a >= k * 0.9995) return +(v / k).toPrecision(4) + p;
+  return String(+v.toPrecision(4));
+}
+const plain = v => (isFinite(v) ? String(+v.toPrecision(5)) : "");
+// Связка полей: у каждого функции «в базовую единицу» и «из базовой»
+function link(fields, first) {
+  const update = src => {
+    const base = src.to(parse($(src.id).value));
+    fields.forEach(f => { if (f !== src) $(f.id).value = isFinite(base) ? f.show(f.from(base)) : ""; });
+  };
+  fields.forEach(f => $(f.id).addEventListener("input", () => update(f)));
+  update(fields[first || 0]);
+}
+const lg = Math.log10;
+link([
+  { id: "dbDb", to: x => x, from: x => x, show: plain },
+  { id: "dbV", to: x => (x > 0 ? 20 * lg(x) : NaN), from: x => 10 ** (x / 20), show: num },
+  { id: "dbP", to: x => (x > 0 ? 10 * lg(x) : NaN), from: x => 10 ** (x / 10), show: num },
+]);
+link([
+  { id: "dbm", to: x => 10 ** ((x - 30) / 10), from: w => 10 * lg(w) + 30, show: plain },
+  { id: "dbmW", to: x => (x > 0 ? x : NaN), from: w => w, show: num },
+  { id: "dbmV", to: x => (x > 0 ? (x * x) / 50 : NaN), from: w => Math.sqrt(w * 50), show: num },
+]);
+const C0 = 299792458;
+const updateQ = () => { const f = parse($("fF").value); $("fQ").textContent = f > 0 ? fmt(C0 / f / 4, "м") : "—"; };
+link([
+  { id: "fF", to: x => (x > 0 ? x : NaN), from: f => f, show: num },
+  { id: "fT", to: x => (x > 0 ? 1 / x : NaN), from: f => 1 / f, show: num },
+  { id: "fL", to: x => (x > 0 ? C0 / x : NaN), from: f => C0 / f, show: num },
+]);
+["fF", "fT", "fL"].forEach(id => $(id).addEventListener("input", updateQ));
+link([
+  { id: "lenMm", to: x => x, from: x => x, show: plain },
+  { id: "lenMil", to: x => x * 0.0254, from: x => x / 0.0254, show: plain },
+  { id: "lenIn", to: x => x * 25.4, from: x => x / 25.4, show: plain },
+]);
+
+/* ---------- Почта ---------- */
+$("copyMail").addEventListener("click", () => {
+  const btn = $("copyMail"), text = $("mail").textContent;
+  const done = msg => { btn.textContent = msg; setTimeout(() => { btn.textContent = "Скопировать"; }, 1800); };
+  const selectIt = () => { const r = document.createRange(); r.selectNodeContents($("mail")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); done("Выделено, нажми Ctrl+C"); };
+  try { navigator.clipboard.writeText(text).then(() => done("Скопировано"), selectIt); } catch (e) { selectIt(); }
+});
+
+buildBands(); updateOhm(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ();
+</script>
+
+</body>
+</html>
