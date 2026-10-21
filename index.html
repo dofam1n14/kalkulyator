@@ -97,8 +97,38 @@ input.computed { background: var(--accent-soft); border-color: var(--accent); }
 .out .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; flex-wrap: wrap; }
 .out .row span:first-child { color: var(--muted); font-family: var(--font-body); }
 .warn { color: var(--warn); font-family: var(--font-body); font-size: 13px; }
-.resistor { width: 100%; max-width: 520px; height: auto; display: block; margin: 0 auto; }
-.bandsel { display: grid; grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); gap: 10px; }
+.resistor { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto; }
+/* Выбор цвета полос: ряд «бусин» на каждую полосу */
+.bandsel { display: grid; gap: 12px; }
+.band-row { display: grid; gap: 6px; min-width: 0; }
+.band-row .cap { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.band-row .cap b { margin-left: 8px; font-size: 13px; font-weight: 500; color: var(--fg); text-transform: none; letter-spacing: 0; }
+.sw { display: flex; flex-wrap: wrap; gap: 7px; }
+.sw button {
+  width: 30px; height: 30px; padding: 0; border-radius: 50%; cursor: pointer;
+  border: 1px solid var(--line);
+  box-shadow: inset 0 5px 7px rgba(255, 255, 255, .35), inset 0 -6px 8px rgba(0, 0, 0, .25);
+}
+.sw button:hover { transform: translateY(-1px); }
+.sw button[aria-pressed="true"] { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sw button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
+/* Закон Ома: вкладки, круг формул, колонки */
+.stack { display: grid; gap: 14px; min-width: 0; align-content: start; }
+.split { display: flex; flex-wrap: wrap; gap: 20px; align-items: flex-start; }
+.split > .stack { flex: 1 1 300px; }
+.wheel { flex: 0 1 300px; width: 100%; max-width: 300px; height: auto; margin-inline: auto; }
+.wheel .q { fill: var(--bg); stroke: var(--line); }
+.wheel .wf { fill: var(--panel); stroke: var(--line); }
+.wheel .wf.on { fill: var(--accent-soft); stroke: var(--accent); }
+.wheel text { font: 11px var(--font-mono); fill: var(--muted); text-anchor: middle; dominant-baseline: central; }
+.wheel text.on { fill: var(--accent); font-weight: 600; }
+.wheel .letter { font: 700 22px var(--font-display); fill: var(--fg); }
+.wheel .letter.known { fill: var(--result); }
+.out em { font-style: normal; font-family: var(--font-mono); font-size: 12px; color: var(--accent); margin-left: 6px; }
+.out h3 { margin: 0; font: 500 15px var(--font-display); color: var(--fg); }
+.cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(260px, 100%), 1fr)); gap: 16px; }
+label.check { display: flex; align-items: center; gap: 8px; text-transform: none; letter-spacing: 0; font-size: 14px; color: var(--fg); }
+label.check input { width: auto; accent-color: var(--accent); }
 .seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; width: fit-content; max-width: 100%; }
 .seg button {
   font: 500 13px var(--font-body); background: transparent; color: var(--muted);
@@ -153,28 +183,92 @@ footer code { font-family: var(--font-mono); }
         <button type="button" id="b4" aria-pressed="true">4 полосы</button>
         <button type="button" id="b5" aria-pressed="false">5 полос</button>
       </div>
-      <svg class="resistor" viewBox="0 0 520 120" aria-label="Резистор">
-        <line x1="0" y1="60" x2="520" y2="60" stroke="var(--muted)" stroke-width="5"/>
-        <rect x="90" y="22" width="340" height="76" rx="34" fill="#d9c49a" stroke="#a8906a" stroke-width="2"/>
-        <g id="bands"></g>
+      <svg class="resistor" viewBox="0 0 560 150" role="img" aria-label="Резистор с выбранными полосами">
+        <defs>
+          <!-- Металл выводов, керамический корпус и объём (блик сверху, тень снизу) -->
+          <linearGradient id="gLead" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f1f3f5"/><stop offset=".5" stop-color="#a9adb2"/><stop offset="1" stop-color="#6d7277"/>
+          </linearGradient>
+          <linearGradient id="gBody" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#f1e2bd"/><stop offset=".45" stop-color="#dcc493"/><stop offset="1" stop-color="#a88d5c"/>
+          </linearGradient>
+          <linearGradient id="gShade" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0" stop-color="#fff" stop-opacity=".55"/><stop offset=".22" stop-color="#fff" stop-opacity=".12"/>
+            <stop offset=".5" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".35"/>
+          </linearGradient>
+          <!-- Форма корпуса «косточка»: утолщения на концах + тонкая середина -->
+          <clipPath id="cBody">
+            <ellipse cx="150" cy="75" rx="50" ry="44"/><rect x="150" y="41" width="260" height="68"/><ellipse cx="410" cy="75" rx="50" ry="44"/>
+          </clipPath>
+          <filter id="fShadow" x="-10%" y="-20%" width="120%" height="160%">
+            <feDropShadow dx="0" dy="6" stdDeviation="6" flood-color="#000" flood-opacity=".25"/>
+          </filter>
+        </defs>
+        <rect x="0" y="71" width="560" height="8" rx="4" fill="url(#gLead)"/>
+        <g filter="url(#fShadow)">
+          <g clip-path="url(#cBody)">
+            <rect x="90" y="25" width="380" height="100" fill="url(#gBody)"/>
+            <g id="bands"></g>
+            <rect x="90" y="25" width="380" height="100" fill="url(#gShade)"/>
+          </g>
+        </g>
       </svg>
       <div class="bandsel" id="bandsel"></div>
       <div class="out">
         <div class="big" id="rval">—</div>
+        <div class="row"><span>Как читается</span><span id="rread">—</span></div>
         <div class="row"><span>Диапазон с допуском</span><span id="rrange">—</span></div>
       </div>
     </section>
 
-    <section class="mod" id="ohm">
+    <section class="mod wide" id="ohm">
       <h2>Закон Ома <small>U = I·R, P = U·I</small></h2>
-      <p class="hint">Введи любые два значения, остальные посчитаются.</p>
-      <div class="fields">
-        <label>Напряжение, В<input id="oU" value="12"></label>
-        <label>Ток, А<input id="oI" value="20m"></label>
-        <label>Сопротивление, Ом<input id="oR"></label>
-        <label>Мощность, Вт<input id="oP"></label>
+      <div class="seg" role="group" aria-label="Раздел закона Ома">
+        <button type="button" id="ohmT1" aria-pressed="true">Основной</button>
+        <button type="button" id="ohmT2" aria-pressed="false">Соединение резисторов</button>
+        <button type="button" id="ohmT3" aria-pressed="false">Сопротивление провода</button>
       </div>
-      <div class="out" id="ohmOut"></div>
+
+      <div class="split" id="ohmMain">
+        <div class="stack">
+          <p class="hint" style="margin:0">Введи любые два значения, остальные посчитаются. На круге подсвечены формулы, по которым идёт расчёт.</p>
+          <div class="fields">
+            <label>Напряжение U, В<input id="oU" value="12"></label>
+            <label>Ток I, А<input id="oI" value="20m"></label>
+            <label>Сопротивление R, Ом<input id="oR"></label>
+            <label>Мощность P, Вт<input id="oP"></label>
+          </div>
+          <div class="out" id="ohmOut"></div>
+        </div>
+        <svg class="wheel" id="ohmWheel" viewBox="0 0 320 320" role="img" aria-label="Круг формул закона Ома"></svg>
+      </div>
+
+      <div class="stack" id="ohmNet" hidden>
+        <label>Резисторы через пробел<input id="netList" value="100 220 470" autocomplete="off"></label>
+        <div class="fields">
+          <label>Напряжение на цепочке, В<input id="netU" value="5"></label>
+        </div>
+        <div class="cols" id="netOut"></div>
+      </div>
+
+      <div class="stack" id="ohmWire" hidden>
+        <div class="fields">
+          <label>Материал<select id="wMat">
+            <option value="cu">Медь</option>
+            <option value="al">Алюминий</option>
+            <option value="fe">Сталь</option>
+            <option value="kn">Константан</option>
+            <option value="ni">Нихром</option>
+          </select></label>
+          <label>Длина, м<input id="wLen" value="2"></label>
+          <label>Сечение, мм²<input id="wS" value="0.5"></label>
+          <label>или диаметр, мм<input id="wD"></label>
+          <label>Ток, А<input id="wI" value="2"></label>
+          <label>Питание, В<input id="wU" value="12"></label>
+        </div>
+        <label class="check"><input type="checkbox" id="wBack" checked> Учитывать обратный провод (длина ×2)</label>
+        <div class="out" id="wireOut"></div>
+      </div>
     </section>
 
     <section class="mod" id="div">
@@ -338,38 +432,49 @@ let bandCount = 4;
 const sel = { 4: [1, 0, 2, 10], 5: [1, 0, 0, 1, 1] }; // 1 кОм ±5%, 1 кОм ±1%
 
 function bandDefs() {
-  const digits = bandCount === 4 ? ["1-я цифра", "2-я цифра"] : ["1-я цифра", "2-я цифра", "3-я цифра"];
+  const digits = bandCount === 4 ? ["1-я полоса", "2-я полоса"] : ["1-я полоса", "2-я полоса", "3-я полоса"];
   return [
     ...digits.map(n => ({ n, opts: COLORS.filter(c => c.d !== undefined) })),
     { n: "Множитель", opts: COLORS.filter(c => c.m !== undefined) },
     { n: "Допуск", opts: COLORS.filter(c => c.t !== undefined) },
   ];
 }
+// Для каждой полосы — ряд цветных кнопок; рядом с заголовком пишем название выбранного цвета
 function buildBands() {
-  const defs = bandDefs();
-  $("bandsel").innerHTML = defs.map((d, i) => `
-    <label>${d.n}<select id="band${i}">${d.opts.map(o =>
-      `<option value="${COLORS.indexOf(o)}">${o.n}${d.n === "Допуск" ? " ±" + o.t + "%" : d.n === "Множитель" ? " ×" + (o.m >= 1e3 ? fmt(o.m, "", 3).trim() : o.m) : " " + o.d}</option>`).join("")}</select></label>`).join("");
-  defs.forEach((d, i) => {
-    const s = $("band" + i);
-    s.value = sel[bandCount][i];
-    s.addEventListener("change", () => { sel[bandCount][i] = +s.value; updateColor(); });
-  });
+  $("bandsel").innerHTML = bandDefs().map((d, i) => `
+    <div class="band-row">
+      <div class="cap">${d.n}<b id="bname${i}"></b></div>
+      <div class="sw" role="group" aria-label="${d.n}">${d.opts.map(o =>
+        `<button type="button" data-band="${i}" data-c="${COLORS.indexOf(o)}" title="${o.n}" aria-label="${o.n}" style="background:${o.c}"></button>`).join("")}</div>
+    </div>`).join("");
   updateColor();
 }
+$("bandsel").addEventListener("click", e => {
+  const b = e.target.closest("button[data-band]");
+  if (!b) return;
+  sel[bandCount][+b.dataset.band] = +b.dataset.c;
+  updateColor();
+  saveState();
+});
 function updateColor() {
   const idx = sel[bandCount];
   const n = bandCount;
-  const xs = n === 4 ? [140, 185, 230, 360] : [135, 175, 215, 255, 365];
+  // Центры полос на корпусе: первые — на левом утолщении, допуск — на правом
+  const xs = n === 4 ? [140, 205, 250, 420] : [132, 195, 237, 279, 422];
   $("bands").innerHTML = idx.map((ci, i) =>
-    `<rect class="band" x="${xs[i]}" y="${i === 0 || i === n - 1 ? 26 : 22}" width="22" height="${i === 0 || i === n - 1 ? 68 : 76}" fill="${COLORS[ci].c}" stroke="rgba(0,0,0,.25)"/>`).join("");
+    `<rect class="band" x="${xs[i] - 9}" y="25" width="18" height="100" fill="${COLORS[ci].c}"/>`).join("");
+  $("bandsel").querySelectorAll("button[data-band]").forEach(b =>
+    b.setAttribute("aria-pressed", idx[+b.dataset.band] === +b.dataset.c));
+  idx.forEach((ci, i) => { $("bname" + i).textContent = COLORS[ci].n; });
   const digitCount = n - 2;
   let base = 0;
   for (let i = 0; i < digitCount; i++) base = base * 10 + COLORS[idx[i]].d;
-  const R = base * COLORS[idx[digitCount]].m;
+  const mult = COLORS[idx[digitCount]].m;
+  const R = base * mult;
   const tol = COLORS[idx[n - 1]].t;
   $("rval").textContent = fmt(R, "Ом", 4) + "  ±" + tol + "%";
   $("rrange").textContent = fmt(R * (1 - tol / 100), "Ом", 4) + " … " + fmt(R * (1 + tol / 100), "Ом", 4);
+  $("rread").textContent = `${idx.slice(0, digitCount).map(ci => COLORS[ci].d).join("")} × ${mult >= 1 ? mult.toLocaleString("ru-RU") : String(mult).replace(".", ",")}`;
 }
 function setBands(n) {
   bandCount = n;
@@ -381,30 +486,66 @@ $("b4").onclick = () => setBands(4);
 $("b5").onclick = () => setBands(5);
 
 /* ---------- Закон Ома ---------- */
+// Все 12 формул «круга Ома»: [известная 1, известная 2, запись, расчёт]
+const OHM_F = {
+  U: [["I", "R", "I·R", k => k.I * k.R], ["P", "I", "P / I", k => k.P / k.I], ["P", "R", "√(P·R)", k => Math.sqrt(k.P * k.R)]],
+  I: [["U", "R", "U / R", k => k.U / k.R], ["P", "U", "P / U", k => k.P / k.U], ["P", "R", "√(P / R)", k => Math.sqrt(k.P / k.R)]],
+  R: [["U", "I", "U / I", k => k.U / k.I], ["U", "P", "U² / P", k => (k.U * k.U) / k.P], ["P", "I", "P / I²", k => k.P / (k.I * k.I)]],
+  P: [["U", "I", "U·I", k => k.U * k.I], ["U", "R", "U² / R", k => (k.U * k.U) / k.R], ["I", "R", "I²·R", k => k.I * k.I * k.R]],
+};
+const OHM_KEYS = ["U", "I", "R", "P"];
+const OHM_NAMES = { U: ["Напряжение", "В"], I: ["Ток", "А"], R: ["Сопротивление", "Ом"], P: ["Мощность", "Вт"] };
 const ohmIds = ["oU", "oI", "oR", "oP"];
 let ohmOrder = ["oU", "oI"]; // два последних введённых поля
-function solveOhm(k) {
-  let { U, I, R, P } = k;
-  const has = x => isFinite(x);
-  if (has(U) && has(I)) { R = U / I; P = U * I; }
-  else if (has(U) && has(R)) { I = U / R; P = U * I; }
-  else if (has(U) && has(P)) { I = P / U; R = U / I; }
-  else if (has(I) && has(R)) { U = I * R; P = U * I; }
-  else if (has(I) && has(P)) { U = P / I; R = U / I; }
-  else if (has(R) && has(P)) { I = Math.sqrt(P / R); U = I * R; }
-  return { U, I, R, P };
+// Для каждой неизвестной ищем формулу, в которой стоят ровно две известные величины
+function solveOhm(known) {
+  const have = Object.keys(known), r = { ...known }, used = {};
+  OHM_KEYS.forEach(t => {
+    if (have.includes(t)) return;
+    const i = OHM_F[t].findIndex(([a, b]) => have.includes(a) && have.includes(b));
+    if (i < 0) return;
+    r[t] = OHM_F[t][i][3](known);
+    used[t] = i;
+  });
+  return { r, used };
+}
+// Круг формул: в центре 4 величины, по краю по 3 формулы для каждой
+function drawWheel(knownKeys, used) {
+  const cx = 160, cy = 160;
+  const pt = (r, a) => { const t = (a * Math.PI) / 180; return [cx + r * Math.cos(t), cy + r * Math.sin(t)].map(v => v.toFixed(1)); };
+  const ring = (r1, r2, a1, a2) => `M${pt(r2, a1)} A${r2} ${r2} 0 0 1 ${pt(r2, a2)} L${pt(r1, a2)} A${r1} ${r1} 0 0 0 ${pt(r1, a1)} Z`;
+  const pie = (r, a1, a2) => `M${cx} ${cy} L${pt(r, a1)} A${r} ${r} 0 0 1 ${pt(r, a2)} Z`;
+  let s = "";
+  OHM_KEYS.forEach((k, q) => {
+    const a0 = -90 + q * 90;
+    const [lx, ly] = pt(36, a0 + 45);
+    s += `<path class="q" d="${pie(64, a0, a0 + 90)}"/><text class="letter${knownKeys.includes(k) ? " known" : ""}" x="${lx}" y="${ly}">${k}</text>`;
+    OHM_F[k].forEach((f, j) => {
+      const a1 = a0 + j * 30, a2 = a1 + 30, on = used[k] === j ? " on" : "";
+      const [tx, ty] = pt(112, a1 + 15);
+      s += `<path class="wf${on}" d="${ring(72, 154, a1, a2)}"/><text class="${on.trim()}" x="${tx}" y="${ty}">${k}=${f[2].replace(/ /g, "")}</text>`;
+    });
+  });
+  $("ohmWheel").innerHTML = s;
+}
+function wattFor(P) {
+  const w = [0.125, 0.25, 0.5, 1, 2, 3, 5, 10].find(x => x >= P * 2);
+  return w ? w + " Вт (запас ×2)" : "больше 10 Вт";
 }
 function updateOhm() {
-  const map = { oU: "U", oI: "I", oR: "R", oP: "P" };
   const known = {};
-  ohmOrder.forEach(id => { known[map[id]] = parse($(id).value); });
-  const r = solveOhm(known);
+  ohmOrder.forEach(id => { known[id[1]] = parse($(id).value); });
+  const { r, used } = solveOhm(known);
   ohmIds.forEach(id => $(id).classList.toggle("computed", !ohmOrder.includes(id)));
-  const ok = Object.values(r).every(isFinite);
-  $("ohmOut").innerHTML = ok
-    ? row("Напряжение", fmt(r.U, "В")) + row("Ток", fmt(r.I, "А")) + row("Сопротивление", fmt(r.R, "Ом")) + row("Мощность", fmt(r.P, "Вт"))
-    : `<span class="warn">Нужно два числа. Проверь, что в полях нет опечаток.</span>`;
-  if (ok) ohmIds.forEach(id => { if (!ohmOrder.includes(id)) $(id).value = +r[map[id]].toPrecision(4); });
+  drawWheel(Object.keys(known), used);
+  const ok = OHM_KEYS.every(k => isFinite(r[k]));
+  if (!ok) { $("ohmOut").innerHTML = `<span class="warn">Нужно два числа. Проверь, что в полях нет опечаток.</span>`; return; }
+  let html = OHM_KEYS.map(k => row(OHM_NAMES[k][0] + (k in used ? `<em>${k} = ${OHM_F[k][used[k]][2]}</em>` : ""), fmt(r[k], OHM_NAMES[k][1]))).join("");
+  if (r.R > 0) html += row("Ближайший номинал E24", fmt(e24Near(r.R), "Ом")) + row("Резистор по мощности", wattFor(Math.abs(r.P)));
+  html += row("Расход за 1 час", fmt(Math.abs(r.P), "Вт·ч") + " · " + fmt(Math.abs(r.I), "А·ч"));
+  if (Math.abs(r.P) > 2) html += `<span class="warn">Больше 2 Вт: обычный выводной резистор столько не рассеет. Нужен мощный (керамический, проволочный) или несколько параллельно.</span>`;
+  $("ohmOut").innerHTML = html;
+  ohmIds.forEach(id => { if (!ohmOrder.includes(id)) $(id).value = +r[id[1]].toPrecision(4); });
 }
 ohmIds.forEach(id => $(id).addEventListener("input", () => {
   ohmOrder = [id, ...ohmOrder.filter(x => x !== id)].slice(0, 2);
@@ -563,6 +704,76 @@ link([
   { id: "lenIn", to: x => x * 25.4, from: x => x / 25.4, show: plain },
 ]);
 
+/* ---------- Закон Ома: соединение резисторов ---------- */
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" })[c]);
+function updateNet() {
+  const raw = $("netList").value.trim().split(/[\s;]+/).filter(Boolean);
+  const vals = raw.map(parse);
+  const rs = vals.filter(v => v > 0);
+  const bad = raw.filter((t, i) => !(vals[i] > 0));
+  const U = parse($("netU").value);
+  if (!rs.length) { $("netOut").innerHTML = `<span class="warn">Введи хотя бы одно сопротивление, например: 100 220 4.7k</span>`; return; }
+  const Rs = rs.reduce((a, b) => a + b, 0), Rp = 1 / rs.reduce((a, b) => a + 1 / b, 0);
+  let ser = `<h3>Последовательно</h3><div class="big">${fmt(Rs, "Ом", 4)}</div>` + row("Формула", "R₁ + R₂ + …");
+  let par = `<h3>Параллельно</h3><div class="big">${fmt(Rp, "Ом", 4)}</div>` + row("Формула", rs.length === 2 ? "R₁·R₂ / (R₁ + R₂)" : "1 / (1/R₁ + 1/R₂ + …)");
+  if (U > 0) {
+    // Последовательно ток общий, напряжение делится; параллельно наоборот
+    const I = U / Rs;
+    ser += row("Общий ток", fmt(I, "А")) + `<p class="hint" style="margin:6px 0 0">На каждом: напряжение · мощность</p>`;
+    rs.forEach((r, i) => { ser += row(`R${i + 1} = ${fmt(r, "Ом")}`, `${fmt(I * r, "В")} · ${fmt(I * I * r, "Вт")}`); });
+    par += row("Общий ток", fmt(U / Rp, "А")) + `<p class="hint" style="margin:6px 0 0">Через каждый: ток · мощность</p>`;
+    rs.forEach((r, i) => { par += row(`R${i + 1} = ${fmt(r, "Ом")}`, `${fmt(U / r, "А")} · ${fmt((U * U) / r, "Вт")}`); });
+  }
+  $("netOut").innerHTML = `<div class="out">${ser}</div><div class="out">${par}</div>` +
+    (bad.length ? `<span class="warn">Не понял: ${esc(bad.join(", "))}. Пиши числа через пробел, например 4.7k.</span>` : "");
+}
+["netList", "netU"].forEach(id => $(id).addEventListener("input", updateNet));
+
+/* ---------- Закон Ома: сопротивление провода ---------- */
+// Удельное сопротивление ρ при 20 °C, Ом·мм²/м
+const MAT = { cu: ["Медь", 0.0175], al: ["Алюминий", 0.028], fe: ["Сталь", 0.13], kn: ["Константан", 0.5], ni: ["Нихром", 1.1] };
+function updateWire() {
+  const rho = (MAT[$("wMat").value] || MAT.cu)[1];
+  const L = parse($("wLen").value), S = parse($("wS").value), I = parse($("wI").value), U = parse($("wU").value);
+  const k = $("wBack").checked ? 2 : 1;
+  if (!(L > 0 && S > 0)) { $("wireOut").innerHTML = `<span class="warn">Заполни длину и сечение (или диаметр).</span>`; return; }
+  const R = (rho * L * k) / S;
+  let html = `<div class="big">${fmt(R, "Ом")}</div>` + row("Формула", `R = ρ·L${k === 2 ? "·2" : ""} / S,  ρ = ${rho} Ом·мм²/м`);
+  if (I > 0) {
+    const dU = I * R, j = I / S;
+    html += row("Падение напряжения", fmt(dU, "В")) + row("Потери на нагрев", fmt(I * I * R, "Вт")) + row("Плотность тока", j.toFixed(1) + " А/мм²");
+    if (U > 0) {
+      const pct = (dU / U) * 100;
+      html += row("Доходит до нагрузки", `${fmt(U - dU, "В")} (теряется ${pct.toFixed(1)}%)`);
+      if (pct > 5) html += `<span class="warn">Теряется больше 5%: возьми провод толще или короче.</span>`;
+    }
+    if (j > 10 && rho < 0.05) html += `<span class="warn">Больше 10 А/мм²: провод будет заметно греться. Возьми сечение побольше.</span>`;
+  }
+  $("wireOut").innerHTML = html;
+}
+// Сечение и диаметр связаны: S = π·d²/4
+link([
+  { id: "wS", to: x => (x > 0 ? x : NaN), from: s => s, show: plain },
+  { id: "wD", to: d => (d > 0 ? (Math.PI * d * d) / 4 : NaN), from: s => Math.sqrt((4 * s) / Math.PI), show: plain },
+]);
+["wMat", "wLen", "wS", "wD", "wI", "wU", "wBack"].forEach(id => {
+  $(id).addEventListener("input", updateWire);
+  $(id).addEventListener("change", updateWire);
+});
+
+/* ---------- Закон Ома: вкладки ---------- */
+let ohmTab = "main";
+function setOhmTab(t) {
+  ohmTab = t;
+  [["main", "ohmT1", "ohmMain"], ["net", "ohmT2", "ohmNet"], ["wire", "ohmT3", "ohmWire"]].forEach(([k, btn, box]) => {
+    $(btn).setAttribute("aria-pressed", k === t);
+    $(box).hidden = k !== t;
+  });
+}
+$("ohmT1").onclick = () => setOhmTab("main");
+$("ohmT2").onclick = () => setOhmTab("net");
+$("ohmT3").onclick = () => setOhmTab("wire");
+
 /* ---------- Таймер NE555 ---------- */
 // Формулы из даташита: заряд конденсатора идёт через R1+R2, разряд только через R2
 let mode555 = "a";
@@ -664,7 +875,7 @@ $("copyMail").addEventListener("click", () => {
 // Короткое имя для кнопки меню и слова, по которым модуль ищется
 const MODS = {
   color: ["Цвета", "резистор цвет полосы маркировка номинал"],
-  ohm: ["Закон Ома", "ом ток напряжение мощность сопротивление"],
+  ohm: ["Закон Ома", "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель"],
   div: ["Делитель", "делитель напряжения ацп"],
   rc: ["RC", "rc фильтр конденсатор частота среза постоянная времени"],
   led: ["LED", "светодиод led резистор ток"],
@@ -716,8 +927,8 @@ const KEY = "calc-state-v1";
 function saveState() {
   try {
     const vals = {};
-    document.querySelectorAll(".mod input[id]").forEach(i => { vals[i.id] = i.value; });
-    localStorage.setItem(KEY, JSON.stringify({ vals, bandCount, sel, smdKind, mode555, ohmOrder }));
+    document.querySelectorAll(".mod input[id], .mod select[id]").forEach(i => { vals[i.id] = i.type === "checkbox" ? i.checked : i.value; });
+    localStorage.setItem(KEY, JSON.stringify({ vals, bandCount, sel, smdKind, mode555, ohmOrder, ohmTab }));
   } catch (e) {}
 }
 function loadState() {
@@ -725,7 +936,13 @@ function loadState() {
 }
 const saved = loadState();
 if (saved) {
-  if (saved.vals) Object.entries(saved.vals).forEach(([id, v]) => { const el = $(id); if (el && el.tagName === "INPUT") el.value = v; });
+  if (saved.vals) Object.entries(saved.vals).forEach(([id, v]) => {
+    const el = $(id);
+    if (!el) return;
+    if (el.type === "checkbox") el.checked = !!v;
+    else if (el.tagName === "INPUT" || el.tagName === "SELECT") el.value = v;
+  });
+  if (["main", "net", "wire"].includes(saved.ohmTab)) ohmTab = saved.ohmTab;
   if (saved.bandCount === 4 || saved.bandCount === 5) bandCount = saved.bandCount;
   if (saved.sel) [4, 5].forEach(n => { if (Array.isArray(saved.sel[n]) && saved.sel[n].length === n) sel[n] = saved.sel[n]; });
   if (Array.isArray(saved.ohmOrder) && saved.ohmOrder.length === 2 && saved.ohmOrder.every(id => ohmIds.includes(id))) ohmOrder = saved.ohmOrder;
@@ -755,7 +972,8 @@ $("resetBtn").addEventListener("click", () => {
 setBands(bandCount);
 $("smdR").setAttribute("aria-pressed", smdKind === "R");
 $("smdC").setAttribute("aria-pressed", smdKind === "C");
-updateOhm(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); set555(mode555);
+setOhmTab(ohmTab);
+updateOhm(); updateNet(); updateWire(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); set555(mode555);
 </script>
 
 </body>
