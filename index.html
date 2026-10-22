@@ -1200,7 +1200,7 @@ function drawTr(rLabel, ind) {
   if (B) {
     // Биполярный: база-планка, коллектор и эмиттер со стрелкой
     s += `<line x1="212" y1="114" x2="212" y2="142"/><line x1="212" y1="121" x2="230" y2="104"/><line x1="212" y1="135" x2="230" y2="152"/>
-      <polyline class="solid" points="221,148 230,152 226,143 221,148"/>`;
+      <polyline class="solid" points="226.4,148.6 217.8,146 223.3,140.2 226.4,148.6"/>`;
   } else {
     // MOSFET: затвор отделён от канала зазором — ток в затвор почти не течёт
     s += `<line x1="206" y1="114" x2="206" y2="142"/><line x1="212" y1="112" x2="212" y2="144"/>
@@ -1217,25 +1217,25 @@ function drawTr(rLabel, ind) {
 // PNP: эмиттер к плюсу, нагрузка между коллектором и землёй; стрелка эмиттера смотрит в базу
 function drawPnp(rLabel, ind) {
   const gnd = (x, y) => `<line x1="${x - 12}" y1="${y}" x2="${x + 12}" y2="${y}"/><line x1="${x - 7}" y1="${y + 5}" x2="${x + 7}" y2="${y + 5}"/><line x1="${x - 2}" y1="${y + 10}" x2="${x + 2}" y2="${y + 10}"/>`;
-  let s = `<text x="222" y="13">+U пит</text><line x1="230" y1="18" x2="230" y2="104"/>
-    <line x1="182" y1="30" x2="230" y2="30"/><circle class="solid" cx="230" cy="30" r="3"/>
-    <circle cx="222" cy="128" r="24"/>
-    <line x1="212" y1="114" x2="212" y2="142"/><line x1="212" y1="121" x2="230" y2="104"/><line x1="212" y1="135" x2="230" y2="152"/>
-    <polyline class="solid" points="214,123 222,114 224,121 214,123"/>
-    <line x1="230" y1="152" x2="230" y2="158"/><rect x="212" y="158" width="36" height="28" rx="4"/>
-    <text x="196" y="176" text-anchor="end">нагрузка</text><line x1="230" y1="186" x2="230" y2="196"/>${gnd(230, 196)}
-    <line x1="212" y1="128" x2="160" y2="128"/>
-    <rect x="110" y="121" width="50" height="14" rx="2"/><text class="val" x="135" y="146" text-anchor="middle">${rLabel}</text>
-    <line x1="110" y1="128" x2="48" y2="128"/><circle class="solid" cx="44" cy="128" r="4"/>
-    <text x="8" y="116">пин МК</text><text class="val" x="8" y="150">LOW = вкл</text>
-    <circle class="solid" cx="182" cy="128" r="3"/><line x1="182" y1="128" x2="182" y2="104"/>
-    <rect x="176" y="76" width="12" height="28" rx="2"/><line x1="182" y1="76" x2="182" y2="30"/>
-    <text x="170" y="94" text-anchor="end">10 кОм</text>
-    <text x="200" y="122" text-anchor="end">Б</text><text x="238" y="112">Э</text><text x="238" y="152">К</text>`;
+  let s = `<text x="214" y="13">+U пит</text><line x1="228" y1="18" x2="228" y2="80"/>
+    <line x1="182" y1="30" x2="228" y2="30"/><circle class="solid" cx="228" cy="30" r="3"/>
+    <circle cx="220" cy="100" r="22"/>
+    <line x1="210" y1="88" x2="210" y2="112"/><line x1="210" y1="94" x2="228" y2="80"/><line x1="210" y1="106" x2="228" y2="120"/>
+    <polyline class="solid" points="217.2,88.4 226,86.7 221,80.3 217.2,88.4"/>
+    <line x1="228" y1="120" x2="228" y2="138"/><rect x="210" y="138" width="36" height="30" rx="4"/>
+    <text x="202" y="158" text-anchor="end">нагрузка</text><line x1="228" y1="168" x2="228" y2="184"/>${gnd(228, 184)}
+    <line x1="210" y1="100" x2="160" y2="100"/>
+    <rect x="110" y="93" width="50" height="14" rx="2"/><text class="val" x="135" y="124" text-anchor="middle">${rLabel}</text>
+    <line x1="110" y1="100" x2="48" y2="100"/><circle class="solid" cx="44" cy="100" r="4"/>
+    <text x="8" y="88">пин МК</text><text class="val" x="8" y="122">LOW = вкл</text>
+    <circle class="solid" cx="182" cy="100" r="3"/><line x1="182" y1="100" x2="182" y2="80"/>
+    <rect x="176" y="52" width="12" height="28" rx="2"/><line x1="182" y1="52" x2="182" y2="30"/>
+    <text x="170" y="70" text-anchor="end">10 кОм</text>
+    <text x="203" y="92" text-anchor="end">Б</text><text x="236" y="80">Э</text><text x="236" y="128">К</text>`;
   if (ind) {
     // Защитный диод параллельно нагрузке, катодом к коллектору (к плюсу нагрузки)
-    s += `<polyline points="230,156 272,156 272,190 230,190"/><polyline class="solid" points="265,180 279,180 272,168 265,180"/>
-      <line x1="265" y1="167" x2="279" y2="167"/><text x="284" y="176" text-anchor="end" dx="14">VD</text>`;
+    s += `<polyline points="228,132 270,132 270,174 228,174"/><polyline class="solid" points="263,162 277,162 270,150 263,162"/>
+      <line x1="263" y1="149" x2="277" y2="149"/><text x="276" y="140">VD</text>`;
   }
   $("trSchem").innerHTML = s;
 }
