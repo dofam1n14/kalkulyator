@@ -1196,7 +1196,7 @@ function drawTr(rLabel, ind) {
     <circle class="solid" cx="182" cy="128" r="3"/><line x1="182" y1="128" x2="182" y2="148"/>
     <rect x="176" y="148" width="12" height="28" rx="2"/><line x1="182" y1="176" x2="182" y2="190"/>${gnd(182, 190)}
     <text x="166" y="208" text-anchor="middle">10 кОм</text>
-    <text x="${B ? 200 : 194}" y="122" text-anchor="end">${lb}</text><text x="238" y="112">${lc}</text><text x="238" y="152">${le}</text>`;
+    <text x="192" y="120" text-anchor="end">${lb}</text><text x="238" y="112">${lc}</text><text x="238" y="152">${le}</text>`;
   if (B) {
     // Биполярный: база-планка, коллектор и эмиттер со стрелкой
     s += `<line x1="212" y1="114" x2="212" y2="142"/><line x1="212" y1="121" x2="230" y2="104"/><line x1="212" y1="135" x2="230" y2="152"/>
@@ -1221,7 +1221,7 @@ function drawPnp(rLabel, ind) {
     <line x1="182" y1="30" x2="228" y2="30"/><circle class="solid" cx="228" cy="30" r="3"/>
     <circle cx="220" cy="100" r="22"/>
     <line x1="210" y1="88" x2="210" y2="112"/><line x1="210" y1="94" x2="228" y2="80"/><line x1="210" y1="106" x2="228" y2="120"/>
-    <polyline class="solid" points="217.2,88.4 226,86.7 221,80.3 217.2,88.4"/>
+    <polyline class="solid" points="214.5,90.5 223.3,88.8 218.3,82.4 214.5,90.5"/>
     <line x1="228" y1="120" x2="228" y2="138"/><rect x="210" y="138" width="36" height="30" rx="4"/>
     <text x="202" y="158" text-anchor="end">нагрузка</text><line x1="228" y1="168" x2="228" y2="184"/>${gnd(228, 184)}
     <line x1="210" y1="100" x2="160" y2="100"/>
@@ -1231,7 +1231,7 @@ function drawPnp(rLabel, ind) {
     <circle class="solid" cx="182" cy="100" r="3"/><line x1="182" y1="100" x2="182" y2="80"/>
     <rect x="176" y="52" width="12" height="28" rx="2"/><line x1="182" y1="52" x2="182" y2="30"/>
     <text x="170" y="70" text-anchor="end">10 кОм</text>
-    <text x="203" y="92" text-anchor="end">Б</text><text x="236" y="80">Э</text><text x="236" y="128">К</text>`;
+    <text x="194" y="92" text-anchor="end">Б</text><text x="236" y="80">Э</text><text x="236" y="128">К</text>`;
   if (ind) {
     // Защитный диод параллельно нагрузке, катодом к коллектору (к плюсу нагрузки)
     s += `<polyline points="228,132 270,132 270,174 228,174"/><polyline class="solid" points="263,162 277,162 270,150 263,162"/>
