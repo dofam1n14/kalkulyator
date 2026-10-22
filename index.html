@@ -272,7 +272,7 @@ label.check input { width: auto; accent-color: var(--accent); }
 .lgins { display: flex; gap: 10px; }
 .lgins button { flex: 1; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--muted); font: 600 18px var(--font-mono); cursor: pointer; }
 .lgins button.on { border-color: var(--result); color: var(--result); }
-.lgins button[hidden] { display: none; }
+.lgins button[hidden], #lgN[hidden] { display: none; }
 .lgtt td, .lgtt th { text-align: center !important; font-family: var(--font-mono); }
 .lgtt td:last-child { font-weight: 700; }
 .lgtt tbody tr { cursor: pointer; }
@@ -646,8 +646,9 @@ label.check input { width: auto; accent-color: var(--accent); }
       <div class="split" id="lgGates">
         <div class="stack">
           <div class="seg" role="group" aria-label="Логический элемент" id="lgSel"></div>
+          <div class="seg" role="group" aria-label="Число входов" id="lgN"><button type="button" data-n="2" aria-pressed="true">2 входа</button><button type="button" data-n="3" aria-pressed="false">3 входа</button><button type="button" data-n="4" aria-pressed="false">4 входа</button></div>
           <svg class="schem lgsvg" id="lgSchem" viewBox="0 0 300 160" role="img" aria-label="Логический элемент"></svg>
-          <div class="lgins"><button type="button" id="lgA">A = 0</button><button type="button" id="lgB">B = 0</button></div>
+          <div class="lgins" id="lgIns"></div>
           <div class="out" id="lgOut"></div>
         </div>
         <div class="stack">
@@ -657,7 +658,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         </div>
       </div>
       <div class="stack" id="lgExpr" hidden>
-        <div class="fields"><label>Выражение (переменные A, B, C, D)<input id="lgE" value="A & !B | C" autocomplete="off" spellcheck="false"></label></div>
+        <div class="fields"><label>Выражение (переменные A, B, C, D, E, F)<input id="lgE" value="A & !B | C" autocomplete="off" spellcheck="false"></label></div>
         <p class="hint" style="margin:0">НЕ: <code>!</code> или <code>¬</code> · И: <code>&</code> или <code>*</code> · ИЛИ: <code>|</code> или <code>+</code> · Исключающее ИЛИ: <code>^</code> · скобки <code>( )</code>. Сначала НЕ, потом И, потом ^, потом ИЛИ — как умножение раньше сложения.</p>
         <div class="out" id="lgEOut"></div>
         <table class="board lgtt" id="lgETT"></table>
@@ -1484,27 +1485,40 @@ const GATES = {
   nor:  { n: "ИЛИ-НЕ", en: "NOR", sym: "1", inv: true, f: (a, b) => 1 - (a | b), fx: "Y = ¬(A + B)", chip: "74HC02 (К555ЛЕ1)", why: "Выход 1, только когда оба входа 0. Тоже универсальный элемент, как И-НЕ." },
   xor:  { n: "Искл. ИЛИ", en: "XOR", sym: "=1", f: (a, b) => a ^ b, fx: "Y = A ⊕ B", chip: "74HC86 (К555ЛП5)", why: "Выход 1, когда входы разные. Так складываются два бита (без переноса)." },
 };
-let lgGate = "and", lgIn = [0, 0];
+// Многовходовые версии: функция от массива входов, формула, объяснение и микросхемы на 2/3/4 входа
+const GATES_N = {
+  and:  { fa: x => +x.every(Boolean), op: " · ", why: "Выход 1, только когда все входы 1.", chip: { 2: "74HC08 (К555ЛИ1)", 3: "74HC11 (К555ЛИ3)", 4: "74HC21 (К555ЛИ6)" } },
+  or:   { fa: x => +x.some(Boolean), op: " + ", why: "Выход 1, когда хотя бы один вход 1.", chip: { 2: "74HC32 (К555ЛЛ1)", 3: "74LVC1G332", 4: "CD4072" } },
+  nand: { fa: x => 1 - x.every(Boolean), op: " · ", inv: true, why: "Выход 0, только когда все входы 1.", chip: { 2: "74HC00 (К555ЛА3)", 3: "74HC10 (К555ЛА4)", 4: "74HC20 (К555ЛА1)" } },
+  nor:  { fa: x => 1 - x.some(Boolean), op: " + ", inv: true, why: "Выход 1, только когда все входы 0.", chip: { 2: "74HC02 (К555ЛЕ1)", 3: "74HC27 (К555ЛЕ4)", 4: "CD4002" } },
+  xor:  { fa: x => x.reduce((a, b) => a ^ b, 0), op: " ⊕ ", why: "Выход 1, когда единиц на входах нечётное число (проверка чётности).", chip: { 2: "74HC86 (К555ЛП5)", 3: "74LVC1G386", 4: "три 74HC86 цепочкой" } },
+};
+const LG_NAMES = "ABCD";
+let lgGate = "and", lgN = 2, lgIn = [0, 0, 0, 0];
 $("lgSel").innerHTML = Object.entries(GATES).map(([k, g]) => `<button type="button" data-g="${k}" aria-pressed="${k === lgGate}">${g.n}</button>`).join("");
 function drawLogic() {
-  const g = GATES[lgGate], A = lgIn[0], B = g.one ? 0 : lgIn[1], Y = g.one ? g.f(A) : g.f(A, B);
+  const g = GATES[lgGate], gn = GATES_N[lgGate], n = g.one ? 1 : lgN, ins = lgIn.slice(0, n);
+  const Y = g.one ? g.f(ins[0]) : gn.fa(ins);
   const c = v => (v ? "hi" : "lo");
-  const ys = g.one ? [80] : [55, 105], vals = g.one ? [A] : [A, B];
-  let s = ys.map((y, i) => `<line x1="20" y1="${y}" x2="100" y2="${y}" class="${c(vals[i])}"/><text class="io" x="8" y="${y + 5}">${"AB"[i]}</text><text class="val" x="40" y="${y - 6}">${vals[i]}</text>`).join("");
+  // Входы равномерно по высоте корпуса (30…130)
+  const ys = ins.map((_, i) => Math.round(30 + (100 * (i + 0.5)) / n));
+  let s = ys.map((y, i) => `<line x1="20" y1="${y}" x2="100" y2="${y}" class="${c(ins[i])}"/><text class="io" x="8" y="${y + 5}">${LG_NAMES[i]}</text><text class="val" x="40" y="${y - 5}">${ins[i]}</text>`).join("");
   s += `<rect x="100" y="30" width="80" height="100"/><text class="sym" x="140" y="62" text-anchor="middle">${g.sym}</text>`;
   const ox = g.inv ? 192 : 180;
   if (g.inv) s += `<circle cx="186" cy="80" r="6"/>`;
   s += `<line x1="${ox}" y1="80" x2="250" y2="80" class="${c(Y)}"/><text class="val" x="215" y="74">${Y}</text><text class="io" x="226" y="108">Y</text>`;
   s += `<circle class="led${Y ? " on" : ""}" cx="266" cy="80" r="14"/>`;
   $("lgSchem").innerHTML = s;
-  $("lgA").textContent = `A = ${A}`; $("lgA").classList.toggle("on", !!A);
-  $("lgB").textContent = `B = ${B}`; $("lgB").classList.toggle("on", !!B); $("lgB").hidden = !!g.one;
-  $("lgOut").innerHTML = `<div class="big">${g.fx} = ${Y}</div>` + row("Элемент", `${g.n} (${g.en})`) + row("Микросхема", g.chip) + `<p class="hint" style="margin:6px 0 0">${g.why}</p>`;
-  // Таблица истинности: перебираем все комбинации входов
-  const combos = g.one ? [[0], [1]] : [[0, 0], [0, 1], [1, 0], [1, 1]];
-  const head = (g.one ? "<th>A</th>" : "<th>A</th><th>B</th>") + "<th>Y</th>";
-  $("lgTT").innerHTML = `<thead><tr>${head}</tr></thead><tbody>` + combos.map(cb => {
-    const y = g.f(...cb), cur = cb[0] === A && (g.one || cb[1] === B);
+  $("lgIns").innerHTML = ins.map((v, i) => `<button type="button" data-i="${i}" class="${v ? "on" : ""}">${LG_NAMES[i]} = ${v}</button>`).join("");
+  $("lgN").hidden = !!g.one;
+  const names = LG_NAMES.slice(0, n).split("");
+  const fx = g.one ? g.fx : (gn.inv ? `Y = ¬(${names.join(gn.op)})` : `Y = ${names.join(gn.op)}`);
+  $("lgOut").innerHTML = `<div class="big">${fx} = ${Y}</div>` + row("Элемент", `${g.n} (${g.en})${g.one ? "" : `, ${n} входа`}`) +
+    row("Микросхема", g.one ? g.chip : gn.chip[n]) + `<p class="hint" style="margin:6px 0 0">${g.one || n === 2 ? g.why : gn.why}</p>`;
+  // Таблица истинности: перебираем все 2ⁿ комбинаций входов
+  const rows = Array.from({ length: 2 ** n }, (_, k) => names.map((_, j) => (k >> (n - 1 - j)) & 1));
+  $("lgTT").innerHTML = `<thead><tr>${names.map(v => `<th>${v}</th>`).join("")}<th>Y</th></tr></thead><tbody>` + rows.map(cb => {
+    const y = g.one ? g.f(cb[0]) : gn.fa(cb), cur = cb.every((v, j) => v === ins[j]);
     return `<tr class="${cur ? "cur" : ""}" data-in="${cb.join("")}">${cb.map(v => `<td>${v}</td>`).join("")}<td class="${y ? "one" : ""}">${y}</td></tr>`;
   }).join("") + "</tbody>";
 }
@@ -1514,9 +1528,14 @@ $("lgSel").addEventListener("click", e => {
   $("lgSel").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
   drawLogic();
 });
-$("lgA").addEventListener("click", () => { lgIn[0] ^= 1; drawLogic(); });
-$("lgB").addEventListener("click", () => { lgIn[1] ^= 1; drawLogic(); });
-$("lgTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { lgIn = [+r.dataset.in[0], +(r.dataset.in[1] || 0)]; drawLogic(); } });
+$("lgN").addEventListener("click", e => {
+  const b = e.target.closest("button[data-n]"); if (!b) return;
+  lgN = +b.dataset.n;
+  $("lgN").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  drawLogic();
+});
+$("lgIns").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) { lgIn[+b.dataset.i] ^= 1; drawLogic(); } });
+$("lgTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { [...r.dataset.in].forEach((v, j) => { lgIn[j] = +v; }); drawLogic(); } });
 function setLgTab(expr) {
   $("lgTabG").setAttribute("aria-pressed", !expr); $("lgTabE").setAttribute("aria-pressed", expr);
   $("lgGates").hidden = expr; $("lgExpr").hidden = !expr;
@@ -1526,7 +1545,7 @@ $("lgTabE").onclick = () => setLgTab(true);
 
 // Разбор выражения без eval: рекурсивный спуск. Приоритет: НЕ > И > ^ > ИЛИ
 function parseLogic(src) {
-  const map = { "А": "A", "В": "B", "С": "C", "Д": "D", "¬": "!", "~": "!", "*": "&", "·": "&", "∧": "&", "+": "|", "∨": "|", "⊕": "^" };
+  const map = { "А": "A", "В": "B", "С": "C", "Д": "D", "Е": "E", "¬": "!", "~": "!", "*": "&", "·": "&", "∧": "&", "+": "|", "∨": "|", "⊕": "^" };
   const t = [...src.toUpperCase().replace(/\s+/g, "")].map(ch => map[ch] || ch);
   let i = 0;
   const err = m => { throw new Error(m); };
@@ -1534,7 +1553,7 @@ function parseLogic(src) {
     const ch = t[i];
     if (ch === "!") { i++; const a = prim(); return e => 1 - a(e); }
     if (ch === "(") { i++; const a = or(); if (t[i] !== ")") err("Не хватает закрывающей скобки )"); i++; return a; }
-    if (/[ABCD]/.test(ch)) { i++; vars.add(ch); return e => e[ch]; }
+    if (/[A-F]/.test(ch)) { i++; vars.add(ch); return e => e[ch]; }
     if (ch === "0" || ch === "1") { i++; return () => +ch; }
     err(ch === undefined ? "Выражение обрывается — после знака нужна переменная" : `Непонятный символ «${ch}»`);
   };
