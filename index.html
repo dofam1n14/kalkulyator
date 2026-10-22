@@ -1589,11 +1589,17 @@ const SHOP = [
   { id: "dbl", t: "Двойной прыжок", d: "Можно подпрыгнуть ещё раз прямо в воздухе", prices: [120] },
   { id: "shield", t: "Предохранитель", d: "Прощает одно столкновение. Расходник, до 3 штук", price: 25, max: 3 },
 ];
+// Старые таблицы могли хранить несколько строк одного ника — оставляем лучшую
+function dedupBoard(b) {
+  const best = {};
+  b.filter(r => r && typeof r.n === "string").forEach(r => { const k = r.n.toLowerCase(); if (!best[k] || +r.s > +best[k].s) best[k] = r; });
+  return Object.values(best).sort((a, c) => c.s - a.s).slice(0, 10);
+}
 function loadGame() {
   const def = { coins: 0, upg: { speed: 0, jump: 0, magnet: 0, dbl: 0 }, shield: 0, board: [], name: "" };
   try {
     const s = JSON.parse(localStorage.getItem(GAME_KEY));
-    if (s && typeof s === "object") return { ...def, ...s, upg: { ...def.upg, ...(s.upg || {}) }, board: Array.isArray(s.board) ? s.board.slice(0, 10) : [] };
+    if (s && typeof s === "object") return { ...def, ...s, upg: { ...def.upg, ...(s.upg || {}) }, board: Array.isArray(s.board) ? dedupBoard(s.board) : [] };
   } catch (e) {}
   return def;
 }
@@ -1744,16 +1750,20 @@ function gameOver() {
   gs.coins += run.coins;
   gs.shield = run.shield;
   const s = Math.floor(run.score);
-  let rank = -1;
+  let rank = -1, note = "";
   if (s > 0) {
-    lastId = Date.now();
-    gs.board.push({ id: lastId, n: (gs.name || "Аноним").slice(0, 16), s, d: new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }) });
+    // Один игрок = одна строка: ищем свой ник (без учёта регистра)
+    const n = (gs.name || "Аноним").slice(0, 16), d = new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+    const mine = gs.board.find(r => r.n.toLowerCase() === n.toLowerCase());
+    if (!mine) { lastId = Date.now(); gs.board.push({ id: lastId, n, s, d }); }
+    else if (s > mine.s) { lastId = mine.id; mine.s = s; mine.d = d; mine.n = n; }
+    else { lastId = mine.id; note = ` · твой рекорд ${mine.s}`; }
     gs.board.sort((a, b) => b.s - a.s);
     gs.board = gs.board.slice(0, 10);
-    rank = gs.board.findIndex(r => r.id === lastId);
+    if (!note) rank = gs.board.findIndex(r => r.id === lastId);
   }
   saveGame();
-  $("gMsg").textContent = `Очки: ${s} · электронов +${run.coins}` + (rank === 0 ? " · Новый рекорд! 🏆" : rank > 0 ? ` · ${rank + 1}-е место в таблице` : "");
+  $("gMsg").textContent = `Очки: ${s} · электронов +${run.coins}` + note + (rank === 0 ? " · Новый рекорд! 🏆" : rank > 0 ? ` · ${rank + 1}-е место в таблице` : "");
   renderShop(); renderBoard(); renderCoins();
 }
 function loop(ts) {
