@@ -2921,12 +2921,47 @@ function rpSearch(vals, T) {
   const ser = [], par = [];
   vals.forEach(a => {
     // Последовательно: R = a + b → ищем b рядом с T − a
-    if (a < T) nearIdx(vals, T - a).forEach(i => { const b = vals[i], R = a + b; if (b >= a) ser.push({ a, b, R, e: err(R) }); });
+    if (a < T) nearIdx(vals, T - a).forEach(i => { const b = vals[i], R = a + b; if (b >= a && a >= R * 0.005) ser.push({ a, b, R, e: err(R) }); });
     // Параллельно: 1/R = 1/a + 1/b → b = a·T/(a − T)
-    if (a > T) nearIdx(vals, (a * T) / (a - T)).forEach(i => { const b = vals[i], R = (a * b) / (a + b); if (b >= a) par.push({ a, b, R, e: err(R) }); });
+    if (a > T) nearIdx(vals, (a * T) / (a - T)).forEach(i => { const b = vals[i], R = (a * b) / (a + b); if (b >= a && b <= R * 200) par.push({ a, b, R, e: err(R) }); });
   });
-  return { single: top(single), ser: top(ser), par: top(par) };
+  // Смешанное из трёх: a + (b ∥ c) и (a + b) ∥ c. Все пары b, c считаем заранее и ищем делением пополам
+  const pt = rpPairs(vals), sp = [], ps = [];
+  vals.forEach(a => {
+    if (a < T) rpNear(pt.par, T - a).forEach(k => {
+      const P = pt.par.v[k], b = vals[pt.par.i[k]], c = vals[pt.par.j[k]], R = a + P;
+      if (Math.min(a, P) >= R * 0.005 && c <= P * 200) sp.push({ a, b, c, R, e: err(R) });
+    });
+    if (a > T) rpNear(pt.ser, (a * T) / (a - T)).forEach(k => {
+      const S = pt.ser.v[k], x = vals[pt.ser.i[k]], y = vals[pt.ser.j[k]], R = (S * a) / (S + a);
+      if (x >= S * 0.005 && Math.max(S, a) <= R * 200) ps.push({ a: x, b: y, c: a, R, e: err(R) });
+    });
+  });
+  const top3 = list => {
+    const seen = new Set();
+    return list.sort((x, y) => Math.abs(x.e) - Math.abs(y.e)).filter(q => { const k = [q.a, q.b, q.c].join("|"); if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3);
+  };
+  return { single: top(single), ser: top(ser), par: top(par), sp: top3(sp), ps: top3(ps) };
 }
+// Таблица всех пар номиналов (i ≤ j): параллельные и последовательные значения, отсортированные.
+// Для E96 это ~226 тысяч пар, поэтому храним в типизированных массивах и кешируем
+const rpCache = {};
+function rpPairs(vals) {
+  const key = vals.length + ":" + vals[0] + ":" + vals[vals.length - 1] + ":" + vals.reduce((a, b) => a + b, 0);
+  if (rpCache.key === key) return rpCache.t;
+  const n = vals.length, m = (n * (n + 1)) / 2;
+  const mk = f => {
+    const v = new Float64Array(m), I = new Uint16Array(m), J = new Uint16Array(m);
+    let k = 0;
+    for (let i = 0; i < n; i++) for (let j = i; j < n; j++) { v[k] = f(vals[i], vals[j]); I[k] = i; J[k] = j; k++; }
+    const ord = Uint32Array.from({ length: m }, (_, q) => q).sort((x, y) => v[x] - v[y]);
+    return { v: Float64Array.from(ord, q => v[q]), i: Uint16Array.from(ord, q => I[q]), j: Uint16Array.from(ord, q => J[q]) };
+  };
+  rpCache.key = key;
+  rpCache.t = { par: mk((x, y) => (x * y) / (x + y)), ser: mk((x, y) => x + y) };
+  return rpCache.t;
+}
+const rpNear = (t, x) => nearIdx(t.v, x);
 const pct = e => (e === 0 ? "точно" : (e > 0 ? "+" : "−") + Math.abs(e * 100).toPrecision(2) + "%");
 function drawRpair(best) {
   const r = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>`;
@@ -2934,6 +2969,15 @@ function drawRpair(best) {
   if (!best.b) s += `<line x1="20" y1="70" x2="120" y2="70"/>${r(120, 60, 80, 20)}<line x1="200" y1="70" x2="300" y2="70"/><text class="val" x="160" y="50" text-anchor="middle">${fmt(best.a, "Ом")}</text>`;
   else if (best.kind === "ser") s += `<line x1="20" y1="70" x2="60" y2="70"/>${r(60, 60, 70, 20)}<line x1="130" y1="70" x2="190" y2="70"/>${r(190, 60, 70, 20)}<line x1="260" y1="70" x2="300" y2="70"/>
     <text class="val" x="95" y="50" text-anchor="middle">${fmt(best.a, "Ом")}</text><text class="val" x="225" y="50" text-anchor="middle">${fmt(best.b, "Ом")}</text>`;
+  else if (best.kind === "sp") s += `<line x1="20" y1="70" x2="50" y2="70"/>${r(50, 60, 70, 20)}<line x1="120" y1="70" x2="150" y2="70"/><line x1="270" y1="70" x2="300" y2="70"/>
+    <circle class="solid" cx="150" cy="70" r="3"/><circle class="solid" cx="270" cy="70" r="3"/>
+    <polyline points="150,70 150,40 175,40"/><polyline points="245,40 270,40 270,70"/><polyline points="150,70 150,100 175,100"/><polyline points="245,100 270,100 270,70"/>
+    ${r(175, 30, 70, 20)}${r(175, 90, 70, 20)}<text class="val" x="85" y="50" text-anchor="middle">${fmt(best.a, "Ом")}</text>
+    <text class="val" x="210" y="24" text-anchor="middle">${fmt(best.b, "Ом")}</text><text class="val" x="210" y="128" text-anchor="middle">${fmt(best.c, "Ом")}</text>`;
+  else if (best.kind === "ps") s += `<line x1="20" y1="70" x2="50" y2="70"/><line x1="270" y1="70" x2="300" y2="70"/><circle class="solid" cx="50" cy="70" r="3"/><circle class="solid" cx="270" cy="70" r="3"/>
+    <polyline points="50,70 50,40 70,40"/><line x1="140" y1="40" x2="180" y2="40"/><polyline points="250,40 270,40 270,70"/><polyline points="50,70 50,100 125,100"/><polyline points="195,100 270,100 270,70"/>
+    ${r(70, 30, 70, 20)}${r(180, 30, 70, 20)}${r(125, 90, 70, 20)}<text class="val" x="105" y="24" text-anchor="middle">${fmt(best.a, "Ом")}</text>
+    <text class="val" x="215" y="24" text-anchor="middle">${fmt(best.b, "Ом")}</text><text class="val" x="160" y="128" text-anchor="middle">${fmt(best.c, "Ом")}</text>`;
   else s += `<line x1="20" y1="70" x2="90" y2="70"/><line x1="230" y1="70" x2="300" y2="70"/><circle class="solid" cx="90" cy="70" r="3"/><circle class="solid" cx="230" cy="70" r="3"/>
     <polyline points="90,70 90,40 125,40"/><polyline points="195,40 230,40 230,70"/><polyline points="90,70 90,100 125,100"/><polyline points="195,100 230,100 230,70"/>
     ${r(125, 30, 70, 20)}${r(125, 90, 70, 20)}<text class="val" x="160" y="24" text-anchor="middle">${fmt(best.a, "Ом")}</text><text class="val" x="160" y="128" text-anchor="middle">${fmt(best.b, "Ом")}</text>`;
@@ -2950,15 +2994,23 @@ function updateRpair() {
   // Лучший вариант: самая маленькая ошибка; при равенстве — меньше деталей
   const cand = [...r.single.map(c => ({ ...c, kind: "one" })), ...r.ser.map(c => ({ ...c, kind: "ser" })), ...r.par.map(c => ({ ...c, kind: "par" }))];
   if (!cand.length) { out.innerHTML = `<span class="warn">Из этих номиналов ничего не собрать. Добавь резисторы меньше и больше нужного.</span>`; return; }
-  const best = cand.sort((a, b) => Math.abs(a.e) - Math.abs(b.e) || (a.b ? 1 : 0) - (b.b ? 1 : 0))[0];
-  const name = c => (!c.b ? fmt(c.a, "Ом") : c.kind === "ser" || r.ser.includes(c) ? `${fmt(c.a, "Ом")} + ${fmt(c.b, "Ом")}` : `${fmt(c.a, "Ом")} ∥ ${fmt(c.b, "Ом")}`);
+  // Лучший вариант: самое маленькое число деталей, которое попадает в 0,1%; если никто не попал — самый точный
+  const byErr = list => list.sort((a, b) => Math.abs(a.e) - Math.abs(b.e))[0];
+  const tiers = [byErr(cand.filter(c => !c.b)), byErr(cand.filter(c => c.b)),
+    byErr([...r.sp.map(c => ({ ...c, kind: "sp" })), ...r.ps.map(c => ({ ...c, kind: "ps" }))])].filter(Boolean);
+  const best = tiers.find(c => Math.abs(c.e) <= 1e-3) || byErr([...tiers]);
+  const F = v => fmt(v, "Ом");
+  const name = c => ({ one: () => F(c.a), ser: () => `${F(c.a)} + ${F(c.b)}`, par: () => `${F(c.a)} ∥ ${F(c.b)}`,
+    sp: () => `${F(c.a)} + (${F(c.b)} ∥ ${F(c.c)})`, ps: () => `(${F(c.a)} + ${F(c.b)}) ∥ ${F(c.c)}` })[c.kind]();
   const list = (arr, kind) => arr.length ? arr.map(c => row(name({ ...c, kind }), `${fmt(c.R, "Ом", 4)} <em>${pct(c.e)}</em>`)).join("") : row("—", "нет вариантов");
   out.innerHTML = `<div class="big">${name(best)}</div>` +
     row("Получится", `${fmt(best.R, "Ом", 4)} <em>${pct(best.e)}</em>`) +
     `<h3>Один резистор</h3>` + list(r.single, "one") +
     `<h3>Два последовательно</h3>` + list(r.ser, "ser") +
     `<h3>Два параллельно</h3>` + list(r.par, "par") +
-    `<p class="hint" style="margin:6px 0 0">${have.length ? `Подбираю только из твоих ${have.length} номиналов.` : `Ряд ${$("rpSer").value}: допуск самих резисторов ${{ E6: "±20%", E12: "±10%", E24: "±5%", E96: "±1%" }[$("rpSer").value]}, точнее него собирать смысла нет.`} ∥ — параллельно.</p>`;
+    `<h3>Три: последовательно + параллельно</h3>` + list(r.sp, "sp") +
+    `<h3>Три: параллельно к паре последовательных</h3>` + list(r.ps, "ps") +
+    `<p class="hint" style="margin:6px 0 0">${have.length ? `Подбираю только из твоих ${have.length} номиналов.` : `Ряд ${$("rpSer").value}: допуск самих резисторов ${{ E6: "±20%", E12: "±10%", E24: "±5%", E96: "±1%" }[$("rpSer").value]}, точнее него собирать смысла нет.`} ∥ — параллельно, скобки — что соединено сначала.</p>`;
   drawRpair(best);
 }
 ["rpT", "rpHave", "rpSer"].forEach(id => $(id).addEventListener("input", updateRpair));
