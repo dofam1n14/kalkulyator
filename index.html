@@ -21,6 +21,8 @@
   --line: #d3dbd5;
   --accent: #a0561f;
   --on-accent: #ffffff;   /* текст на кнопках с фоном акцента */
+  --screen: #e4ebe6;      /* экран результата, как индикатор прибора */
+  --glow: none;           /* свечение цифр — только в тёмной теме */
   --accent-soft: #f3e3d5;
   --result: #0f5d45;
   --warn: #a8461f;
@@ -33,13 +35,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
-    --accent: #e08a4b; --on-accent: #1f140b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
+    --accent: #e08a4b; --on-accent: #1f140b; --screen: #0a110e; --glow: 0 0 14px rgba(111, 211, 172, .35); --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
-  --accent: #e08a4b; --on-accent: #1f140b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
+  --accent: #e08a4b; --on-accent: #1f140b; --screen: #0a110e; --glow: 0 0 14px rgba(111, 211, 172, .35); --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -94,7 +96,7 @@ body {
 body.in-mod .pcb { padding-block: 16px; }
 body.in-mod .pcb p, body.in-mod .pcb::before, body.in-mod .pcb::after { display: none; }
 body.in-mod .pcb h1 { font-size: clamp(22px, 3vw, 28px); }
-body.in-mod .board-art { max-height: 70px; }
+body.in-mod .board-art { display: none; }
 @media (max-width: 640px) {
   .pcb { grid-template-columns: minmax(0, 1fr); padding: 26px 18px 18px; }
   .board-art { max-width: 330px; }
@@ -124,7 +126,8 @@ body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-a
 .chips button:focus-visible, .tool:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
 .tool.danger { border-color: var(--warn); color: var(--warn); }
 .mod h2 {
-  font-family: var(--font-display); font-weight: 500; font-size: 19px; margin: 0;
+  font-family: var(--font-display); font-weight: 600; font-size: 21px; margin: 0; padding-bottom: 12px;
+  border-bottom: 1px solid var(--line);
   display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 10px;
 }
 .mod h2 small { font-family: var(--font-mono); font-size: 12px; color: var(--muted); font-weight: 400; }
@@ -135,16 +138,24 @@ input, select {
   font: 500 15px var(--font-mono); color: var(--fg); background: var(--bg);
   border: 1px solid var(--line); border-radius: 6px; padding: 8px 10px; width: 100%; min-width: 0;
 }
+input:hover, select:hover { border-color: color-mix(in srgb, var(--accent) 45%, var(--line)); }
 input:focus, select:focus { outline: 2px solid var(--accent); outline-offset: 1px; border-color: transparent; }
 input.computed { background: var(--accent-soft); border-color: var(--accent); }
 .out {
-  border-top: 1px dashed var(--line); padding-top: 12px;
-  display: grid; gap: 4px; font-family: var(--font-mono); font-variant-numeric: tabular-nums;
+  background: var(--screen); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px;
+  box-shadow: inset 0 1px 4px rgba(0, 0, 0, .14);
+  display: grid; gap: 2px; font-family: var(--font-mono); font-variant-numeric: tabular-nums; min-width: 0;
 }
-.out .big { font-size: 26px; font-weight: 500; color: var(--result); }
-.out .row { display: flex; justify-content: space-between; gap: 12px; font-size: 14px; flex-wrap: wrap; }
+.out:empty { display: none; }
+.out .big { font-size: 30px; line-height: 1.15; font-weight: 500; color: var(--result); text-shadow: var(--glow); margin-bottom: 4px; overflow-wrap: anywhere; }
+.out .row { display: flex; justify-content: space-between; gap: 4px 12px; font-size: 14px; flex-wrap: wrap; padding: 4px 0; border-bottom: 1px dotted var(--line); }
+.out .row:last-of-type { border-bottom: 0; }
 .out .row span:first-child { color: var(--muted); font-family: var(--font-body); }
-.warn { color: var(--warn); font-family: var(--font-body); font-size: 13px; }
+.warn {
+  display: block; color: var(--warn); font-family: var(--font-body); font-size: 13px; line-height: 1.45;
+  padding: 7px 10px; margin-top: 4px; border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0;
+  background: color-mix(in srgb, var(--warn) 9%, transparent);
+}
 .resistor { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto; }
 /* Выбор цвета полос: ряд «бусин» на каждую полосу */
 .bandsel { display: grid; gap: 12px; }
@@ -321,6 +332,43 @@ label.check input { width: auto; accent-color: var(--accent); }
 .lgttw { max-height: 460px; overflow: auto; }
 .lgttw thead th { position: sticky; top: 0; background: var(--panel); }
 .lgtt tbody tr { cursor: pointer; }
+/* Каскад: слева список элементов, справа схема */
+.cscols { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
+@media (max-width: 760px) { .cscols { grid-template-columns: minmax(0, 1fr); } }
+.csgates { display: grid; gap: 8px; }
+.csrow { display: grid; grid-template-columns: 30px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) 30px; gap: 6px; align-items: center; }
+.csrow b { font: 600 14px var(--font-mono); color: var(--accent); }
+.csrow select { padding: 7px 6px; font-size: 14px; }
+.csrow select[disabled] { visibility: hidden; }
+.csrow .csdel { width: 30px; height: 34px; border: 1px solid var(--line); border-radius: 6px; background: none; color: var(--muted); font-size: 18px; cursor: pointer; }
+.csrow .csdel:hover { color: var(--warn); border-color: var(--warn); }
+.csrow .csdel:focus-visible, #csAdd:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.csrow .csdel:disabled { opacity: .35; cursor: not-allowed; }
+#csAdd { justify-self: start; }
+#csAdd:disabled { opacity: .45; cursor: not-allowed; }
+.csw { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 6px; }
+.csw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.csvg { display: block; width: 100%; height: auto; margin-inline: auto; }
+.csvg path, .csvg line { fill: none; stroke-width: 2; stroke-linejoin: round; }
+.csvg .hi { stroke: var(--result); }
+.csvg .lo { stroke: var(--muted); }
+.csvg .box { fill: var(--panel); stroke: var(--fg); stroke-width: 2; }
+.csvg .bub { fill: var(--panel); stroke: var(--fg); stroke-width: 2; }
+.csvg .dot.hi { fill: var(--result); stroke: none; } .csvg .dot.lo { fill: var(--muted); stroke: none; }
+.csvg text { font: 11px var(--font-mono); fill: var(--muted); }
+.csvg text.sym { font: 600 15px var(--font-mono); fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+.csvg text.gn { fill: var(--accent); font-weight: 600; text-anchor: middle; }
+.csvg .inp { cursor: pointer; }
+.csvg .inp text { font: 600 14px var(--font-mono); fill: var(--fg); text-anchor: middle; }
+.csvg .inp rect { fill: var(--panel); stroke: var(--line); }
+.csvg .inp.on rect { stroke: var(--result); }
+.csvg .inp:hover rect { stroke: var(--accent); }
+.csvg .led { stroke: var(--line); stroke-width: 2; fill: var(--panel); }
+.csvg .led.on { fill: var(--result); stroke: var(--result); filter: drop-shadow(0 0 5px var(--result)); }
+.lgtt th.sink { color: var(--accent); }
+.out .cs-go { justify-self: start; margin-top: 8px; }
+.cs-big { display: flex; flex-wrap: wrap; gap: 0 28px; }
+.out .hint { font-family: var(--font-body); }
 .lgtt tr.cur td { background: var(--accent-soft); color: var(--accent); }
 .lgtt td.one { color: var(--result); }
 /* Главная: карточки калькуляторов по разделам */
@@ -337,6 +385,7 @@ label.check input { width: auto; accent-color: var(--accent); }
   color: var(--fg); text-decoration: none;
 }
 .card:hover { border-color: var(--cat); }
+.card:hover svg { background: color-mix(in srgb, var(--cat) 14%, var(--bg)); }
 .card:focus-visible { outline: 2px solid var(--cat); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) {
   .card { transition: transform .15s, border-color .15s; }
@@ -350,7 +399,7 @@ label.check input { width: auto; accent-color: var(--accent); }
 .card small { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; }
 .crumbs a { text-decoration: none; display: inline-block; }
 .chips button[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
-.mod { border-top: 3px solid var(--cat, var(--line)); }
+.mod { border-top: 3px solid var(--cat, var(--line)); box-shadow: 0 1px 0 var(--line), 0 10px 30px -22px rgba(0, 0, 0, .45); }
 .contact {
   border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px;
   padding: 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
@@ -716,6 +765,7 @@ label.check input { width: auto; accent-color: var(--accent); }
       <div class="seg" role="group" aria-label="Режим">
         <button type="button" id="lgTabG" aria-pressed="true">Элементы</button>
         <button type="button" id="lgTabE" aria-pressed="false">Своё выражение</button>
+        <button type="button" id="lgTabC" aria-pressed="false">Каскад</button>
       </div>
       <div class="split" id="lgGates">
         <div class="stack">
@@ -736,6 +786,25 @@ label.check input { width: auto; accent-color: var(--accent); }
         <p class="hint" style="margin:0">НЕ: <code>!</code> или <code>¬</code> · И: <code>&</code> или <code>*</code> · ИЛИ: <code>|</code> или <code>+</code> · Исключающее ИЛИ: <code>^</code> · скобки <code>( )</code>. Сначала НЕ, потом И, потом ^, потом ИЛИ — как умножение раньше сложения.</p>
         <div class="out" id="lgEOut"></div>
         <table class="board lgtt" id="lgETT"></table>
+      </div>
+      <!-- Каскад: выход одного элемента подаётся на вход другого -->
+      <div class="stack" id="lgCasc" hidden>
+        <p class="hint" style="margin:0">Собери схему из нескольких элементов: выход одного подаётся на вход следующего. Начни с примера или добавь элементы сам. Нажми на букву входа на схеме, чтобы переключить его.</p>
+        <div class="seg" role="group" aria-label="Готовые схемы" id="csPre"></div>
+        <div class="cscols">
+          <div class="stack">
+            <div class="seg" role="group" aria-label="Число входов" id="csN"><button type="button" data-n="2">2 входа</button><button type="button" data-n="3">3 входа</button><button type="button" data-n="4">4 входа</button></div>
+            <div class="csgates" id="csGates"></div>
+            <button type="button" class="tool" id="csAdd">+ Добавить элемент</button>
+          </div>
+          <div class="stack">
+            <div class="csw" tabindex="0" role="region" aria-label="Схема каскада"><svg class="csvg" id="csSchem" role="img" aria-label="Схема каскада"></svg></div>
+            <div class="lgins" id="csIns"></div>
+            <div class="out" id="csOut"></div>
+          </div>
+        </div>
+        <h3 class="gh">Таблица истинности</h3>
+        <div class="lgttw"><table class="board lgtt" id="csTT"></table></div>
       </div>
     </section>
 
@@ -1611,12 +1680,15 @@ $("lgN").addEventListener("click", e => {
 });
 $("lgIns").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) { lgIn[+b.dataset.i] ^= 1; drawLogic(); } });
 $("lgTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { [...r.dataset.in].forEach((v, j) => { lgIn[j] = +v; }); drawLogic(); } });
-function setLgTab(expr) {
-  $("lgTabG").setAttribute("aria-pressed", !expr); $("lgTabE").setAttribute("aria-pressed", expr);
-  $("lgGates").hidden = expr; $("lgExpr").hidden = !expr;
+// Вкладки логики: g — элементы, e — своё выражение, c — каскад
+function setLgTab(m) {
+  [["lgTabG", "lgGates", "g"], ["lgTabE", "lgExpr", "e"], ["lgTabC", "lgCasc", "c"]].forEach(([b, box, k]) => {
+    $(b).setAttribute("aria-pressed", m === k); $(box).hidden = m !== k;
+  });
 }
-$("lgTabG").onclick = () => setLgTab(false);
-$("lgTabE").onclick = () => setLgTab(true);
+$("lgTabG").onclick = () => setLgTab("g");
+$("lgTabE").onclick = () => setLgTab("e");
+$("lgTabC").onclick = () => setLgTab("c");
 
 // Разбор выражения без eval: рекурсивный спуск. Приоритет: НЕ > И > ^ > ИЛИ
 function parseLogic(src) {
@@ -1658,6 +1730,198 @@ function updateLogicExpr() {
 }
 $("lgE").addEventListener("input", updateLogicExpr);
 drawLogic(); updateLogicExpr();
+
+/* ---------- Логика: каскад из нескольких элементов ---------- */
+// Элемент — [тип, вход1, вход2]; вход — буква A–D или выход прошлого элемента G1, G2…
+// Ссылаться можно только на элементы выше по списку, поэтому петель (обратной связи) не бывает
+const CS_PRE = {
+  ha: { n: "Полусумматор", k: 2, g: [["xor", "A", "B"], ["and", "A", "B"]], why: "Складывает два бита: G1 — сумма, G2 — перенос в следующий разряд. 1 + 1 = 10 в двоичной: сумма 0, перенос 1." },
+  fa: { n: "Полный сумматор", k: 3, g: [["xor", "A", "B"], ["xor", "G1", "C"], ["and", "A", "B"], ["and", "G1", "C"], ["or", "G3", "G4"]], why: "Складывает три бита, C — перенос из прошлого разряда. G2 — сумма, G5 — перенос дальше. Цепочка таких блоков складывает целые числа." },
+  xn: { n: "XOR из И-НЕ", k: 2, g: [["nand", "A", "B"], ["nand", "A", "G1"], ["nand", "B", "G1"], ["nand", "G2", "G3"]], why: "Исключающее ИЛИ из четырёх И-НЕ — ровно одна микросхема 74HC00. Так доказывают, что из И-НЕ можно собрать что угодно." },
+  mj: { n: "2 из 3", k: 3, g: [["and", "A", "B"], ["and", "B", "C"], ["and", "A", "C"], ["or", "G1", "G2"], ["or", "G4", "G3"]], why: "Мажоритарная схема: выход 1, когда единиц хотя бы две из трёх. Так «голосуют» три дублирующих датчика, и один сломанный не портит результат." },
+  dm: { n: "Де Морган", k: 2, g: [["not", "A", "A"], ["not", "B", "B"], ["or", "G1", "G2"], ["nand", "A", "B"]], why: "Сравни G3 и G4: ¬A + ¬B всегда равно ¬(A · B). Это закон де Моргана — таблица докажет его лучше любых слов." },
+};
+const CS_MAX = 8;
+// Сколько элементов в одной микросхеме: НЕ — 6 штук, остальные — 4 двухвходовых
+const CS_CHIP = { and: ["74HC08", 4], or: ["74HC32", 4], not: ["74HC04", 6], nand: ["74HC00", 4], nor: ["74HC02", 4], xor: ["74HC86", 4] };
+let cs = { k: 2, g: CS_PRE.ha.g.map(r => [...r]), ins: [0, 0, 0, 0], p: "ha" };
+try { const c = JSON.parse(localStorage.getItem("calc-cascade")); if (c && c.g && c.g.length) cs = c; } catch (e) {}
+const csSave = () => { try { localStorage.setItem("calc-cascade", JSON.stringify(cs)); } catch (e) {} };
+const csSrc = g => (GATES[g[0]].one ? [g[1]] : [g[1], g[2]]);
+const csOpts = i => [...LG_NAMES.slice(0, cs.k)].concat(Array.from({ length: i }, (_, j) => "G" + (j + 1)));
+
+// Значения всех входов и выходов элементов при заданных входах
+function csEval(ins) {
+  const v = {};
+  [...LG_NAMES.slice(0, cs.k)].forEach((L, i) => { v[L] = ins[i]; });
+  cs.g.forEach((g, i) => { const G = GATES[g[0]]; v["G" + (i + 1)] = G.one ? G.f(v[g[1]]) : G.f(v[g[1]], v[g[2]]); });
+  return v;
+}
+// Формула каждого выхода через буквы входов (понимает и вкладка «Своё выражение»)
+function csExpr() {
+  const e = {}, OPS = { and: " · ", nand: " · ", or: " + ", nor: " + ", xor: " ⊕ " };
+  // Скобки не нужны вокруг одной буквы и вокруг ¬(…), которое закрывается в самом конце
+  const whole = x => {
+    if (/^¬*[A-F]$/.test(x)) return true;
+    const m = x.match(/^¬+\(/); if (!m) return false;
+    let d = 0;
+    for (let i = m[0].length - 1; i < x.length; i++) { if (x[i] === "(") d++; else if (x[i] === ")" && --d === 0) return i === x.length - 1; }
+    return false;
+  };
+  const op = x => (whole(x) ? x : `(${x})`);
+  [...LG_NAMES.slice(0, cs.k)].forEach(L => { e[L] = L; });
+  cs.g.forEach((g, i) => {
+    const G = GATES[g[0]], a = op(e[g[1]]);
+    let t = G.one ? "¬" + a : a + OPS[g[0]] + op(e[g[2]]);
+    if (G.inv && !G.one) t = `¬(${t})`;
+    e["G" + (i + 1)] = t;
+  });
+  return e;
+}
+// «Выходы схемы» — элементы, чей выход больше никуда не идёт
+const csSinks = () => cs.g.map((_, i) => "G" + (i + 1)).filter(n => !cs.g.some(g => csSrc(g).includes(n)));
+
+function csRows() {
+  const opt = (list, cur) => list.map(x => `<option value="${x}"${x === cur ? " selected" : ""}>${x}</option>`).join("");
+  const types = Object.entries(GATES).map(([k, g]) => [k, g.n]);
+  $("csGates").innerHTML = cs.g.map((g, i) => {
+    const name = "G" + (i + 1), src = csOpts(i), one = GATES[g[0]].one;
+    return `<div class="csrow" data-k="${i}"><b>${name}</b>
+      <select data-f="0" aria-label="Тип элемента ${name}">${types.map(([k, n]) => `<option value="${k}"${k === g[0] ? " selected" : ""}>${n}</option>`).join("")}</select>
+      <select data-f="1" aria-label="Первый вход ${name}">${opt(src, g[1])}</select>
+      <select data-f="2" aria-label="Второй вход ${name}"${one ? " disabled" : ""}>${opt(src, g[2])}</select>
+      <button type="button" class="csdel" aria-label="Удалить ${name}"${cs.g.length < 2 ? " disabled" : ""}>×</button></div>`;
+  }).join("");
+  $("csAdd").disabled = cs.g.length >= CS_MAX;
+  $("csN").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === cs.k));
+  $("csPre").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.p === cs.p));
+}
+
+function drawCasc() {
+  const n = cs.k, v = csEval(cs.ins), sinks = csSinks(), c = x => (v[x] ? "hi" : "lo");
+  // Раскладка: глубина элемента = 1 + самая большая глубина его входов → номер столбца
+  const depth = {}; [...LG_NAMES.slice(0, n)].forEach(L => { depth[L] = 0; });
+  cs.g.forEach((g, i) => { depth["G" + (i + 1)] = 1 + Math.max(...csSrc(g).map(x => depth[x])); });
+  const busX = i => 22 + i * 28, X0 = busX(n - 1) + 40, CW = 118, TOP = 52, GAP = 64;
+  const cols = {}; cs.g.forEach((_, i) => { (cols[depth["G" + (i + 1)]] ||= []).push(i); });
+  const pos = {}; let maxY = TOP, maxD = 1;
+  Object.keys(cols).map(Number).sort((a, b) => a - b).forEach(d => {
+    maxD = Math.max(maxD, d);
+    // Элемент тянется к середине своих источников, но не ближе GAP к соседу сверху
+    const want = cols[d].map(i => {
+      const ys = csSrc(cs.g[i]).filter(x => x[0] === "G").map(x => pos[x].y);
+      return { i, y: ys.length ? ys.reduce((a, b) => a + b) / ys.length : TOP };
+    }).sort((a, b) => a.y - b.y || a.i - b.i);
+    let last = -Infinity;
+    want.forEach(w => { const y = Math.max(w.y, last + GAP, TOP); last = y; pos["G" + (w.i + 1)] = { x: X0 + (d - 1) * CW, y }; maxY = Math.max(maxY, y); });
+  });
+  const W = X0 + (maxD - 1) * CW + 120, H = maxY + 46;
+  const outX = name => pos[name].x + (GATES[cs.g[+name.slice(1) - 1][0]].inv ? 50 : 42);
+  let wires = "", taps = "";
+  cs.g.forEach((g, i) => {
+    const p = pos["G" + (i + 1)], src = csSrc(g);
+    src.forEach((sName, j) => {
+      const ty = src.length === 1 ? p.y : p.y + (j ? 10 : -10);
+      if (sName[0] === "G") {
+        const sx = outX(sName), sy = pos[sName].y, mx = p.x - 12 - j * 7;
+        wires += `<path class="${c(sName)}" d="M${sx} ${sy} H${mx} V${ty} H${p.x}"/>`;
+      } else {
+        const bx = busX(LG_NAMES.indexOf(sName));
+        wires += `<path class="${c(sName)}" d="M${bx} ${ty} H${p.x}"/>`;
+        taps += `<circle class="dot ${c(sName)}" cx="${bx}" cy="${ty}" r="3.5"/>`;
+      }
+    });
+  });
+  let svg = [...LG_NAMES.slice(0, n)].map((L, i) => {
+    const x = busX(i);
+    return `<line class="${c(L)}" x1="${x}" y1="34" x2="${x}" y2="${H - 8}"/>
+      <g class="inp${v[L] ? " on" : ""}" data-i="${i}"><rect x="${x - 10}" y="4" width="20" height="28" rx="5"/><text x="${x}" y="17">${L}</text><text x="${x}" y="29" style="font-size:10px;fill:var(--accent)">${v[L]}</text></g>`;
+  }).join("") + wires + taps;
+  cs.g.forEach((g, i) => {
+    const name = "G" + (i + 1), p = pos[name], G = GATES[g[0]], ox = outX(name);
+    svg += `<path class="${c(name)}" d="M${p.x + 40} ${p.y} H${ox}"/>`;
+    svg += `<rect class="box" x="${p.x}" y="${p.y - 20}" width="40" height="40" rx="2"/><text class="sym" x="${p.x + 20}" y="${p.y}">${G.sym}</text>`;
+    if (G.inv) svg += `<circle class="bub" cx="${p.x + 45}" cy="${p.y}" r="5"/>`;
+    svg += `<text class="gn" x="${p.x + 20}" y="${p.y - 26}">${name}</text>`;
+    if (sinks.includes(name)) svg += `<path class="${c(name)}" d="M${ox} ${p.y} H${ox + 30}"/><circle class="led${v[name] ? " on" : ""}" cx="${ox + 40}" cy="${p.y}" r="9"/><text x="${ox + 54}" y="${p.y + 4}" style="fill:var(--fg)">${name}=${v[name]}</text>`;
+  });
+  const sv = $("csSchem");
+  sv.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  // На широком экране схема растягивается, на узком не мельчает, а прокручивается
+  sv.style.minWidth = Math.round(W * 0.95) + "px"; sv.style.maxWidth = Math.round(W * 1.7) + "px";
+  sv.innerHTML = svg;
+  $("csIns").innerHTML = [...LG_NAMES.slice(0, n)].map((L, i) => `<button type="button" data-i="${i}" class="${v[L] ? "on" : ""}">${L} = ${v[L]}</button>`).join("");
+
+  // Формулы выходов, нужные микросхемы, пояснение к примеру
+  const ex = csExpr(), used = {};
+  cs.g.forEach(g => { used[g[0]] = (used[g[0]] || 0) + 1; });
+  const chips = Object.entries(used).map(([t, k]) => `${GATES[t].n} ×${k} → ${Math.ceil(k / CS_CHIP[t][1])} × ${CS_CHIP[t][0]}`).join(", ");
+  const last = sinks[sinks.length - 1];
+  $("csOut").innerHTML = `<div class="big cs-big">${sinks.map(s => `<span>${s} = ${v[s]}</span>`).join("")}</div>` +
+    sinks.map(s => row(s, esc(ex[s]))).join("") + row("Микросхемы", chips) +
+    (cs.p && CS_PRE[cs.p] ? `<p class="hint" style="margin:6px 0 0">${CS_PRE[cs.p].why}</p>` : "") +
+    `<button type="button" class="tool cs-go" id="csGo">Разобрать ${last} во вкладке «Своё выражение»</button>`;
+
+  // Таблица: входы, затем все элементы; выходы схемы подсвечены
+  const L = [...LG_NAMES.slice(0, n)], Gn = cs.g.map((_, i) => "G" + (i + 1));
+  $("csTT").innerHTML = `<thead><tr>${L.map(x => `<th>${x}</th>`).join("")}${Gn.map(x => `<th class="${sinks.includes(x) ? "sink" : ""}">${x}</th>`).join("")}</tr></thead><tbody>` +
+    Array.from({ length: 2 ** n }, (_, k) => {
+      const ins = L.map((_, j) => (k >> (n - 1 - j)) & 1), r = csEval(ins), cur = ins.every((x, j) => x === cs.ins[j]);
+      return `<tr class="${cur ? "cur" : ""}" data-in="${ins.join("")}">${ins.map(x => `<td>${x}</td>`).join("")}${Gn.map(x => `<td class="${r[x] ? "one" : ""}">${r[x]}</td>`).join("")}</tr>`;
+    }).join("") + "</tbody>";
+  csSave();
+}
+const csAll = () => { csRows(); drawCasc(); };
+
+$("csPre").innerHTML = Object.entries(CS_PRE).map(([k, p]) => `<button type="button" data-p="${k}">${p.n}</button>`).join("");
+$("csPre").addEventListener("click", e => {
+  const b = e.target.closest("button[data-p]"); if (!b) return;
+  const p = CS_PRE[b.dataset.p];
+  cs = { k: p.k, g: p.g.map(r => [...r]), ins: [0, 0, 0, 0], p: b.dataset.p };
+  csAll();
+});
+$("csN").addEventListener("click", e => {
+  const b = e.target.closest("button[data-n]"); if (!b) return;
+  cs.k = +b.dataset.n; cs.p = null;
+  // Буквы, которых больше нет, меняем на A
+  cs.g.forEach(g => { [1, 2].forEach(j => { if (g[j][0] !== "G" && LG_NAMES.indexOf(g[j]) >= cs.k) g[j] = "A"; }); });
+  csAll();
+});
+$("csGates").addEventListener("change", e => {
+  const sel = e.target.closest("select"), r = e.target.closest(".csrow"); if (!sel || !r) return;
+  cs.g[+r.dataset.k][+sel.dataset.f] = sel.value; cs.p = null;
+  if (sel.dataset.f === "0") csRows();
+  else $("csPre").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false"));
+  drawCasc();
+});
+$("csGates").addEventListener("click", e => {
+  const b = e.target.closest(".csdel"), r = e.target.closest(".csrow"); if (!b || !r) return;
+  const k = +r.dataset.k, gone = "G" + (k + 1);
+  cs.g.splice(k, 1); cs.p = null;
+  // Ссылки на удалённый элемент → A, номера тех, что ниже, сдвигаются на 1
+  cs.g.forEach(g => { [1, 2].forEach(j => {
+    if (g[j] === gone) g[j] = "A";
+    else if (g[j][0] === "G" && +g[j].slice(1) > k + 1) g[j] = "G" + (+g[j].slice(1) - 1);
+  }); });
+  csAll();
+});
+$("csAdd").addEventListener("click", () => {
+  if (cs.g.length >= CS_MAX) return;
+  const n = cs.g.length;
+  cs.g.push(["and", n ? "G" + n : "A", "B"]); cs.p = null;
+  csAll();
+});
+const csToggle = i => { cs.ins[i] ^= 1; drawCasc(); };
+$("csIns").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) csToggle(+b.dataset.i); });
+$("csSchem").addEventListener("click", e => { const g = e.target.closest(".inp"); if (g) csToggle(+g.dataset.i); });
+$("csTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { [...r.dataset.in].forEach((x, j) => { cs.ins[j] = +x; }); drawCasc(); } });
+$("csOut").addEventListener("click", e => {
+  if (!e.target.closest("#csGo")) return;
+  const s = csSinks();
+  $("lgE").value = csExpr()[s[s.length - 1]];
+  setLgTab("e"); updateLogicExpr();
+});
+csAll();
 
 /* ---------- Тренажёр ---------- */
 let quizMode = "c";                 // c — цвета, o — закон Ома, s — SMD-коды
