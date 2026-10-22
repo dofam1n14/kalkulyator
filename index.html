@@ -3767,7 +3767,14 @@ $("resetBtn").addEventListener("click", () => {
     return;
   }
   clearTimeout(resetArmed);
-  try { localStorage.removeItem(KEY); } catch (e) {}
+  // Сбрасываем только калькуляторы. Игру и тренажёр не трогаем: их очки и рекорды лежат отдельно,
+  // а ники (поля внутри #game и #quiz) переносим в чистое сохранение
+  try {
+    const keep = {};
+    document.querySelectorAll("#game input[id], #game select[id], #quiz input[id], #quiz select[id]").forEach(i => { keep[i.id] = i.value; });
+    localStorage.setItem(KEY, JSON.stringify({ vals: keep }));
+    ["calc-cascade", "calc-karnaugh", "calc-reg-mode", "calc-chip", "calc-board"].forEach(k => localStorage.removeItem(k));
+  } catch (e) {}
   location.reload();
 });
 
