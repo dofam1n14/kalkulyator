@@ -53,6 +53,8 @@ header h1 {
   margin: 0; letter-spacing: .01em; text-wrap: balance;
 }
 header h1 span { color: var(--accent); }
+header h1 a { color: inherit; text-decoration: none; }
+header h1 a:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; border-radius: 4px; }
 header p { margin: 4px 0 0; color: var(--muted); max-width: 62ch; }
 .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(320px, 100%), 1fr)); gap: 16px; }
 .mod {
@@ -148,7 +150,7 @@ label.check input { width: auto; accent-color: var(--accent); }
 .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
 /* NE555: экран осциллографа */
-.wave { width: 100%; height: auto; display: block; }
+.wave { width: 100%; max-width: 760px; height: auto; display: block; margin-inline: auto; }
 .wave .screen { fill: var(--bg); stroke: var(--line); }
 .wave .grid { stroke: var(--line); stroke-width: 1; }
 .wave .sig { fill: none; stroke: var(--result); stroke-width: 2.5; stroke-linejoin: round; }
@@ -164,7 +166,7 @@ label.check input { width: auto; accent-color: var(--accent); }
 }
 @keyframes sweep { from { transform: translateX(0); } to { transform: translateX(500px); } }
 /* Частота и длина волны: синусоида + шкала спектра */
-.fviz { width: 100%; height: auto; display: block; }
+.fviz { width: 100%; max-width: 760px; height: auto; display: block; margin-inline: auto; }
 .fviz .sine { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linecap: round; }
 .fviz .axis { stroke: var(--line); }
 .fviz .guide { stroke: var(--muted); stroke-dasharray: 3 4; }
@@ -239,9 +241,6 @@ label.check input { width: auto; accent-color: var(--accent); }
 .crumbs a { text-decoration: none; display: inline-block; }
 .chips button[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
 .mod { border-top: 3px solid var(--cat, var(--line)); }
-.swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid var(--line); }
-footer { color: var(--muted); font-size: 13px; }
-footer code { font-family: var(--font-mono); }
 .contact {
   border: 1px solid var(--accent); background: var(--accent-soft); border-radius: 10px;
   padding: 18px; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 14px;
@@ -262,7 +261,7 @@ footer code { font-family: var(--font-mono); }
 <body>
 <div class="wrap">
   <header>
-    <h1>Калькулятор <span>электронщика</span></h1>
+    <h1><a href="#" title="На главную">Калькулятор <span>электронщика</span></a></h1>
     <p>Маркировка резисторов и SMD, закон Ома, транзисторный ключ, таймер NE555, время работы от аккумулятора и другое. Выбери калькулятор ниже. Значения можно вводить с приставками: <code>4.7k</code>, <code>100n</code>, <code>2M</code>, <code>20m</code>.</p>
   </header>
 
@@ -440,6 +439,7 @@ footer code { font-family: var(--font-mono); }
         <label>Кол-во LED подряд<input id="lN" value="1"></label>
       </div>
       <div class="out" id="ledOut"></div>
+      <p class="hint" style="margin:0">Типичное падение: красный ≈ 2 В, жёлтый ≈ 2.1 В, зелёный ≈ 2.2–3 В, синий и белый ≈ 3–3.3 В.</p>
     </section>
 
     <section class="mod wide" id="tr">
@@ -564,7 +564,6 @@ footer code { font-family: var(--font-mono); }
     </section>
   </div>
 
-  <footer>Типичные падения на светодиодах: красный ≈ 2 В, жёлтый ≈ 2.1 В, зелёный ≈ 2.2–3 В, синий и белый ≈ 3–3.3 В.</footer>
 
   <section class="contact">
     <div>
