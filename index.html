@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://jhoqjypixkilfnshonmk.supabase.co; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Калькулятор электронщика: маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода, таймер NE555, перевод единиц.">
@@ -210,6 +210,11 @@ label.check input { width: auto; accent-color: var(--accent); }
 .board th { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
 .board th:nth-child(3), .board td:nth-child(3) { text-align: right; font-family: var(--font-mono); }
 .board tr.me td { color: var(--accent); font-weight: 600; }
+.gtabs { display: flex; gap: 6px; }
+.gtabs button { font: inherit; font-size: 13px; padding: 4px 10px; border-radius: 999px; border: 1px solid var(--line); background: none; color: var(--muted); cursor: pointer; }
+.gtabs button.on { color: var(--accent); border-color: var(--accent); }
+.gnick { display: block; min-height: 1.2em; font-size: 12px; color: var(--muted); }
+.gnick.bad { color: var(--warn, #d9534f); }
 /* Тренажёр: блиц-викторина */
 .qhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 13px; color: var(--muted); }
 .qhead b { margin-left: 6px; font: 600 20px var(--font-mono); color: var(--fg); }
@@ -335,7 +340,7 @@ label.check input { width: auto; accent-color: var(--accent); }
       <h2>Бегущий резистор <small>прыгай через детали, собирай электроны</small></h2>
       <canvas id="gCanvas" width="900" height="300" aria-label="Игра: резистор бежит по плате и перепрыгивает детали"></canvas>
       <div class="gctl">
-        <label>Твой ник<input id="gName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"></label>
+        <label>Твой ник<input id="gName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"><small id="gNick" class="gnick"></small></label>
         <button type="button" class="qstart" id="gStart">Играть</button>
         <span class="gbal">Электроны<b id="gCoins">0</b></span>
       </div>
@@ -345,8 +350,9 @@ label.check input { width: auto; accent-color: var(--accent); }
         <div class="stack"><h3 class="gh">Магазин бафов</h3><div class="shop" id="gShop"></div></div>
         <div class="stack">
           <h3 class="gh">Таблица рекордов</h3>
+          <div class="gtabs" id="gTabs"><button type="button" data-b="on" class="on">Онлайн</button><button type="button" data-b="loc">В этом браузере</button></div>
           <table class="board" id="gBoard"></table>
-          <p class="hint" style="margin:0">Рекорды и электроны хранятся в этом браузере.</p>
+          <p class="hint" style="margin:0" id="gBoardHint"></p>
         </div>
       </div>
     </section>
@@ -1605,6 +1611,46 @@ function loadGame() {
 }
 let gs = loadGame();
 function saveGame() { try { localStorage.setItem(GAME_KEY, JSON.stringify(gs)); } catch (e) {} }
+// Секретный код браузера: им ник «закрепляется» за этим устройством в онлайн-таблице
+if (typeof gs.secret !== "string" || gs.secret.length < 20) {
+  gs.secret = [...crypto.getRandomValues(new Uint8Array(24))].map(b => b.toString(16).padStart(2, "0")).join("");
+  saveGame();
+}
+
+// Онлайн-таблица рекордов (Supabase). Ключ публичный — доступ ограничен правилами в базе
+const SB_URL = "https://jhoqjypixkilfnshonmk.supabase.co/rest/v1", SB_KEY = "sb_publishable_UtLoaxB21zedKXUD0wberQ_ozjqaE1D";
+async function sb(path, body) {
+  const r = await fetch(SB_URL + path, { method: body ? "POST" : "GET", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
+  if (!r.ok) throw new Error("HTTP " + r.status);
+  return r.json();
+}
+let online = undefined, boardTab = "on", nickState = "";   // online: undefined — грузится, null — ошибка
+async function loadOnline() {
+  try { online = await sb("/leaderboard?select=nick,best,updated_at&limit=20"); } catch (e) { online = null; }
+  renderBoard();
+}
+let nickTimer = 0;
+function checkNick() {
+  clearTimeout(nickTimer);
+  const el = $("gNick"), n = gs.name;
+  el.classList.remove("bad");
+  if (!n) { nickState = ""; el.textContent = "Без ника рекорд не попадёт в онлайн-таблицу"; return; }
+  nickTimer = setTimeout(async () => {
+    try { nickState = await sb("/rpc/check_nick", { p_nick: n, p_secret: gs.secret }); } catch (e) { nickState = ""; el.textContent = "Онлайн недоступен"; return; }
+    if (n !== gs.name) return;   // пока ждали ответ, ник уже поменяли
+    el.textContent = { free: "Ник свободен — займёшь его первым рекордом", mine: "Это твой ник ✔", taken: "Ник занят другим игроком — выбери другой" }[nickState] || "";
+    el.classList.toggle("bad", nickState === "taken");
+    renderBoard();
+  }, 400);
+}
+async function submitOnline(s) {
+  if (!gs.name) return;
+  let r;
+  try { r = await sb("/rpc/submit_score", { p_nick: gs.name, p_secret: gs.secret, p_score: s }); } catch (e) { $("gMsg").textContent += " · онлайн недоступен"; return; }
+  if (r === "taken") $("gMsg").textContent += ` · ник «${gs.name}» занят, в онлайн не попало`;
+  else if (r === "new" || r === "record") $("gMsg").textContent += " · рекорд в онлайн-таблице 🌐";
+  checkNick(); loadOnline();
+}
 
 const cv = $("gCanvas"), ctx = cv.getContext("2d");
 const run = { on: false, over: false, paused: false, t: 0, speed: 0, score: 0, coins: 0, y: 0, vy: 0, jumps: 0, obs: [], cn: [], nextObs: 0, shield: 0, inv: 0, scroll: 0 };
@@ -1765,6 +1811,7 @@ function gameOver() {
   saveGame();
   $("gMsg").textContent = `Очки: ${s} · электронов +${run.coins}` + note + (rank === 0 ? " · Новый рекорд! 🏆" : rank > 0 ? ` · ${rank + 1}-е место в таблице` : "");
   renderShop(); renderBoard(); renderCoins();
+  if (s > 0) submitOnline(s);
 }
 function loop(ts) {
   const dt = Math.min(0.033, Math.max(0, (ts - last) / 1000));
@@ -1906,6 +1953,16 @@ function renderShop() {
   }).join("");
 }
 function renderBoard() {
+  document.querySelectorAll("#gTabs button").forEach(b => b.classList.toggle("on", b.dataset.b === boardTab));
+  if (boardTab === "on") {
+    $("gBoardHint").textContent = "Общая таблица всех игроков. Ник закрепляется за этим браузером.";
+    const me = gs.name.toLowerCase(), dd = t => new Date(t).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+    const msg = online === undefined ? "Загружаю…" : online === null ? "Не удалось загрузить — нет интернета?" : "Пока пусто — сыграй первым!";
+    const rows = (online || []).map((r, i) => `<tr class="${nickState === "mine" && r.nick.toLowerCase() === me ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.nick)}</td><td>${+r.best || 0}</td><td>${esc(dd(r.updated_at))}</td></tr>`).join("");
+    $("gBoard").innerHTML = `<thead><tr><th>#</th><th>Ник</th><th>Очки</th><th>Дата</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${msg}</td></tr>`}</tbody>`;
+    return;
+  }
+  $("gBoardHint").textContent = "Рекорды и электроны в этом браузере.";
   const rows = gs.board.map((r, i) => `<tr class="${r.id === lastId ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.n)}</td><td>${+r.s || 0}</td><td>${esc(r.d)}</td></tr>`).join("");
   $("gBoard").innerHTML = `<thead><tr><th>#</th><th>Ник</th><th>Очки</th><th>Дата</th></tr></thead>` +
     `<tbody>${rows || `<tr><td colspan="4">Пока пусто — сыграй первым!</td></tr>`}</tbody>`;
@@ -1921,7 +1978,8 @@ $("gShop").addEventListener("click", e => {
   $("gMsg").textContent = `Куплено: ${it.t}!`;
   renderShop(); renderCoins();
 });
-$("gName").addEventListener("input", () => { gs.name = $("gName").value.trim(); saveGame(); });
+$("gName").addEventListener("input", () => { gs.name = $("gName").value.trim(); saveGame(); checkNick(); });
+$("gTabs").addEventListener("click", e => { const b = e.target.closest("button[data-b]"); if (b) { boardTab = b.dataset.b; renderBoard(); } });
 $("gStart").addEventListener("click", () => { $("gStart").blur(); if (!run.on) startRun(); });
 cv.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
 document.addEventListener("keydown", e => {
@@ -1939,6 +1997,7 @@ window.addEventListener("resize", () => { if (!$("game").hidden) { fitCanvas(); 
 $("themeBtn").addEventListener("click", () => { readColors(); draw(); });
 function initGame() {
   $("gName").value = gs.name;
+  checkNick(); loadOnline();
   readColors(); fitCanvas();
   renderShop(); renderBoard(); renderCoins();
   draw();
