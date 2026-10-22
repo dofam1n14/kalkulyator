@@ -21,11 +21,12 @@
   --line: #d3dbd5;
   --accent: #a0561f;
   --on-accent: #ffffff;   /* текст на кнопках с фоном акцента */
+  --pink: #b0386b;        /* раздел «Справочник» */
   --screen: #e4ebe6;      /* экран результата, как индикатор прибора */
   --glow: none;           /* свечение цифр — только в тёмной теме */
   --accent-soft: #f3e3d5;
   --result: #0f5d45;
-  --warn: #a8461f;
+  --warn: #9a3f1b;
   --blue: #2a63b0;
   --violet: #7a4bb0;
   --font-display: "Chakra Petch", "Segoe UI", sans-serif;
@@ -35,13 +36,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
-    --accent: #e08a4b; --on-accent: #1f140b; --screen: #0a110e; --glow: 0 0 14px rgba(111, 211, 172, .35); --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
+    --accent: #e08a4b; --on-accent: #1f140b; --screen: #0a110e; --pink: #f08cb8; --glow: 0 0 14px rgba(111, 211, 172, .35); --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
-  --accent: #e08a4b; --on-accent: #1f140b; --screen: #0a110e; --glow: 0 0 14px rgba(111, 211, 172, .35); --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
+  --accent: #e08a4b; --on-accent: #1f140b; --screen: #0a110e; --pink: #f08cb8; --glow: 0 0 14px rgba(111, 211, 172, .35); --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -423,6 +424,65 @@ label.check input { width: auto; accent-color: var(--accent); }
 }
 .mail button:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 @media (prefers-reduced-motion: no-preference) { .band { transition: fill .15s; } }
+#rgSchem, #rpSchem { flex-basis: 380px; max-width: 420px; }
+/* Распиновки: плата/корпус слева, описание справа, таблица снизу */
+.pincols { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+.pincols.wide { grid-template-columns: minmax(0, 1fr); }
+@media (max-width: 760px) { .pincols { grid-template-columns: minmax(0, 1fr); } }
+.plist { display: flex; flex-wrap: wrap; gap: 6px; }
+.plist button { font: 500 13px var(--font-body); background: var(--panel); color: var(--fg); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; }
+.plist.small button { font-size: 12px; padding: 4px 10px; }
+.plist button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--on-accent); }
+.plist button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.pinw { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); padding: 8px; }
+.pinw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.pinsvg { display: block; width: 100%; height: auto; margin-inline: auto; }
+.pinsvg .brd { fill: #1d5a3c; stroke: #0f3324; stroke-width: 2; }
+.pinsvg .silk { font: 600 13px var(--font-mono); fill: #eef3ea; }
+.pinsvg .metal, .pinsvg .tab { fill: #c4c9ce; stroke: #8b9196; }
+.pinsvg .jack, .pinsvg .ic, .pinsvg .body { fill: #23272b; stroke: #0d0f11; }
+.pinsvg .hole { fill: var(--bg); stroke: #8b9196; }
+.pinsvg .leg { fill: #c4c9ce; }
+.pinsvg .notch { fill: var(--bg); stroke: #0d0f11; }
+.pinsvg .key { fill: #8b9196; }
+.pinsvg .cname { font: 700 15px var(--font-mono); fill: #e5e8eb; text-anchor: middle; dominant-baseline: central; }
+.pinsvg .num { font: 600 10px var(--font-mono); fill: #aab1b8; }
+.pinsvg .pname { font: 600 11px var(--font-mono); fill: var(--fg); }
+.pp.dim { opacity: .22; }
+.pinsvg .pname.hl { fill: var(--accent); font-weight: 700; }
+.pp { cursor: pointer; }
+.pp .pad { stroke: rgba(0, 0, 0, .4); stroke-width: 1.5; }
+.pp:hover .pad { stroke: var(--fg); stroke-width: 2.5; }
+.pp.hl .pad { stroke: var(--fg); stroke-width: 2.5; }
+.pp.sel .pad, .pp:focus-visible .pad { stroke: var(--accent); stroke-width: 4; }
+.pp:focus-visible { outline: none; }
+/* Цвета типов выводов — одинаковые в обеих темах, как маркировка проводов */
+.t-p .pad, .dot.t-p { fill: #e5484d; background: #e5484d; }
+.t-g .pad, .dot.t-g { fill: #4b5259; background: #4b5259; }
+.t-i .pad, .dot.t-i { fill: #3d8bfd; background: #3d8bfd; }
+.t-o .pad, .dot.t-o { fill: #2fb67c; background: #2fb67c; }
+.t-io .pad, .dot.t-io { fill: #d8b65f; background: #d8b65f; }
+.t-x .pad, .dot.t-x { fill: #b07ae0; background: #b07ae0; }
+.t-b .pad, .dot.t-b { fill: #8a9097; background: repeating-linear-gradient(45deg, #8a9097 0 3px, #5c6268 3px 6px); }
+.t-b .pad { stroke-dasharray: 3 2; stroke: #222; }
+.dot { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; vertical-align: -1px; }
+.pleg { font-size: 12px; color: var(--muted); display: flex; flex-wrap: wrap; gap: 4px 12px; align-items: center; }
+.pleg .dot { margin-right: 2px; }
+.pdesc { margin: 6px 0 0; font-family: var(--font-body); font-size: 14px; line-height: 1.5; color: var(--fg); }
+.ptips { margin: 0; padding-left: 18px; display: grid; gap: 6px; font-size: 14px; color: var(--muted); }
+.ptips:empty, .plinks:empty { display: none; }
+.ptips b { color: var(--fg); }
+.plinks { display: flex; flex-wrap: wrap; gap: 8px; }
+.plinks a { text-decoration: none; }
+.ptabw { overflow-x: auto; }
+.ptab td, .ptab th { vertical-align: top; }
+.ptab td:nth-child(3), .ptab th:nth-child(3) { text-align: left !important; font-family: var(--font-body) !important; }
+.ptab td:last-child { font-size: 13px; color: var(--muted); }
+.ptab tbody tr { cursor: pointer; }
+.ptab tr.cur td { background: var(--accent-soft); }
+.ptab .wtxt { color: var(--warn); font-weight: 500; }
+.out h3 + .row { border-top: 0; }
+.out h3 { margin-top: 8px; font-size: 14px; color: var(--muted); }
 </style>
 
 <div class="wrap" role="main">
@@ -648,6 +708,21 @@ label.check input { width: auto; accent-color: var(--accent); }
       <div class="out" id="divOut"></div>
     </section>
 
+    <section class="mod wide" id="rpair">
+      <h2>Подбор резисторов <small>из одного или двух</small></h2>
+      <div class="split">
+        <div class="stack">
+          <div class="fields">
+            <label>Нужно, Ом<input id="rpT" value="5k"></label>
+            <label id="fRpSer">Ряд номиналов<select id="rpSer"><option value="E6">E6 (±20%)</option><option value="E12">E12 (±10%)</option><option value="E24" selected>E24 (±5%)</option><option value="E96">E96 (±1%)</option></select></label>
+          </div>
+          <label>Мои резисторы — подберу только из них (через пробел)<input id="rpHave" placeholder="например: 1k 2.2k 4.7k 10k 47k" autocomplete="off"></label>
+          <div class="out" id="rpOut"></div>
+        </div>
+        <svg class="schem" id="rpSchem" viewBox="0 0 320 160" role="img" aria-label="Схема соединения резисторов"></svg>
+      </div>
+    </section>
+
     <section class="mod" id="rc">
       <h2>RC-фильтр <small>fc = 1/(2πRC)</small></h2>
       <div class="fields">
@@ -826,6 +901,59 @@ label.check input { width: auto; accent-color: var(--accent); }
       </div>
       <svg class="fviz" id="freqViz" viewBox="0 0 560 240" role="img" aria-label="Волна с отмеченными длиной волны и периодом, шкала спектра"></svg>
       <p class="hint" style="margin:0">Длина волны в вакууме. Четвертьволновая антенна: <span id="fQ" style="font-family:var(--font-mono)">—</span></p>
+    </section>
+
+    <section class="mod wide" id="reg">
+      <h2>Стабилизатор напряжения <small>LM317, 78xx, AMS1117</small></h2>
+      <div class="seg" role="group" aria-label="Тип стабилизатора">
+        <button type="button" id="rgAdj" aria-pressed="true">LM317 — любое напряжение</button>
+        <button type="button" id="rgFix" aria-pressed="false">Готовое напряжение</button>
+      </div>
+      <div class="split">
+        <div class="stack">
+          <div class="fields">
+            <label id="fRgChip" hidden>Микросхема<select id="rgChip"></select></label>
+            <label>Uвх, В<input id="rgVin" value="12"></label>
+            <label id="fRgVout">Uвых, В<input id="rgVout" value="5"></label>
+            <label>Ток нагрузки, А<input id="rgI" value="300m"></label>
+            <label>Воздух вокруг, °C<input id="rgTa" value="25"></label>
+            <label id="fRgR1">R1, Ом<input id="rgR1" value="240"></label>
+          </div>
+          <div class="out" id="rgOut"></div>
+        </div>
+        <svg class="schem" id="rgSchem" viewBox="0 0 320 200" role="img" aria-label="Схема включения стабилизатора"></svg>
+      </div>
+    </section>
+
+    <section class="mod wide" id="chips">
+      <h2>Распиновки микросхем <small id="chHead"></small></h2>
+      <div class="plist" role="group" aria-label="Микросхема" id="chList"></div>
+      <div class="pincols">
+        <div class="pinw"><svg class="pinsvg" id="chSvg" role="group" aria-label="Корпус микросхемы, нажми на вывод"></svg></div>
+        <div class="stack">
+          <div class="out" id="chInfo"></div>
+          <ul class="ptips" id="chTips"></ul>
+          <div class="plinks" id="chLinks"></div>
+          <div class="pleg"><span class="dot t-p"></span>питание <span class="dot t-g"></span>земля <span class="dot t-i"></span>вход <span class="dot t-o"></span>выход <span class="dot t-io"></span>вход/выход <span class="dot t-x"></span>управление</div>
+        </div>
+      </div>
+      <div class="ptabw"><table class="board ptab" id="chTab"></table></div>
+    </section>
+
+    <section class="mod wide" id="boards">
+      <h2>Распиновки плат <small>нажми на пин</small></h2>
+      <div class="plist" role="group" aria-label="Плата" id="bdList"></div>
+      <div class="seg" role="group" aria-label="SD-карта" id="bdSd"><button type="button" data-sd="nosd">Без SD-карты</button><button type="button" data-sd="sd1">SD, 1 бит</button><button type="button" data-sd="sd4">SD, 4 бита</button></div>
+      <div class="plist small" role="group" aria-label="Подсветить пины" id="bdFilt"></div>
+      <div class="pincols" id="bdCols">
+        <div class="pinw" tabindex="0" role="region" aria-label="Плата"><svg class="pinsvg" id="bdSvg" role="group" aria-label="Плата, нажми на пин"></svg></div>
+        <div class="stack">
+          <div class="out" id="bdInfo"></div>
+          <ul class="ptips" id="bdNotes"></ul>
+          <div class="pleg"><span class="dot t-p"></span>питание <span class="dot t-g"></span>земля <span class="dot t-io"></span>пин <span class="dot t-b"></span>занят</div>
+        </div>
+      </div>
+      <div class="ptabw"><table class="board ptab" id="bdTab"></table></div>
     </section>
 
     <section class="mod" id="len">
@@ -2762,6 +2890,452 @@ $("copyMail").addEventListener("click", () => {
   try { navigator.clipboard.writeText(text).then(() => done("Скопировано"), selectIt); } catch (e) { selectIt(); }
 });
 
+
+/* ---------- Подбор резисторов ---------- */
+// Ряды номиналов: в E6–E24 исторически округлённые значения, E96 точно считается формулой 10^(i/96)
+const SERIES = {
+  E6: [1.0, 1.5, 2.2, 3.3, 4.7, 6.8],
+  E12: [1.0, 1.2, 1.5, 1.8, 2.2, 2.7, 3.3, 3.9, 4.7, 5.6, 6.8, 8.2],
+  E24,
+  E96: Array.from({ length: 96 }, (_, i) => +Math.pow(10, i / 96).toFixed(2)),
+};
+// Все номиналы ряда от 1 Ом до 10 МОм
+const seriesValues = name => {
+  const out = [];
+  for (let d = 0; d <= 6; d++) SERIES[name].forEach(x => out.push(+(x * 10 ** d).toPrecision(3)));
+  out.push(1e7);
+  return out;
+};
+// Ближайшие к x значения из отсортированного списка (соседи слева и справа)
+function nearIdx(vals, x) {
+  let lo = 0, hi = vals.length - 1;
+  while (lo < hi) { const mid = (lo + hi) >> 1; if (vals[mid] < x) lo = mid + 1; else hi = mid; }
+  return [lo - 1, lo].filter(i => i >= 0 && i < vals.length);
+}
+function rpSearch(vals, T) {
+  const err = R => (R - T) / T, top = list => {
+    const seen = new Set();
+    return list.sort((a, b) => Math.abs(a.e) - Math.abs(b.e)).filter(c => { const k = c.a + "|" + c.b; if (seen.has(k)) return false; seen.add(k); return true; }).slice(0, 3);
+  };
+  const single = nearIdx(vals, T).map(i => ({ a: vals[i], R: vals[i], e: err(vals[i]) }));
+  const ser = [], par = [];
+  vals.forEach(a => {
+    // Последовательно: R = a + b → ищем b рядом с T − a
+    if (a < T) nearIdx(vals, T - a).forEach(i => { const b = vals[i], R = a + b; if (b >= a) ser.push({ a, b, R, e: err(R) }); });
+    // Параллельно: 1/R = 1/a + 1/b → b = a·T/(a − T)
+    if (a > T) nearIdx(vals, (a * T) / (a - T)).forEach(i => { const b = vals[i], R = (a * b) / (a + b); if (b >= a) par.push({ a, b, R, e: err(R) }); });
+  });
+  return { single: top(single), ser: top(ser), par: top(par) };
+}
+const pct = e => (e === 0 ? "точно" : (e > 0 ? "+" : "−") + Math.abs(e * 100).toPrecision(2) + "%");
+function drawRpair(best) {
+  const r = (x, y, w, h) => `<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>`;
+  let s = `<circle cx="16" cy="70" r="4"/><circle cx="304" cy="70" r="4"/>`;
+  if (!best.b) s += `<line x1="20" y1="70" x2="120" y2="70"/>${r(120, 60, 80, 20)}<line x1="200" y1="70" x2="300" y2="70"/><text class="val" x="160" y="50" text-anchor="middle">${fmt(best.a, "Ом")}</text>`;
+  else if (best.kind === "ser") s += `<line x1="20" y1="70" x2="60" y2="70"/>${r(60, 60, 70, 20)}<line x1="130" y1="70" x2="190" y2="70"/>${r(190, 60, 70, 20)}<line x1="260" y1="70" x2="300" y2="70"/>
+    <text class="val" x="95" y="50" text-anchor="middle">${fmt(best.a, "Ом")}</text><text class="val" x="225" y="50" text-anchor="middle">${fmt(best.b, "Ом")}</text>`;
+  else s += `<line x1="20" y1="70" x2="90" y2="70"/><line x1="230" y1="70" x2="300" y2="70"/><circle class="solid" cx="90" cy="70" r="3"/><circle class="solid" cx="230" cy="70" r="3"/>
+    <polyline points="90,70 90,40 125,40"/><polyline points="195,40 230,40 230,70"/><polyline points="90,70 90,100 125,100"/><polyline points="195,100 230,100 230,70"/>
+    ${r(125, 30, 70, 20)}${r(125, 90, 70, 20)}<text class="val" x="160" y="24" text-anchor="middle">${fmt(best.a, "Ом")}</text><text class="val" x="160" y="128" text-anchor="middle">${fmt(best.b, "Ом")}</text>`;
+  s += `<text x="160" y="148" text-anchor="middle">итого ${fmt(best.R, "Ом", 4)} (${pct(best.e)})</text>`;
+  $("rpSchem").innerHTML = s;
+}
+function updateRpair() {
+  const T = parse($("rpT").value), out = $("rpOut");
+  const have = $("rpHave").value.split(/[\s;]+/).map(parse).filter(x => x > 0).sort((a, b) => a - b);
+  $("fRpSer").hidden = have.length > 0;
+  if (!(T > 0)) { out.innerHTML = `<span class="warn">Введи нужное сопротивление, например 5k или 330.</span>`; $("rpSchem").innerHTML = ""; return; }
+  const vals = have.length ? [...new Set(have)] : seriesValues($("rpSer").value);
+  const r = rpSearch(vals, T);
+  // Лучший вариант: самая маленькая ошибка; при равенстве — меньше деталей
+  const cand = [...r.single.map(c => ({ ...c, kind: "one" })), ...r.ser.map(c => ({ ...c, kind: "ser" })), ...r.par.map(c => ({ ...c, kind: "par" }))];
+  if (!cand.length) { out.innerHTML = `<span class="warn">Из этих номиналов ничего не собрать. Добавь резисторы меньше и больше нужного.</span>`; return; }
+  const best = cand.sort((a, b) => Math.abs(a.e) - Math.abs(b.e) || (a.b ? 1 : 0) - (b.b ? 1 : 0))[0];
+  const name = c => (!c.b ? fmt(c.a, "Ом") : c.kind === "ser" || r.ser.includes(c) ? `${fmt(c.a, "Ом")} + ${fmt(c.b, "Ом")}` : `${fmt(c.a, "Ом")} ∥ ${fmt(c.b, "Ом")}`);
+  const list = (arr, kind) => arr.length ? arr.map(c => row(name({ ...c, kind }), `${fmt(c.R, "Ом", 4)} <em>${pct(c.e)}</em>`)).join("") : row("—", "нет вариантов");
+  out.innerHTML = `<div class="big">${name(best)}</div>` +
+    row("Получится", `${fmt(best.R, "Ом", 4)} <em>${pct(best.e)}</em>`) +
+    `<h3>Один резистор</h3>` + list(r.single, "one") +
+    `<h3>Два последовательно</h3>` + list(r.ser, "ser") +
+    `<h3>Два параллельно</h3>` + list(r.par, "par") +
+    `<p class="hint" style="margin:6px 0 0">${have.length ? `Подбираю только из твоих ${have.length} номиналов.` : `Ряд ${$("rpSer").value}: допуск самих резисторов ${{ E6: "±20%", E12: "±10%", E24: "±5%", E96: "±1%" }[$("rpSer").value]}, точнее него собирать смысла нет.`} ∥ — параллельно.</p>`;
+  drawRpair(best);
+}
+["rpT", "rpHave", "rpSer"].forEach(id => $(id).addEventListener("input", updateRpair));
+$("rpSer").addEventListener("change", updateRpair);
+
+/* ---------- Стабилизатор напряжения ---------- */
+// Тепло: RθJA — нагрев кристалла на 1 Вт без радиатора, RθJC — от кристалла до фланца
+const PKG = { "TO-220": { ja: 50, jc: 5 }, "TO-92": { ja: 200, jc: null }, "SOT-223": { ja: 90, jc: 15 } };
+const REGS = {
+  "LM317": { pkg: "TO-220", imax: 1.5, drop: 2, vdiff: 40, pins: "1 — ADJ, 2 — OUT (и фланец!), 3 — IN", caps: "0,1 мкФ на входе, 1 мкФ на выходе; 10 мкФ с ADJ на землю — меньше пульсаций" },
+  "7805": { v: 5, pkg: "TO-220", imax: 1.5, drop: 2, vmax: 35, pins: "1 — IN, 2 — GND (и фланец), 3 — OUT", caps: "0,33 мкФ на входе, 0,1 мкФ на выходе, керамика у самых выводов" },
+  "7809": { v: 9, pkg: "TO-220", imax: 1.5, drop: 2, vmax: 35, pins: "1 — IN, 2 — GND (и фланец), 3 — OUT", caps: "0,33 мкФ на входе, 0,1 мкФ на выходе" },
+  "7812": { v: 12, pkg: "TO-220", imax: 1.5, drop: 2, vmax: 35, pins: "1 — IN, 2 — GND (и фланец), 3 — OUT", caps: "0,33 мкФ на входе, 0,1 мкФ на выходе" },
+  "78L05": { v: 5, pkg: "TO-92", imax: 0.1, drop: 1.7, vmax: 30, pins: "плоской стороной к себе: 1 — OUT, 2 — GND, 3 — IN", caps: "0,33 мкФ на входе, 0,1 мкФ на выходе" },
+  "AMS1117-3.3": { v: 3.3, pkg: "SOT-223", imax: 1, drop: 1.2, vmax: 15, pins: "1 — GND, 2 — OUT (и широкий вывод), 3 — IN", caps: "10 мкФ на входе и 22 мкФ на выходе — без выходного конденсатора возбуждается" },
+  "AMS1117-5.0": { v: 5, pkg: "SOT-223", imax: 1, drop: 1.2, vmax: 15, pins: "1 — GND, 2 — OUT (и широкий вывод), 3 — IN", caps: "10 мкФ на входе и 22 мкФ на выходе" },
+};
+let rgMode = "adj";
+try { rgMode = localStorage.getItem("calc-reg-mode") || "adj"; } catch (e) {}
+$("rgChip").innerHTML = Object.keys(REGS).filter(k => k !== "LM317").map(k => `<option value="${k}">${k} — ${REGS[k].v} В, ${REGS[k].imax < 1 ? fmt(REGS[k].imax, "А") : REGS[k].imax + " А"}</option>`).join("");
+function drawReg(adj, name, Vin, Vout, R1, R2) {
+  const cap = x => `<line x1="${x}" y1="60" x2="${x}" y2="104"/><line x1="${x - 10}" y1="104" x2="${x + 10}" y2="104"/><line x1="${x - 10}" y1="110" x2="${x + 10}" y2="110"/><line x1="${x}" y1="110" x2="${x}" y2="170"/>`;
+  let s = `<circle cx="16" cy="60" r="4"/><line x1="20" y1="60" x2="110" y2="60"/><text class="val" x="8" y="46">${fmt(Vin, "В")}</text>
+    <rect x="110" y="38" width="80" height="52" rx="3"/><text x="150" y="60" text-anchor="middle" style="fill:var(--fg);font-weight:600">${name}</text>
+    <text x="116" y="80">IN</text><text x="184" y="80" text-anchor="end">OUT</text>
+    <line x1="190" y1="60" x2="300" y2="60"/><circle cx="304" cy="60" r="4"/><text class="val" x="312" y="46" text-anchor="end">${fmt(Vout, "В")}</text>
+    ${cap(60)}${cap(275)}<circle class="solid" cx="60" cy="60" r="3"/><circle class="solid" cx="275" cy="60" r="3"/>
+    <line x1="40" y1="170" x2="290" y2="170"/><line x1="155" y1="176" x2="175" y2="176"/><line x1="159" y1="181" x2="171" y2="181"/><line x1="165" y1="170" x2="165" y2="176"/>
+    <text x="72" y="140">Cвх</text><text x="248" y="140">Cвых</text>`;
+  if (adj) s += `<text x="150" y="87" text-anchor="middle">ADJ</text><polyline points="150,90 150,125 230,125"/>
+    <line x1="230" y1="60" x2="230" y2="72"/><rect x="222" y="72" width="16" height="40" rx="2"/><line x1="230" y1="112" x2="230" y2="132"/>
+    <rect x="222" y="132" width="16" height="30" rx="2"/><line x1="230" y1="162" x2="230" y2="170"/>
+    <circle class="solid" cx="230" cy="60" r="3"/><circle class="solid" cx="230" cy="125" r="3"/>
+    <text x="216" y="104" text-anchor="end">R1</text><text class="val" x="216" y="117" text-anchor="end">${fmt(R1, "Ом")}</text>
+    <text x="216" y="146" text-anchor="end">R2</text><text class="val" x="216" y="159" text-anchor="end">${fmt(R2, "Ом")}</text>`;
+  else s += `<text x="150" y="87" text-anchor="middle">GND</text><line x1="150" y1="90" x2="150" y2="170"/>`;
+  $("rgSchem").innerHTML = s;
+}
+function updateReg() {
+  const adj = rgMode === "adj", chip = adj ? "LM317" : $("rgChip").value, c = REGS[chip], th = PKG[c.pkg];
+  $("rgAdj").setAttribute("aria-pressed", adj); $("rgFix").setAttribute("aria-pressed", !adj);
+  $("fRgChip").hidden = adj; $("fRgVout").hidden = !adj; $("fRgR1").hidden = !adj;
+  const Vin = parse($("rgVin").value), I = parse($("rgI").value), Ta = parse($("rgTa").value);
+  const out = $("rgOut");
+  let Vout = c.v, R1 = parse($("rgR1").value), R2, html = "";
+  if (adj) {
+    const Vt = parse($("rgVout").value);
+    if (!(Vin > 0 && I > 0 && Vt > 0 && R1 > 0 && isFinite(Ta))) { out.innerHTML = `<span class="warn">Заполни все поля.</span>`; drawReg(true, chip, Vin, Vt, R1, NaN); return; }
+    if (Vt < 1.25) { out.innerHTML = `<span class="warn">LM317 не опускается ниже 1,25 В — это его опорное напряжение.</span>`; return; }
+    // Uвых = 1,25·(1 + R2/R1) + Iadj·R2, Iadj ≈ 50 мкА
+    const R2x = R1 * (Vt / 1.25 - 1), R2e = e24Near(R2x), Vreal = 1.25 * (1 + R2e / R1) + 50e-6 * R2e;
+    // Лучшая пара E24: R1 от 100 до 240 Ом (через R1 должно течь ≥ 5 мА — минимальная нагрузка LM317)
+    let bp = null;
+    E24.filter(x => x >= 1 && x <= 2.4).map(x => x * 100).forEach(r1 => {
+      const r2 = e24Near(r1 * (Vt / 1.25 - 1)), v = 1.25 * (1 + r2 / r1) + 50e-6 * r2;
+      if (!bp || Math.abs(v - Vt) < Math.abs(bp.v - Vt)) bp = { r1, r2, v };
+    });
+    Vout = Vreal; R2 = R2e;
+    html = `<div class="big">R2 = ${fmt(R2e, "Ом")}</div>` +
+      row("Точно нужно R2", fmt(R2x, "Ом", 4)) + row(`С R2 = ${fmt(R2e, "Ом")} будет`, `${fmt(Vreal, "В", 4)} <em>${pct((Vreal - Vt) / Vt)}</em>`) +
+      row("Лучшая пара из E24", `R1 = ${fmt(bp.r1, "Ом")}, R2 = ${fmt(bp.r2, "Ом")} → ${fmt(bp.v, "В", 4)}`) +
+      row("Ток через R1", fmt(1.25 / R1, "А"));
+    if (1.25 / R1 < 3.5e-3) html += `<span class="warn">Через R1 течёт меньше 3,5 мА: без нагрузки LM317 может выйти из стабилизации и поднять напряжение. Уменьши R1 до 240 Ом или ниже.</span>`;
+  } else {
+    if (!(Vin > 0 && I > 0 && isFinite(Ta))) { out.innerHTML = `<span class="warn">Заполни все поля.</span>`; drawReg(false, chip, Vin, Vout); return; }
+    html = `<div class="big">${chip}: ${fmt(Vout, "В")}</div>`;
+  }
+  // Всё, что выше выхода, сгорает в микросхеме: P = (Uвх − Uвых)·I
+  const P = (Vin - Vout) * I, Tj = Ta + P * th.ja, eff = Vout / Vin;
+  html += row("Греется микросхема", fmt(P, "Вт")) + row("КПД", Math.round(eff * 100) + " %") +
+    row(`Кристалл без радиатора (${c.pkg})`, `≈ ${Math.round(Tj)} °C`);
+  if (Vin - Vout < c.drop) html += `<span class="warn">Входного напряжения не хватает: ${chip} нужно минимум на ${String(c.drop).replace(".", ",")} В больше выхода, то есть от ${fmt(Vout + c.drop, "В")} на входе. Иначе выход «просядет».</span>`;
+  if (c.vmax && Vin > c.vmax) html += `<span class="warn">На входе больше ${c.vmax} В — максимум для ${chip}.</span>`;
+  if (c.vdiff && Vin - Vout > c.vdiff) html += `<span class="warn">Разница вход−выход больше ${c.vdiff} В — предел LM317.</span>`;
+  if (I > c.imax) html += `<span class="warn">Ток больше ${fmt(c.imax, "А")} — предел ${chip}. Возьми помощнее или импульсный модуль.</span>`;
+  if (Tj > 125) {
+    if (th.jc) {
+      // Радиатор: Tj = Ta + P·(RθJC + 0,5 на термопасте + Rθрадиатора) ≤ 125 °C
+      const need = (125 - Ta) / P - th.jc - 0.5;
+      html += need > 0
+        ? `<span class="warn">Без радиатора перегреется. Нужен радиатор не хуже ${need.toFixed(1).replace(".", ",")} °C/Вт (чем меньше число, тем лучше). Маленький радиатор для TO-220 — около 20 °C/Вт.</span>`
+        : `<span class="warn">Даже с радиатором не справится: слишком много тепла. Понизь входное напряжение или возьми импульсный понижающий модуль.</span>`;
+      if (c.pkg === "SOT-223") html += `<span class="warn">У SOT-223 радиатор — это медь на плате: широкий вывод припаивают к полигону площадью 2–5 см².</span>`;
+    } else html += `<span class="warn">Корпус TO-92 так не выдержит: это примерно ${Math.round(Tj)} °C. Возьми 7805 в TO-220.</span>`;
+  } else html += row("Радиатор", Tj > 90 ? "желателен, будет горячо" : "не нужен");
+  if (P > 1.5 || (eff < 0.5 && P > 0.5)) html += `<p class="hint" style="margin:6px 0 0">Линейный стабилизатор превращает лишнее напряжение в тепло. При таком перепаде выгоднее импульсный понижающий модуль (LM2596, MP1584): КПД около 85–90 %, почти не греется.</p>`;
+  html += row("Выводы", c.pins) + row("Конденсаторы", c.caps);
+  out.innerHTML = html;
+  drawReg(adj, chip, Vin, Vout, R1, R2);
+}
+// Ближайший номинал E24 (вверх или вниз)
+function e24Near(v) {
+  if (!(v > 0)) return NaN;
+  const up = e24Up(v), dn = e24Down(v);
+  return Math.abs(up - v) < Math.abs(v - dn) ? up : dn;
+}
+const setReg = m => { rgMode = m; try { localStorage.setItem("calc-reg-mode", m); } catch (e) {} updateReg(); };
+$("rgAdj").onclick = () => setReg("adj");
+$("rgFix").onclick = () => setReg("fix");
+["rgVin", "rgVout", "rgI", "rgTa", "rgR1"].forEach(id => $(id).addEventListener("input", updateReg));
+$("rgChip").addEventListener("change", updateReg);
+
+/* ---------- Распиновки: общее для микросхем и плат ---------- */
+// Типы выводов → цвет площадки: p — питание, g — земля, i — вход, o — выход, io — универсальный, x — управление, b — занят
+const PT_NAME = { p: "питание", g: "земля", i: "вход", o: "выход", io: "вход/выход", x: "управление", b: "занят" };
+const pinG = (i, type, shape, extra = "") => `<g class="pp t-${type}" data-i="${i}" tabindex="0" role="button" ${extra}>${shape}</g>`;
+const pinKey = (box, fn) => {
+  box.addEventListener("click", e => { const g = e.target.closest("[data-i]"); if (g) fn(+g.dataset.i); });
+  box.addEventListener("keydown", e => { const g = e.target.closest(".pp"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); fn(+g.dataset.i); } });
+};
+
+/* ---------- Распиновки микросхем ---------- */
+// Вывод: [имя, тип, описание]
+const quad = (op, fx, layout) => {
+  const P = { A: k => [`${k}A`, "i", `Вход A элемента ${k}`], B: k => [`${k}B`, "i", `Вход B элемента ${k}`], Y: k => [`${k}Y`, "o", `Выход элемента ${k}: ${fx(k)}`] };
+  return layout.map(t => (t === "G" ? ["GND", "g", "Земля"] : t === "V" ? ["VCC", "p", "Питание 2–6 В (у 74HCT — 5 В)"] : P[t[1]](t[0])));
+};
+const L00 = ["1A", "1B", "1Y", "2A", "2B", "2Y", "G", "3Y", "3A", "3B", "4Y", "4A", "4B", "V"];
+const L02 = ["1Y", "1A", "1B", "2Y", "2A", "2B", "G", "3A", "3B", "3Y", "4A", "4B", "4Y", "V"];
+const L04 = ["1A", "1Y", "2A", "2Y", "3A", "3Y", "G", "4Y", "4A", "5Y", "5A", "6Y", "6A", "V"];
+const CHIPS = {
+  ne555: { n: "NE555", d: "таймер", pkg: "DIP-8", link: ["#t555", "Калькулятор NE555"], pins: [
+    ["GND", "g", "Земля."], ["TRIG", "i", "Запуск: когда напряжение падает ниже ⅓ питания, выход становится 1 и начинается отсчёт."],
+    ["OUT", "o", "Выход: 0 или почти напряжение питания, до 200 мА. Светодиод можно напрямую через резистор."], ["RESET", "x", "Сброс: 0 принудительно гасит выход. Не нужен — соедини с питанием."],
+    ["CTRL", "x", "Управление порогом ⅔ питания. Обычно сюда ставят 10 нФ на землю от помех."], ["THR", "i", "Порог: когда напряжение выше ⅔ питания, выход становится 0."],
+    ["DIS", "o", "Разряд: замыкается на землю, когда выход 0, и разряжает времязадающий конденсатор."], ["VCC", "p", "Питание 4,5–16 В. КМОП-версия (TLC555, 7555) работает от 2 В и почти не потребляет."]],
+    tips: ["В режиме генератора THR и TRIG соединяют вместе — на конденсатор.", "Между VCC и GND поставь 100 нФ прямо у выводов: 555 даёт сильные броски тока при переключении."] },
+  lm358: { n: "LM358", d: "два операционных усилителя", pkg: "DIP-8", pins: [
+    ["OUT A", "o", "Выход усилителя A. До плюса питания не дотягивает примерно на 1,5 В."], ["IN− A", "i", "Инвертирующий вход A."], ["IN+ A", "i", "Неинвертирующий вход A."],
+    ["GND", "g", "Минус питания (земля при однополярном питании)."], ["IN+ B", "i", "Неинвертирующий вход B."], ["IN− B", "i", "Инвертирующий вход B."],
+    ["OUT B", "o", "Выход усилителя B."], ["VCC", "p", "Питание 3–32 В (или ±1,5…±16 В)."]],
+    tips: ["Работает от одного питания, входы видят напряжения от самого 0 В — удобно для датчиков с Arduino.", "Неиспользуемый усилитель: IN+ на землю, IN− соединить с OUT."] },
+  lm386: { n: "LM386", d: "усилитель для динамика", pkg: "DIP-8", pins: [
+    ["GAIN", "x", "Усиление: конденсатор 10 мкФ между выводами 1 и 8 даёт ×200, без него ×20."], ["IN−", "i", "Инвертирующий вход, обычно на землю."], ["IN+", "i", "Вход сигнала, через регулятор громкости."],
+    ["GND", "g", "Земля."], ["VOUT", "o", "Выход на динамик через 220 мкФ. Плюс цепочка 10 Ом + 47 нФ на землю — чтобы не возбуждался."],
+    ["VS", "p", "Питание 4–12 В."], ["BYPASS", "x", "10 мкФ на землю — меньше фона и шума от питания."], ["GAIN", "x", "Второй вывод регулировки усиления (см. вывод 1)."]],
+    tips: ["Динамик 8 Ом, мощность до ~0,5 Вт.", "Длинные провода на входе ловят фон — держи вход коротким."] },
+  hc00: { n: "74HC00", d: "4 × И-НЕ", pkg: "DIP-14", gate: "nand", pins: quad("nand", k => `Y = ¬(${k}A · ${k}B)`, L00) },
+  hc02: { n: "74HC02", d: "4 × ИЛИ-НЕ", pkg: "DIP-14", gate: "nor", pins: quad("nor", k => `Y = ¬(${k}A + ${k}B)`, L02) },
+  hc04: { n: "74HC04", d: "6 × НЕ", pkg: "DIP-14", gate: "not", pins: L04.map(t => (t === "G" ? ["GND", "g", "Земля"] : t === "V" ? ["VCC", "p", "Питание 2–6 В"] : t[1] === "A" ? [t, "i", `Вход инвертора ${t[0]}`] : [t, "o", `Выход инвертора ${t[0]}: Y = ¬${t[0]}A`])) },
+  hc08: { n: "74HC08", d: "4 × И", pkg: "DIP-14", gate: "and", pins: quad("and", k => `Y = ${k}A · ${k}B`, L00) },
+  hc32: { n: "74HC32", d: "4 × ИЛИ", pkg: "DIP-14", gate: "or", pins: quad("or", k => `Y = ${k}A + ${k}B`, L00) },
+  hc86: { n: "74HC86", d: "4 × исключающее ИЛИ", pkg: "DIP-14", gate: "xor", pins: quad("xor", k => `Y = ${k}A ⊕ ${k}B`, L00) },
+  hc595: { n: "74HC595", d: "сдвиговый регистр, 8 выходов", pkg: "DIP-16", pins: [
+    ["QB", "o", "Выход 1."], ["QC", "o", "Выход 2."], ["QD", "o", "Выход 3."], ["QE", "o", "Выход 4."], ["QF", "o", "Выход 5."], ["QG", "o", "Выход 6."], ["QH", "o", "Выход 7."],
+    ["GND", "g", "Земля."], ["QH'", "o", "Выход для следующей 74HC595 в цепочке — на её SER."], ["SRCLR", "x", "Сброс регистра, активный 0. Обычно на питание."],
+    ["SRCLK", "i", "Тактовый вход: по фронту бит с SER сдвигается внутрь."], ["RCLK", "i", "Защёлка: по фронту набранные биты появляются на выходах."],
+    ["OE", "x", "Разрешение выходов, активный 0. Обычно на землю; через ШИМ можно менять яркость."], ["SER", "i", "Вход данных."], ["QA", "o", "Выход 0."], ["VCC", "p", "Питание 2–6 В."]],
+    tips: ["Три пина Arduino дают 8 выходов, цепочка из N микросхем — 8·N выходов. В коде — shiftOut().", "Ток одного выхода — до 6 мА для яркого свечения, на всю микросхему не больше 70 мА."] },
+  cd4017: { n: "CD4017", d: "счётчик-дешифратор на 10", pkg: "DIP-16", pins: [
+    ["Q5", "o", "Выход 5."], ["Q1", "o", "Выход 1."], ["Q0", "o", "Выход 0: 1 после сброса."], ["Q2", "o", "Выход 2."], ["Q6", "o", "Выход 6."], ["Q7", "o", "Выход 7."], ["Q3", "o", "Выход 3."],
+    ["VSS", "g", "Земля."], ["Q8", "o", "Выход 8."], ["Q4", "o", "Выход 4."], ["Q9", "o", "Выход 9."], ["CO", "o", "Перенос: 1 на счёте 0–4, 0 на 5–9. Для каскада из нескольких 4017."],
+    ["CLK INH", "x", "Запрет счёта при 1. Обычно на землю."], ["CLK", "i", "Тактовый вход: каждый фронт переключает на следующий выход."],
+    ["RST", "x", "Сброс в Q0 при 1. Обычно на землю; соедини с Qn — будет считать до n."], ["VDD", "p", "Питание 3–15 В."]],
+    tips: ["Классика: NE555 даёт такты, 4017 зажигает 10 светодиодов по очереди — бегущий огонь."], link: ["#t555", "Генератор на NE555"] },
+  uln2003: { n: "ULN2003", d: "7 ключей Дарлингтона", pkg: "DIP-16", link: ["#tr", "Транзистор как ключ"],
+    pins: [...Array.from({ length: 7 }, (_, i) => [`IN${i + 1}`, "i", `Вход ${i + 1}: пин МК (5 В или 3,3 В). 1 — выход ${i + 1} замкнут на землю.`]),
+      ["GND", "g", "Земля, общая с микроконтроллером."], ["COM", "x", "Общий вывод защитных диодов: подключи к плюсу питания реле или мотора."],
+      ...Array.from({ length: 7 }, (_, i) => [`OUT${7 - i}`, "o", `Выход ${7 - i}: замыкает нагрузку на землю, до 500 мА.`])],
+    tips: ["Нагрузка включается между плюсом питания и выходом OUT.", "Шаговый мотор 28BYJ-48 обычно продают с платой на ULN2003."] },
+  tiny85: { n: "ATtiny85", d: "микроконтроллер", pkg: "DIP-8", pins: [
+    ["PB5", "x", "RESET. Как обычный пин — только после смены фьюзов, и тогда прошить по ISP уже не выйдет."], ["PB3", "io", "Вход/выход, АЦП3, вход кварца."],
+    ["PB4", "io", "Вход/выход, АЦП2, ШИМ."], ["GND", "g", "Земля."], ["PB0", "io", "Вход/выход, ШИМ, MOSI, SDA (I²C)."], ["PB1", "io", "Вход/выход, ШИМ, MISO."],
+    ["PB2", "io", "Вход/выход, SCK, SCL (I²C), АЦП1, прерывание INT0."], ["VCC", "p", "Питание 1,8–5,5 В."]],
+    tips: ["Прошивается через Arduino как ISP-программатор (скетч ArduinoISP).", "100 нФ между VCC и GND у самых выводов обязательно."] },
+  pc817: { n: "PC817", d: "оптрон", pkg: "DIP-4", pins: [
+    ["A", "i", "Анод светодиода: через резистор от сигнала (≈ 1 кОм при 5 В)."], ["K", "x", "Катод светодиода — к земле управляющей стороны."],
+    ["E", "o", "Эмиттер фототранзистора — к земле выходной стороны."], ["C", "o", "Коллектор фототранзистора: через подтяжку 10 кОм к питанию выходной стороны."]],
+    tips: ["Гальваническая развязка: земли двух сторон не соединяются. Так МК безопасно читает сигнал из сети или чужого блока."] },
+  l7805: { n: "LM7805", d: "стабилизатор 5 В", pkg: "TO-220", link: ["#reg", "Расчёт стабилизатора"], pins: [
+    ["IN", "p", "Вход 7–35 В."], ["GND", "g", "Земля. Металлический фланец соединён с ней."], ["OUT", "o", "Выход 5 В, до 1,5 А."]],
+    tips: ["Вид спереди, надписью к себе, выводы вниз.", "Входной 0,33 мкФ и выходной 0,1 мкФ — у самых выводов."] },
+  lm317: { n: "LM317", d: "регулируемый стабилизатор", pkg: "TO-220", link: ["#reg", "Подобрать R1 и R2"], pins: [
+    ["ADJ", "x", "Регулировка: середина делителя R1/R2. Uвых = 1,25·(1 + R2/R1)."], ["OUT", "o", "Выход 1,25–37 В. Фланец соединён с OUT — изолируй от радиатора на корпусе!"], ["IN", "p", "Вход: до 40 В выше выхода."]],
+    tips: ["Вид спереди, надписью к себе, выводы вниз. Порядок не такой, как у 7805!"] },
+  ams1117: { n: "AMS1117", d: "стабилизатор 3,3 / 5 В", pkg: "SOT-223", link: ["#reg", "Расчёт стабилизатора"], pins: [
+    ["GND", "g", "Земля (у регулируемой версии — ADJ)."], ["OUT", "o", "Выход 3,3 или 5 В, до 1 А."], ["IN", "p", "Вход до 15 В, минимум на 1,2 В выше выхода."], ["TAB", "o", "Широкий вывод = выход. Припаивается к большому полигону меди — так он охлаждается."]],
+    tips: ["Стоит почти на каждой плате с ESP32 и Arduino Nano.", "Обязателен выходной конденсатор 22 мкФ, иначе стабилизатор возбуждается."] },
+};
+let chipKey = "ne555", chipPin = 0;
+try { const c = localStorage.getItem("calc-chip"); if (CHIPS[c]) chipKey = c; } catch (e) {}
+$("chList").innerHTML = Object.entries(CHIPS).map(([k, c]) => `<button type="button" data-c="${k}">${c.n}</button>`).join("");
+function drawChip() {
+  const c = CHIPS[chipKey], P = c.pins, sv = $("chSvg");
+  let s = "", W = 360, H;
+  const pad = (i, x, y, w, h) => pinG(i, P[i][1], `<rect class="pad" x="${x}" y="${y}" width="${w}" height="${h}" rx="2"/>`, `aria-label="Вывод ${i + 1}: ${P[i][0]}"`);
+  if (c.pkg.startsWith("DIP")) {
+    // DIP: выводы 1…n/2 сверху вниз слева, дальше снизу вверх справа; ключ-выемка сверху
+    const half = P.length / 2, top = 30; H = top + half * 30 + 20;
+    s += `<rect class="body" x="130" y="${top - 6}" width="100" height="${half * 30 + 12}" rx="4"/><path class="notch" d="M168 ${top - 6} a12 12 0 0 0 24 0"/>
+      <circle class="key" cx="144" cy="${top + 8}" r="4"/><text class="cname" x="180" y="${top + half * 15}" transform="rotate(-90 180 ${top + half * 15})">${c.n}</text>`;
+    for (let r = 0; r < half; r++) {
+      const y = top + r * 30 + 15, li = r, ri = P.length - 1 - r;
+      s += pad(li, 100, y - 7, 30, 14) + pad(ri, 230, y - 7, 30, 14);
+      s += `<text class="num" x="136" y="${y + 4}">${li + 1}</text><text class="num" x="224" y="${y + 4}" text-anchor="end">${ri + 1}</text>`;
+      s += `<text class="pname" x="94" y="${y + 4}" text-anchor="end">${P[li][0]}</text><text class="pname" x="266" y="${y + 4}">${P[ri][0]}</text>`;
+    }
+  } else if (c.pkg === "TO-220") {
+    H = 270;
+    s += `<rect class="tab" x="120" y="10" width="120" height="56" rx="3"/><circle class="hole" cx="180" cy="36" r="10"/>
+      <rect class="body" x="120" y="62" width="120" height="86" rx="3"/><text class="cname" x="180" y="110" text-anchor="middle">${c.n}</text>`;
+    [150, 180, 210].forEach((x, i) => {
+      s += `<rect class="leg" x="${x - 4}" y="148" width="8" height="52"/>` + pad(i, x - 9, 198, 18, 22);
+      s += `<text class="num" x="${x}" y="142" text-anchor="middle">${i + 1}</text><text class="pname" x="${x}" y="240" text-anchor="middle">${P[i][0]}</text>`;
+    });
+  } else {
+    // SOT-223: три ножки снизу, широкий вывод сверху
+    H = 250;
+    s += pad(3, 140, 14, 80, 30) + `<rect class="body" x="120" y="44" width="120" height="76" rx="3"/><text class="cname" x="180" y="88" text-anchor="middle">${c.n}</text>
+      <text class="pname" x="228" y="34">${P[3][0]}</text>`;
+    [146, 180, 214].forEach((x, i) => {
+      s += pad(i, x - 8, 120, 16, 40);
+      s += `<text class="num" x="${x}" y="114" text-anchor="middle">${i + 1}</text><text class="pname" x="${x}" y="182" text-anchor="middle">${P[i][0]}</text>`;
+    });
+  }
+  sv.setAttribute("viewBox", `0 0 ${W} ${H}`);
+  sv.style.maxWidth = (W * 1.2) + "px";
+  sv.innerHTML = s;
+  sv.querySelectorAll(".pp").forEach(g => g.classList.toggle("sel", +g.dataset.i === chipPin));
+  const p = P[chipPin];
+  $("chInfo").innerHTML = `<div class="big">${chipPin + 1}. ${p[0]}</div>` + row("Тип", PT_NAME[p[1]]) + `<p class="pdesc">${p[2]}</p>`;
+  $("chHead").textContent = `${c.n} — ${c.d}, корпус ${c.pkg}`;
+  $("chTab").innerHTML = `<thead><tr><th>№</th><th>Вывод</th><th>Что делает</th></tr></thead><tbody>` +
+    P.map((q, i) => `<tr data-i="${i}" class="${i === chipPin ? "cur" : ""}"><td>${i + 1}</td><td><span class="dot t-${q[1]}"></span>${q[0]}</td><td>${q[2]}</td></tr>`).join("") + "</tbody>";
+  $("chTips").innerHTML = (c.tips || []).map(t => `<li>${t}</li>`).join("");
+  $("chLinks").innerHTML = (c.link ? `<a class="tool" href="${c.link[0]}">${c.link[1]}</a>` : "") +
+    (c.gate ? `<button type="button" class="tool" id="chGate">Поиграть с элементом в «Логике»</button>` : "");
+  $("chList").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.c === chipKey));
+  try { localStorage.setItem("calc-chip", chipKey); } catch (e) {}
+}
+$("chList").addEventListener("click", e => { const b = e.target.closest("button[data-c]"); if (b) { chipKey = b.dataset.c; chipPin = 0; drawChip(); } });
+pinKey($("chSvg"), i => { chipPin = i; drawChip(); });
+$("chTab").addEventListener("click", e => { const r = e.target.closest("tr[data-i]"); if (r) { chipPin = +r.dataset.i; drawChip(); } });
+$("chLinks").addEventListener("click", e => {
+  if (!e.target.closest("#chGate")) return;
+  // Открываем «Логику» сразу на нужном элементе
+  location.hash = "logic"; setLgTab("g");
+  const b = $("lgSel").querySelector(`[data-g="${CHIPS[chipKey].gate}"]`); if (b) b.click();
+});
+
+/* ---------- Распиновки плат ---------- */
+const BD_TAGS = { pwr: "Питание", gnd: "Земля", pwm: "ШИМ", adc: "АЦП", i2c: "I²C", spi: "SPI", uart: "UART", int: "Прерывания", sd: "SD-карта", boot: "При старте", free: "Свободные", busy: "Не трогать" };
+// Пин: [метки, описание, предупреждение]
+const CAM_SD = { nosd: [], sd1: ["IO14", "IO15", "IO2"], sd4: ["IO14", "IO15", "IO2", "IO4", "IO12", "IO13"] };
+const BOARDS = {
+  cam: { n: "ESP32-CAM", logic: "3,3 В", w: 400, h: 330,
+    notes: ["Все выведенные пины с АЦП — это АЦП2, а он не работает одновременно с Wi-Fi. Для аналогового датчика при включённом Wi-Fi нужен внешний АЦП, например ADS1115 по I²C.",
+      "ШИМ и I²C у ESP32 назначаются на любой свободный пин — в коде, а не жёстко.",
+      "Прошивка: адаптер USB-UART на 3,3 В. TX адаптера → IO3, RX → IO1, GND → GND, 5 В → 5V. IO0 соединить с GND и нажать RST, после прошивки IO0 отключить и снова RST.",
+      "Логика 3,3 В: 5 В на пин не подавай."],
+    rows: [{ x: 129, y: 60, dx: 0, dy: 30, side: "left", names: ["5V", "GND", "IO12", "IO13", "IO15", "IO14", "IO2", "IO4"] },
+      { x: 271, y: 60, dx: 0, dy: 30, side: "right", names: ["3V3", "IO16", "IO0", "GND", "VCC", "IO3", "IO1", "GND"] }],
+    art: `<rect class="brd" x="115" y="30" width="170" height="270" rx="8"/><text class="silk" x="200" y="170" text-anchor="middle" transform="rotate(-90 200 170)">ESP32-CAM</text>`,
+    pins: {
+      "5V": [["pwr"], "Вход питания 5 В. Лучший способ питать плату: блок 5 В на 2 А — камера и Wi-Fi дают броски тока, от слабого USB плата перезагружается."],
+      "GND": [["gnd"], "Земля. На плате три вывода GND, все соединены."],
+      "IO12": [["adc", "pwm", "i2c", "sd", "boot"], "SD-карта: DATA2. АЦП2, сенсорный вход.", "При включении должен быть 0: если подтянуть к 1, модуль выставит питание флеш-памяти 1,8 В и не загрузится."],
+      "IO13": [["adc", "pwm", "i2c", "sd"], "SD-карта: DATA3. АЦП2, сенсорный вход."],
+      "IO15": [["adc", "pwm", "i2c", "sd", "boot"], "SD-карта: CMD. АЦП2. При старте: если притянуть к 0, модуль не печатает лог загрузки — работе не мешает."],
+      "IO14": [["adc", "pwm", "i2c", "sd"], "SD-карта: CLK. АЦП2, сенсорный вход."],
+      "IO2": [["adc", "pwm", "i2c", "sd", "boot"], "SD-карта: DATA0. АЦП2.", "Для прошивки должен быть 0 или не подключён."],
+      "IO4": [["adc", "pwm", "i2c", "sd"], "SD-карта: DATA1. На этом же пине яркий светодиод-вспышка: при работе с картой она будет мигать."],
+      "3V3": [["pwr"], "Вход питания 3,3 В. Работает, но многие жалуются на сбои — лучше питать через 5V."],
+      "IO16": [["busy"], "U2RXD.", "На большинстве плат занят памятью PSRAM. Не используй: камера с высоким разрешением перестанет работать."],
+      "IO0": [["boot", "busy"], "Тактовый сигнал камеры (XCLK) и выбор режима при старте.", "Соединён с GND при включении → режим прошивки. Для обычной работы — отключить и нажать RST."],
+      "VCC": [["pwr"], "Выход 3,3 В (на некоторых платах — 5 В, зависит от перемычки).", "Это выход, а не вход: не подавай сюда питание."],
+      "IO3": [["uart"], "U0RXD — приём UART0. Сюда идёт TX адаптера при прошивке. Потом можно как обычный пин, но пропадёт Serial-монитор."],
+      "IO1": [["uart"], "U0TXD — передача UART0, к RX адаптера. Потом можно как обычный пин, но пропадёт Serial-монитор."],
+    } },
+  uno: { n: "Arduino Uno", logic: "5 В", w: 520, h: 300,
+    notes: ["Логика 5 В. Модули на 3,3 В (ESP, многие датчики) подключай через преобразователь уровней.", "Ток одного пина — до 20 мА (предел 40 мА), всех вместе — не больше 200 мА.", "Аналоговые A0–A5 работают и как цифровые: D14–D19."],
+    rows: [{ x: 196, y: 98, dx: 16, dy: 0, side: "top", names: ["SCL", "SDA", "AREF", "GND", "D13", "D12", "D11", "D10", "D9", "D8", null, "D7", "D6", "D5", "D4", "D3", "D2", "D1", "D0"] },
+      { x: 220, y: 236, dx: 16, dy: 0, side: "bottom", names: ["NC", "IOREF", "RESET", "3.3V", "5V", "GND", "GND", "VIN", null, null, "A0", "A1", "A2", "A3", "A4", "A5"] }],
+    art: `<rect class="brd" x="30" y="80" width="460" height="172" rx="8"/><rect class="metal" x="16" y="104" width="52" height="44" rx="3"/><rect class="jack" x="16" y="190" width="48" height="44" rx="3"/>
+      <rect class="ic" x="270" y="168" width="170" height="30" rx="2"/><text class="silk" x="355" y="188" text-anchor="middle">ATmega328P</text><text class="silk" x="120" y="180">UNO</text>`,
+    pins: {
+      "D0": [["uart"], "RX — приём Serial. Занят при прошивке и работе Serial-монитора."], "D1": [["uart"], "TX — передача Serial. Занят при прошивке."],
+      "D2": [["int"], "Внешнее прерывание INT0 — attachInterrupt(0, …)."], "D3": [["pwm", "int"], "ШИМ 490 Гц, прерывание INT1."], "D4": [[], "Обычный цифровой пин."],
+      "D5": [["pwm"], "ШИМ 980 Гц."], "D6": [["pwm"], "ШИМ 980 Гц."], "D7": [[], "Обычный цифровой пин."], "D8": [[], "Обычный цифровой пин."],
+      "D9": [["pwm"], "ШИМ 490 Гц."], "D10": [["pwm", "spi"], "ШИМ 490 Гц, SPI SS — выбор устройства."], "D11": [["pwm", "spi"], "ШИМ 490 Гц, SPI MOSI."],
+      "D12": [["spi"], "SPI MISO."], "D13": [["spi"], "SPI SCK и встроенный светодиод L."], "GND": [["gnd"], "Земля."],
+      "AREF": [[], "Опорное напряжение для АЦП. Обычно не подключают."], "SDA": [["i2c"], "I²C SDA — тот же сигнал, что A4."], "SCL": [["i2c"], "I²C SCL — тот же сигнал, что A5."],
+      "NC": [[], "Не подключён."], "IOREF": [["pwr"], "Показывает шилдам логическое напряжение платы (5 В)."], "RESET": [[], "0 — перезагрузка платы."],
+      "3.3V": [["pwr"], "Выход 3,3 В, не больше 50 мА."], "5V": [["pwr"], "Выход 5 В от USB или стабилизатора."], "VIN": [["pwr"], "Вход 7–12 В через стабилизатор платы (тот же, что гнездо питания)."],
+      "A0": [["adc"], "Аналоговый вход, 10 бит: 0–1023 на 0–5 В."], "A1": [["adc"], "Аналоговый вход, 10 бит."], "A2": [["adc"], "Аналоговый вход, 10 бит."], "A3": [["adc"], "Аналоговый вход, 10 бит."],
+      "A4": [["adc", "i2c"], "Аналоговый вход и I²C SDA."], "A5": [["adc", "i2c"], "Аналоговый вход и I²C SCL."],
+    } },
+  nano: { n: "Arduino Nano", logic: "5 В", w: 470, h: 222, numbered: true,
+    notes: ["Те же возможности, что у Uno, плюс A6 и A7 — только аналоговые входы.", "Логика 5 В, ток пина до 20 мА.", "Номер на разъёме — физический вывод платы, считается от TX1 против часовой стрелки."],
+    rows: [{ x: 80, y: 96, dx: 24, dy: 0, side: "top", names: ["D12", "D11", "D10", "D9", "D8", "D7", "D6", "D5", "D4", "D3", "D2", "GND", "RST", "RX0", "TX1"], nums: [15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1] },
+      { x: 80, y: 156, dx: 24, dy: 0, side: "bottom", names: ["D13", "3V3", "AREF", "A0", "A1", "A2", "A3", "A4", "A5", "A6", "A7", "5V", "RST", "GND", "VIN"], nums: [16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30] }],
+    art: `<rect class="brd" x="44" y="80" width="390" height="92" rx="6"/><rect class="metal" x="22" y="108" width="44" height="36" rx="3"/><rect class="ic" x="200" y="114" width="44" height="24" rx="2" transform="rotate(45 222 126)"/>`,
+    pins: {
+      "TX1": [["uart"], "D1, TX Serial. Занят при прошивке."], "RX0": [["uart"], "D0, RX Serial. Занят при прошивке."], "RST": [[], "0 — перезагрузка."], "GND": [["gnd"], "Земля."],
+      "D2": [["int"], "Прерывание INT0."], "D3": [["pwm", "int"], "ШИМ, прерывание INT1."], "D4": [[], "Цифровой пин."], "D5": [["pwm"], "ШИМ 980 Гц."], "D6": [["pwm"], "ШИМ 980 Гц."],
+      "D7": [[], "Цифровой пин."], "D8": [[], "Цифровой пин."], "D9": [["pwm"], "ШИМ."], "D10": [["pwm", "spi"], "ШИМ, SPI SS."], "D11": [["pwm", "spi"], "ШИМ, SPI MOSI."], "D12": [["spi"], "SPI MISO."],
+      "D13": [["spi"], "SPI SCK и встроенный светодиод."], "3V3": [["pwr"], "Слабый выход 3,3 В — для радиомодулей и Wi-Fi не хватит."], "AREF": [[], "Опорное напряжение АЦП."],
+      "A0": [["adc"], "Аналоговый вход, 10 бит."], "A1": [["adc"], "Аналоговый вход, 10 бит."], "A2": [["adc"], "Аналоговый вход, 10 бит."], "A3": [["adc"], "Аналоговый вход, 10 бит."],
+      "A4": [["adc", "i2c"], "Аналоговый вход и I²C SDA."], "A5": [["adc", "i2c"], "Аналоговый вход и I²C SCL."],
+      "A6": [["adc"], "Только аналоговый вход.", "digitalRead и digitalWrite здесь не работают."], "A7": [["adc"], "Только аналоговый вход.", "digitalRead и digitalWrite здесь не работают."],
+      "5V": [["pwr"], "Выход 5 В (от USB или стабилизатора)."], "VIN": [["pwr"], "Вход 7–12 В через стабилизатор."],
+    } },
+  rpi: { n: "Raspberry Pi (40 пинов)", logic: "3,3 В", w: 560, h: 190, numbered: true,
+    notes: ["Логика 3,3 В! 5 В на GPIO сожжёт процессор — датчики на 5 В только через делитель или преобразователь уровней.", "Ток пина — до 16 мА. АЦП на Raspberry нет: аналоговые датчики — через ADS1115 или MCP3008.",
+      "В коде обычно номер GPIO (BCM), например GPIO17, а не номер на разъёме (11). Пин 1 — квадратная площадка."],
+    rows: [{ x: 52, y: 96, dx: 24, dy: 0, side: "top", names: ["5V", "5V", "GND", "GPIO14", "GPIO15", "GPIO18", "GND", "GPIO23", "GPIO24", "GND", "GPIO25", "GPIO8", "GPIO7", "GPIO1", "GND", "GPIO12", "GND", "GPIO16", "GPIO20", "GPIO21"], nums: Array.from({ length: 20 }, (_, i) => 2 + 2 * i) },
+      { x: 52, y: 120, dx: 24, dy: 0, side: "bottom", names: ["3V3", "GPIO2", "GPIO3", "GPIO4", "GND", "GPIO17", "GPIO27", "GPIO22", "3V3", "GPIO10", "GPIO9", "GPIO11", "GND", "GPIO0", "GPIO5", "GPIO6", "GPIO13", "GPIO19", "GPIO26", "GND"], nums: Array.from({ length: 20 }, (_, i) => 1 + 2 * i) }],
+    art: `<rect class="brd" x="30" y="80" width="500" height="56" rx="6"/>`,
+    pins: {
+      "3V3": [["pwr"], "Выход 3,3 В."], "5V": [["pwr"], "5 В прямо от USB-питания: можно брать 5 В или питать Pi отсюда (5 В, 3 А)."], "GND": [["gnd"], "Земля."],
+      "GPIO2": [["i2c"], "I²C1 SDA. На плате уже есть подтяжка 1,8 кОм к 3,3 В."], "GPIO3": [["i2c"], "I²C1 SCL, подтяжка 1,8 кОм."], "GPIO4": [[], "GPCLK0; по умолчанию сюда вешают датчики 1-Wire (DS18B20)."],
+      "GPIO14": [["uart"], "UART TXD."], "GPIO15": [["uart"], "UART RXD."], "GPIO17": [[], "Обычный GPIO."], "GPIO18": [["pwm"], "Аппаратный ШИМ0, PCM CLK."], "GPIO27": [[], "Обычный GPIO."],
+      "GPIO22": [[], "Обычный GPIO."], "GPIO23": [[], "Обычный GPIO."], "GPIO24": [[], "Обычный GPIO."], "GPIO10": [["spi"], "SPI0 MOSI."], "GPIO9": [["spi"], "SPI0 MISO."], "GPIO25": [[], "Обычный GPIO."],
+      "GPIO11": [["spi"], "SPI0 SCLK."], "GPIO8": [["spi"], "SPI0 CE0 — выбор первого устройства."], "GPIO7": [["spi"], "SPI0 CE1 — выбор второго устройства."],
+      "GPIO0": [["busy"], "ID_SD — EEPROM платы расширения (HAT).", "Не используй: зарезервирован для HAT."], "GPIO1": [["busy"], "ID_SC — EEPROM платы расширения (HAT).", "Не используй: зарезервирован для HAT."],
+      "GPIO5": [[], "Обычный GPIO."], "GPIO6": [[], "Обычный GPIO."], "GPIO12": [["pwm"], "Аппаратный ШИМ0."], "GPIO13": [["pwm"], "Аппаратный ШИМ1."], "GPIO19": [["pwm", "spi"], "Аппаратный ШИМ1, SPI1 MISO, PCM FS."],
+      "GPIO16": [["spi"], "SPI1 CE2."], "GPIO26": [[], "Обычный GPIO."], "GPIO20": [["spi"], "SPI1 MOSI, PCM DIN."], "GPIO21": [["spi"], "SPI1 SCLK, PCM DOUT."],
+    } },
+};
+let bd = { b: "cam", sd: "nosd", f: null, i: 0 };
+try { const s = JSON.parse(localStorage.getItem("calc-board")); if (s && BOARDS[s.b]) bd = { ...bd, ...s }; } catch (e) {}
+$("bdList").innerHTML = Object.entries(BOARDS).map(([k, b]) => `<button type="button" data-b="${k}">${b.n}</button>`).join("");
+// Плоский список пинов платы: имя, номер, метки (у ESP32-CAM метки зависят от режима SD-карты)
+function bdPins() {
+  const B = BOARDS[bd.b], list = [];
+  B.rows.forEach(r => r.names.forEach((n, j) => { if (n) list.push({ n, num: r.nums ? r.nums[j] : null, x: r.x + j * r.dx, y: r.y + j * r.dy, side: r.side }); }));
+  list.forEach(p => {
+    const d = B.pins[p.n]; p.tags = [...d[0]]; p.note = d[1]; p.warn = d[2];
+    if (bd.b === "cam" && p.tags.includes("sd")) {
+      if (CAM_SD[bd.sd].includes(p.n)) { p.tags = p.tags.filter(t => t !== "pwm" && t !== "i2c"); p.tags.push("busy"); }
+      else p.tags.push("free");
+    }
+    p.type = p.tags.includes("gnd") ? "g" : p.tags.includes("pwr") ? "p" : p.tags.includes("busy") ? "b" : "io";
+  });
+  return list;
+}
+function drawBoard() {
+  const B = BOARDS[bd.b], pins = bdPins(), sv = $("bdSvg");
+  if (bd.i >= pins.length) bd.i = 0;
+  let s = B.art;
+  pins.forEach((p, i) => {
+    const shape = p.num === 1 ? `<rect class="pad" x="${p.x - 7}" y="${p.y - 7}" width="14" height="14" rx="1"/>` : `<circle class="pad" cx="${p.x}" cy="${p.y}" r="7"/>`;
+    const cls = bd.f ? (p.tags.includes(bd.f) ? " hl" : " dim") : "";
+    s += pinG(i, p.type, shape, `aria-label="${p.n}${p.num ? ", вывод " + p.num : ""}"`).replace('class="pp', `class="pp${cls}${i === bd.i ? " sel" : ""}`);
+    const lbl = { left: `x="${p.x - 14}" y="${p.y + 4}" text-anchor="end"`, right: `x="${p.x + 14}" y="${p.y + 4}"`,
+      top: `x="${p.x + 4}" y="${p.y - 13}" transform="rotate(-90 ${p.x + 4} ${p.y - 13})"`, bottom: `x="${p.x + 4}" y="${p.y + 13}" text-anchor="end" transform="rotate(-90 ${p.x + 4} ${p.y + 13})"` }[p.side];
+    s += `<text class="pname${cls === " hl" ? " hl" : ""}" ${lbl}>${p.n}</text>`;
+  });
+  sv.setAttribute("viewBox", `0 0 ${B.w} ${B.h}`);
+  sv.style.minWidth = Math.round(B.w * 0.8) + "px"; sv.style.maxWidth = Math.round(B.w * 1.35) + "px";
+  sv.innerHTML = s;
+  $("bdCols").classList.toggle("wide", B.w > 450); // широкой плате — всю ширину, описание под ней
+  // Фильтры — только те метки, что есть на этой плате
+  const tags = Object.keys(BD_TAGS).filter(t => pins.some(p => p.tags.includes(t)));
+  $("bdFilt").innerHTML = `<button type="button" data-f="" aria-pressed="${!bd.f}">Все</button>` + tags.map(t => `<button type="button" data-f="${t}" aria-pressed="${bd.f === t}">${BD_TAGS[t]}</button>`).join("");
+  $("bdSd").hidden = bd.b !== "cam";
+  $("bdSd").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.sd === bd.sd));
+  $("bdList").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", b.dataset.b === bd.b));
+  const p = pins[bd.i];
+  $("bdInfo").innerHTML = `<div class="big">${p.n}</div>` + (p.num ? row("Вывод на разъёме", p.num) : "") +
+    row("Умеет", p.tags.filter(t => t !== "free").map(t => BD_TAGS[t]).join(", ") || "цифровой вход/выход") +
+    (p.tags.includes("free") ? row("Сейчас", "свободен") : "") + `<p class="pdesc">${p.note}</p>` + (p.warn ? `<span class="warn">${p.warn}</span>` : "") +
+    (bd.b === "cam" && p.tags.includes("busy") && p.tags.includes("sd") ? `<span class="warn">Занят SD-картой в выбранном режиме.</span>` : "");
+  $("bdNotes").innerHTML = `<li>Логические уровни: <b>${B.logic}</b>.</li>` + B.notes.map(t => `<li>${t}</li>`).join("") +
+    (bd.b === "cam" ? `<li>Свободно сейчас: <b>${pins.filter(q => q.tags.includes("free")).map(q => q.n).join(", ") || "ничего — всё забрала SD-карта"}</b>.</li>` : "");
+  $("bdTab").innerHTML = `<thead><tr>${B.numbered ? "<th>№</th>" : ""}<th>Пин</th><th>Умеет</th><th>Заметка</th></tr></thead><tbody>` +
+    pins.map((q, i) => bd.f && !q.tags.includes(bd.f) ? "" : `<tr data-i="${i}" class="${i === bd.i ? "cur" : ""}">${B.numbered ? `<td>${q.num}</td>` : ""}<td><span class="dot t-${q.type}"></span>${q.n}</td><td>${q.tags.map(t => BD_TAGS[t]).join(", ")}</td><td>${q.note}${q.warn ? ` <b class="wtxt">${q.warn}</b>` : ""}</td></tr>`).join("") + "</tbody>";
+  try { localStorage.setItem("calc-board", JSON.stringify(bd)); } catch (e) {}
+}
+$("bdList").addEventListener("click", e => { const b = e.target.closest("button[data-b]"); if (b) { bd.b = b.dataset.b; bd.i = 0; bd.f = null; drawBoard(); } });
+$("bdFilt").addEventListener("click", e => { const b = e.target.closest("button[data-f]"); if (b) { bd.f = b.dataset.f || null; drawBoard(); } });
+$("bdSd").addEventListener("click", e => { const b = e.target.closest("button[data-sd]"); if (b) { bd.sd = b.dataset.sd; drawBoard(); } });
+pinKey($("bdSvg"), i => { bd.i = i; drawBoard(); });
+$("bdTab").addEventListener("click", e => { const r = e.target.closest("tr[data-i]"); if (r) { bd.i = +r.dataset.i; drawBoard(); } });
+updateRpair(); updateReg(); drawChip(); drawBoard();
+
+
 /* ---------- Главная, страницы и поиск ---------- */
 // Разделы главной: [код, название, цвет]
 const CATS = [
@@ -2770,6 +3344,7 @@ const CATS = [
   ["circ", "Расчёт схем", "var(--result)"],
   ["sig", "Сигналы и единицы", "var(--blue)"],
   ["pwr", "Питание и плата", "var(--violet)"],
+  ["ref", "Справочник", "var(--pink)"],
 ];
 // Для каждого калькулятора: короткое имя (меню), название, описание, раздел, слова для поиска
 const MODS = {
@@ -2778,6 +3353,7 @@ const MODS = {
   color: { s: "Цвета", t: "Цветовая маркировка", d: "Номинал резистора по цветным полосам", cat: "mark", k: "резистор цвет полосы маркировка номинал ткс" },
   smd: { s: "SMD", t: "SMD-маркировка", d: "Коды 103, 4R7, 01C на корпусе", cat: "mark", k: "smd smt маркировка код корпус конденсатор резистор" },
   ohm: { s: "Закон Ома", t: "Закон Ома", d: "U, I, R, P, соединения и провода", cat: "circ", k: "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель" },
+  rpair: { s: "Подбор R", t: "Подбор резисторов", d: "Нужный номинал из одного или двух, из твоего набора", cat: "circ", k: "подбор пара резисторов номинал e24 e96 e12 последовательно параллельно набор" },
   div: { s: "Делитель", t: "Делитель напряжения", d: "Выходное напряжение двух резисторов", cat: "circ", k: "делитель напряжения ацп" },
   led: { s: "LED", t: "Резистор для светодиода", d: "Номинал и мощность резистора", cat: "circ", k: "светодиод led резистор ток" },
   tr: { s: "Ключ", t: "Транзистор как ключ", d: "Включить реле, мотор или ленту пином МК", cat: "circ", k: "транзистор ключ npn pnp mosfet мосфет база затвор реле мотор пин esp32 arduino" },
@@ -2787,6 +3363,9 @@ const MODS = {
   logic: { s: "Логика", t: "Логика", d: "И, ИЛИ, НЕ, XOR и таблицы истинности", cat: "sig", k: "логика вентиль таблица истинности и или не xor nand nor булева цифровая сднф" },
   db: { s: "дБ", t: "Децибелы", d: "дБ, дБм и разы", cat: "sig", k: "децибел дб dbm усиление мощность" },
   bat: { s: "Аккумулятор", t: "Время работы от аккумулятора", d: "Сколько проживёт устройство на батарее", cat: "pwr", k: "аккумулятор батарея батарейка мач ёмкость сон esp32 время работы" },
+  reg: { s: "Стабилизатор", t: "Стабилизатор напряжения", d: "LM317, 7805, AMS1117: резисторы, нагрев, радиатор", cat: "pwr", k: "стабилизатор lm317 7805 78xx ams1117 питание радиатор нагрев ldo 3.3 5 вольт" },
+  chips: { s: "Микросхемы", t: "Распиновки микросхем", d: "NE555, LM358, 74HC, ULN2003, ATtiny85 и др.", cat: "ref", k: "распиновка микросхема выводы ne555 lm358 74hc00 74hc595 cd4017 uln2003 attiny85 pc817 7805 lm317 ams1117 dip" },
+  boards: { s: "Платы", t: "Распиновки плат", d: "ESP32-CAM, Arduino Uno и Nano, Raspberry Pi", cat: "ref", k: "распиновка плата пины gpio esp32 cam esp32-cam arduino uno nano raspberry pi шим ацп i2c spi uart" },
   len: { s: "Размеры", t: "Размеры на плате", d: "Миллиметры, mil и дюймы", cat: "pwr", k: "мм mil дюйм плата дорожка шаг" },
 };
 // Иконки карточек: простые линии, цвет берут из раздела
@@ -2805,6 +3384,10 @@ const ICONS = {
   freq: `<path d="M3 24c5-15 9-15 14 0s9 15 14 0 9-15 14 0"/>`,
   db: `<path d="M7 7v34h34"/><path d="M9 39C18 37 22 10 41 9"/>`,
   bat: `<rect x="5" y="14" width="33" height="20" rx="3"/><path d="M38 20h4v8h-4M11 20v8M17 20v8M23 20v8"/>`,
+  rpair: `<path d="M3 24h8M37 24h8M11 24v-9h6M31 15h6v18h-6M11 24v9h6"/><rect x="17" y="10" width="14" height="10" rx="2"/><rect x="17" y="28" width="14" height="10" rx="2"/>`,
+  reg: `<rect x="10" y="8" width="28" height="22" rx="2"/><path d="M16 30v12M24 30v12M32 30v12"/><circle cx="24" cy="16" r="3"/>`,
+  chips: `<rect x="13" y="6" width="22" height="36" rx="2"/><path d="M6 12h7M6 20h7M6 28h7M6 36h7M35 12h7M35 20h7M35 28h7M35 36h7M21 6a3 3 0 0 0 6 0"/>`,
+  boards: `<rect x="5" y="10" width="38" height="28" rx="3"/><circle cx="11" cy="16" r="1.5"/><circle cx="17" cy="16" r="1.5"/><circle cx="23" cy="16" r="1.5"/><circle cx="29" cy="16" r="1.5"/><circle cx="35" cy="16" r="1.5"/><rect x="18" y="24" width="12" height="9" rx="1"/>`,
   len: `<rect x="3" y="16" width="42" height="16" rx="2"/><path d="M9 16v6M15 16v4M21 16v6M27 16v4M33 16v6M39 16v4"/>`,
 };
 const mods = [...document.querySelectorAll(".mod")];
