@@ -186,6 +186,14 @@ label.check input { width: auto; accent-color: var(--accent); }
   border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
   cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none;
 }
+/* Большая кнопка прыжка — только на сенсорных экранах (телефон, планшет) */
+.gjump {
+  display: none; width: 100%; padding: 22px 0; border: 0; border-radius: 14px; cursor: pointer;
+  background: var(--accent); color: #fff; font: 700 20px var(--font-body);
+  touch-action: manipulation; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent;
+}
+.gjump:active { transform: scale(.97); filter: brightness(.9); }
+@media (pointer: coarse) { .gjump { display: block; } }
 .gctl { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
 .gctl label { flex: 1 1 180px; }
 .gbal { font-size: 14px; color: var(--muted); }
@@ -339,6 +347,7 @@ label.check input { width: auto; accent-color: var(--accent); }
     <section class="mod wide" id="game">
       <h2>Бегущий резистор <small>прыгай через детали, собирай электроны</small></h2>
       <canvas id="gCanvas" width="900" height="300" aria-label="Игра: резистор бежит по плате и перепрыгивает детали"></canvas>
+      <button type="button" class="gjump" id="gJump" aria-label="Прыжок">⤒ Прыжок</button>
       <div class="gctl">
         <label>Твой ник<input id="gName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"><small id="gNick" class="gnick"></small></label>
         <button type="button" class="qstart" id="gStart">Играть</button>
@@ -1982,6 +1991,7 @@ $("gName").addEventListener("input", () => { gs.name = $("gName").value.trim(); 
 $("gTabs").addEventListener("click", e => { const b = e.target.closest("button[data-b]"); if (b) { boardTab = b.dataset.b; renderBoard(); } });
 $("gStart").addEventListener("click", () => { $("gStart").blur(); if (!run.on) startRun(); });
 cv.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
+$("gJump").addEventListener("pointerdown", e => { e.preventDefault(); jump(); });   // pointerdown — прыжок сразу при касании, без задержки клика
 document.addEventListener("keydown", e => {
   if ($("game").hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (e.code === "Space" || e.key === "ArrowUp" || e.key === "w" || e.key === "ц") { e.preventDefault(); jump(); }
