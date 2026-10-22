@@ -232,6 +232,9 @@ label.check input { width: auto; accent-color: var(--accent); }
 .qhead b.qlives { color: var(--warn); letter-spacing: .1em; }
 .qprompt { font: 500 20px var(--font-display); text-align: center; text-wrap: balance; }
 .qprompt .chip { display: inline-block; margin-top: 8px; padding: 8px 22px; border-radius: 6px; background: #1d1f21; color: #e9ecef; font: 700 40px var(--font-mono); letter-spacing: .12em; box-shadow: inset 0 -4px 0 #000; }
+.qprompt .lgtt { width: auto; margin: 10px auto 0; font: 400 15px var(--font-mono); }
+.qprompt .lgtt td, .qprompt .lgtt th { padding: 3px 12px; }
+.qprompt .ex { display: inline-block; margin-top: 8px; padding: 6px 16px; border-radius: 6px; background: var(--accent-soft); color: var(--accent); font: 600 22px var(--font-mono); }
 .qres { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; }
 .qopts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .qopts button {
@@ -346,6 +349,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" id="qmC" aria-pressed="true">Цвета резистора</button>
         <button type="button" id="qmO" aria-pressed="false">Закон Ома</button>
         <button type="button" id="qmS" aria-pressed="false">SMD-коды</button>
+        <button type="button" id="qmL" aria-pressed="false">Логика</button>
       </div>
       <div class="qhead">
         <span>Очки<b id="qScore">0</b></span><span>Уровень<b id="qLvl">1</b></span><span>Жизни<b id="qLives" class="qlives">❤❤❤</b></span><span>Серия<b id="qStreak">0</b></span><span>Рекорд<b id="qBest">0</b></span>
@@ -1699,8 +1703,79 @@ function qSmd(L) {
     prompt: `${kind} с кодом<br><span class="chip">${code}</span>`, res: false, ...makeOpts(g(v), wrong, k => g(v * 10 ** k)), why,
   };
 }
+// Логика. Уровень 1: таблицы вентилей; 2: + сколько единиц у выражения из A, B; 3: + выражение по таблице, законы де Моргана, 3 переменные; 4+: длиннее выражения
+const LG2 = ["and", "or", "nand", "nor", "xor"];
+const lgCol = (f, vs) => Array.from({ length: 2 ** vs.length }, (_, k) => {
+  const env = {}; vs.forEach((v, j) => { env[v] = (k >> (vs.length - 1 - j)) & 1; }); return f(env);
+});
+// Таблица истинности для вопроса: входы + столбец Y
+const ttHtml = (vs, col) => `<table class="board lgtt"><thead><tr>${vs.map(v => `<th>${v}</th>`).join("")}<th>Y</th></tr></thead><tbody>` +
+  col.map((y, k) => `<tr>${vs.map((_, j) => `<td>${(k >> (vs.length - 1 - j)) & 1}</td>`).join("")}<td class="${y ? "one" : ""}">${y}</td></tr>`).join("") + "</tbody></table>";
+// Случайное выражение в «красивой» записи (¬ · + ⊕); parseLogic понимает эти знаки
+// Возвращает { s — текст, atom — не нужны скобки, v — буква, если это одна переменная }
+function randNode(vs, depth, xor) {
+  if (depth <= 0 || Math.random() < 0.3) { const v = pick(vs); return { s: Math.random() < 0.35 ? "¬" + v : v, atom: true, v }; }
+  const op = pick(xor ? ["·", "+", "⊕"] : ["·", "+"]);
+  const a = randNode(vs, depth - 1, xor);
+  let b = randNode(vs, depth - 1, xor);
+  // Без глупостей вроде «B + B» или «C ⊕ ¬C»: справа другая переменная
+  for (let k = 0; k < 10 && ((a.v && b.v === a.v) || b.s === a.s); k++) b = randNode(vs, depth - 1, xor);
+  const w = n => (n.atom ? n.s : `(${n.s})`), s = `${w(a)} ${op} ${w(b)}`;
+  return Math.random() < 0.15 ? { s: `¬(${s})`, atom: true } : { s, atom: false };
+}
+const randExpr = (vs, depth, xor) => randNode(vs, depth, xor).s;
+// Выражение, где встречаются все переменные (иначе вопрос нечестный)
+function fullExpr(vs, depth, xor) {
+  for (let k = 0; k < 50; k++) { const e = randExpr(vs, depth, xor); if (vs.every(v => e.includes(v))) return e; }
+  return vs.join(" · ");
+}
+function qLogic(L) {
+  const types = ["gcol", "gname"];
+  if (L >= 2) types.push("ones", "ones");
+  if (L >= 3) types.push("expr", "expr", "morgan");
+  const t = pick(types);
+  const AB = ["A", "B"], vs = L >= 3 ? ["A", "B", "C"] : AB, depth = L >= 5 ? 3 : 2;   // длинные выражения — с 5-го уровня
+  if (t === "gcol" || t === "gname") {
+    const g = pick(LG2), col = lgCol(e => GATES[g].f(e.A, e.B), AB), str = c => c.join(" ");
+    if (t === "gcol") {
+      const wrong = LG2.filter(x => x !== g).map(x => str(lgCol(e => GATES[x].f(e.A, e.B), AB)));
+      return { prompt: `Элемент <b>${GATES[g].n}</b> (${GATES[g].en}). Какой у него столбец Y для AB = 00, 01, 10, 11?`, res: false,
+        ...makeOpts(str(col), shuffle(wrong), () => ""), why: `${GATES[g].fx}. ${GATES[g].why}` };
+    }
+    const name = x => `${GATES[x].n} (${GATES[x].en})`;
+    return { prompt: "Какой элемент даёт такую таблицу?" + ttHtml(AB, col), res: false,
+      ...makeOpts(name(g), shuffle(LG2.filter(x => x !== g).map(name)), () => ""), why: `${GATES[g].fx}. ${GATES[g].why}` };
+  }
+  if (t === "ones") {
+    const e = fullExpr(vs, depth, L >= 3), col = lgCol(parseLogic(e).f, vs), n = col.filter(Boolean).length, N = col.length;
+    return { prompt: `Сколько единиц в столбце Y таблицы истинности?<br><span class="ex">Y = ${e}</span>`, res: false,
+      ...makeOpts(String(n), shuffle([n + 1, n - 1, N - n, n + 2, n - 2].filter(x => x >= 0 && x <= N).map(String)), k => String((n + k) % (N + 1))),
+      why: `Столбец Y по строкам ${vs.join("")} = 0…${"1".repeat(vs.length)}: ${col.join(" ")} → единиц ${n} из ${N}` };
+  }
+  if (t === "expr") {
+    const vs2 = L >= 4 ? vs : AB, e = fullExpr(vs2, depth, true), col = lgCol(parseLogic(e).f, vs2).join("");
+    // Неправильные варианты — выражения с другой таблицей
+    const wrong = [];
+    for (let k = 0; k < 200 && wrong.length < 3; k++) {
+      const w = fullExpr(vs2, depth, true), c = lgCol(parseLogic(w).f, vs2).join("");
+      if (c !== col && !wrong.some(x => x[1] === c)) wrong.push([w, c]);
+    }
+    return { prompt: "Какое выражение даёт такую таблицу?" + ttHtml(vs2, [...col].map(Number)), res: false,
+      ...makeOpts(e, wrong.map(x => x[0]), () => ""), why: `Y = ${e}: подставь каждую строку входов и сверь с таблицей` };
+  }
+  // Законы де Моргана: инверсия скобки меняет · на + и наоборот, а каждую переменную инвертирует
+  const M = pick([
+    ["¬(A · B)", "¬A + ¬B", ["¬A · ¬B", "A + B", "¬A + B"]],
+    ["¬(A + B)", "¬A · ¬B", ["¬A + ¬B", "A · B", "A · ¬B"]],
+    ["¬(¬A · ¬B)", "A + B", ["A · B", "¬A + ¬B", "¬A · B"]],
+    ["¬(¬A + B)", "A · ¬B", ["¬A · B", "A + ¬B", "¬A + ¬B"]],
+    ["¬(A · ¬B)", "¬A + B", ["A + ¬B", "¬A · B", "A · B"]],
+  ]);
+  return { prompt: `Чему равно (закон де Моргана)?<br><span class="ex">${M[0]}</span>`, res: false,
+    ...makeOpts(M[1], M[2], () => ""), why: `${M[0]} = ${M[1]}: инверсия скобки меняет · на + (и наоборот) и инвертирует каждую переменную` };
+}
 function quizNext() {
-  quiz.q = quizMode === "c" ? qColor(quiz.lvl) : quizMode === "o" ? qOhm(quiz.lvl) : qSmd(quiz.lvl);
+  quiz.q = quizMode === "c" ? qColor(quiz.lvl) : quizMode === "o" ? qOhm(quiz.lvl) : quizMode === "l" ? qLogic(quiz.lvl) : qSmd(quiz.lvl);
   $("qPrompt").innerHTML = quiz.q.prompt;
   $("qRes").toggleAttribute("hidden", !quiz.q.res); // у SVG нет свойства hidden — меняем атрибут
   $("qOpts").innerHTML = quiz.q.opts.map((o, i) => `<button type="button" data-i="${i}"><span class="k">${i + 1}</span>${o}</button>`).join("");
@@ -1790,7 +1865,7 @@ function quizStop(finished) {
   quizHead();
 }
 // Онлайн-рекорды тренажёра — отдельно для каждого режима
-const QUIZ_NAMES = { c: "цвета", o: "закон Ома", s: "SMD-коды" };
+const QUIZ_NAMES = { c: "цвета", o: "закон Ома", s: "SMD-коды", l: "логика" };
 let quizOnline = undefined;   // undefined — грузится, null — ошибка
 async function loadQuizBoard() {
   const m = quizMode;
@@ -1818,7 +1893,7 @@ async function submitQuiz(mode, s) {
 function setQuizMode(m) {
   quizStop(false);
   quizMode = m;
-  [["c", "qmC"], ["o", "qmO"], ["s", "qmS"]].forEach(([k, id]) => $(id).setAttribute("aria-pressed", k === m));
+  [["c", "qmC"], ["o", "qmO"], ["s", "qmS"], ["l", "qmL"]].forEach(([k, id]) => $(id).setAttribute("aria-pressed", k === m));
   $("qIntro").textContent = QUIZ_INTRO;
   $("qStart").textContent = "Старт";
   $("qTime").textContent = qDur(1) / 1000;
@@ -1831,6 +1906,7 @@ function setQuizMode(m) {
 $("qmC").onclick = () => setQuizMode("c");
 $("qmO").onclick = () => setQuizMode("o");
 $("qmS").onclick = () => setQuizMode("s");
+$("qmL").onclick = () => setQuizMode("l");
 $("qStart").addEventListener("click", quizStart);
 $("qOpts").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) quizAnswer(+b.dataset.i); });
 document.addEventListener("keydown", e => {
@@ -2288,7 +2364,7 @@ const CATS = [
 // Для каждого калькулятора: короткое имя (меню), название, описание, раздел, слова для поиска
 const MODS = {
   game: { s: "Игра", t: "Бегущий резистор", d: "Раннер: прыгай через детали, копи электроны, качай бафы", cat: "play", k: "игра раннер динозавр дракончик резистор прыжки рекорд магазин бафы" },
-  quiz: { s: "Тренажёр", t: "Тренажёр", d: "Уровни и 3 жизни: цвета, закон Ома, SMD. Онлайн-рекорды", cat: "play", k: "тренажёр игра квиз тест угадай блиц тренировка рекорд" },
+  quiz: { s: "Тренажёр", t: "Тренажёр", d: "Уровни и 3 жизни: цвета, закон Ома, SMD, логика. Онлайн-рекорды", cat: "play", k: "тренажёр игра квиз тест угадай блиц тренировка рекорд" },
   color: { s: "Цвета", t: "Цветовая маркировка", d: "Номинал резистора по цветным полосам", cat: "mark", k: "резистор цвет полосы маркировка номинал ткс" },
   smd: { s: "SMD", t: "SMD-маркировка", d: "Коды 103, 4R7, 01C на корпусе", cat: "mark", k: "smd smt маркировка код корпус конденсатор резистор" },
   ohm: { s: "Закон Ома", t: "Закон Ома", d: "U, I, R, P, соединения и провода", cat: "circ", k: "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель" },
