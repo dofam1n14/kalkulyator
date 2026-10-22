@@ -5,8 +5,21 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://jhoqjypixkilfnshonmk.supabase.co; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
-<meta name="description" content="Калькулятор электронщика: маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода, таймер NE555, перевод единиц.">
-<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style><title>Калькулятор электронщика</title>
+<meta name="description" content="Бесплатные онлайн-калькуляторы электронщика: маркировка резисторов и SMD, закон Ома, резистор для LED, NE555, LM317, распиновки ESP32-CAM и Arduino.">
+<meta name="keywords" content="калькулятор электронщика, цветовая маркировка резисторов, калькулятор резисторов онлайн, smd маркировка, закон ома онлайн, резистор для светодиода, делитель напряжения, ne555 калькулятор, lm317 калькулятор, распиновка esp32-cam, распиновка arduino nano, таблица истинности онлайн, подбор резисторов">
+<meta name="robots" content="index, follow">
+<link rel="canonical" href="https://dofam1n14.github.io/kalkulyator/">
+<!-- Как выглядит ссылка в соцсетях и мессенджерах -->
+<meta property="og:type" content="website">
+<meta property="og:locale" content="ru_RU">
+<meta property="og:site_name" content="Калькулятор электронщика">
+<meta property="og:title" content="Калькулятор электронщика онлайн">
+<meta property="og:description" content="Маркировка резисторов, закон Ома, NE555, LM317, распиновки ESP32-CAM и Arduino, логика и тренажёр — бесплатно и без регистрации.">
+<meta property="og:url" content="https://dofam1n14.github.io/kalkulyator/">
+<meta name="theme-color" content="#1d5a3c">
+<!-- Подсказка поисковикам, что это за сайт (schema.org): бесплатное веб-приложение -->
+<script type="application/ld+json">{"@context":"https://schema.org","@type":"WebApplication","name":"Калькулятор электронщика","url":"https://dofam1n14.github.io/kalkulyator/","applicationCategory":"EducationalApplication","operatingSystem":"Любая (в браузере)","inLanguage":"ru","isAccessibleForFree":true,"offers":{"@type":"Offer","price":"0","priceCurrency":"RUB"},"description":"Онлайн-калькуляторы для электроники: маркировка резисторов и SMD, закон Ома, делитель, LED, NE555, LM317, подбор резисторов, логические элементы, распиновки ESP32-CAM, Arduino и Raspberry Pi."}</script>
+<style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style><title>Калькулятор электронщика онлайн: резисторы, закон Ома, NE555</title>
 <!-- Иконка вкладки: резистор 1 кОм ±5% (коричневый-чёрный-красный-золотой) -->
 <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2316201b'/%3E%3Cpath d='M3 32h58' stroke='%23c9ccc9' stroke-width='5' stroke-linecap='round'/%3E%3CclipPath id='b'%3E%3Crect x='12' y='18' width='40' height='28' rx='11'/%3E%3C/clipPath%3E%3Cg clip-path='url(%23b)'%3E%3Crect x='12' y='18' width='40' height='28' fill='%23d9c49a'/%3E%3Crect x='19' y='18' width='5' height='28' fill='%237a4a24'/%3E%3Crect x='27' y='18' width='5' height='28' fill='%231b1b1b'/%3E%3Crect x='35' y='18' width='5' height='28' fill='%23d32f2f'/%3E%3Crect x='44' y='18' width='4' height='28' fill='%23c9a227'/%3E%3C/g%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -3492,6 +3505,7 @@ $("search").addEventListener("input", () => {
   filterCards();
 });
 // Страница = кусок адреса после #: пусто — главная, #ohm — закон Ома и т.д.
+const HOME_TITLE = document.title; // заголовок главной для поисковиков — не затираем его при возврате
 function route() {
   const id = location.hash.slice(1);
   const cur = mods.find(m => m.id === id) || null;
@@ -3500,7 +3514,7 @@ function route() {
   document.body.classList.toggle("in-mod", !!cur);
   mods.forEach(m => { m.hidden = m !== cur; });
   $("chips").querySelectorAll("button").forEach(b => b.setAttribute("aria-current", b.dataset.go === id ? "page" : "false"));
-  document.title = cur ? `${MODS[id].t} — Калькулятор электронщика` : "Калькулятор электронщика";
+  document.title = cur ? `${MODS[id].t} — Калькулятор электронщика` : HOME_TITLE;
   if (cur) { $("search").value = ""; filterCards(); }
   window.scrollTo(0, 0);
 }
