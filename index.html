@@ -269,12 +269,15 @@ label.check input { width: auto; accent-color: var(--accent); }
 .lgsvg text.io { font: 600 14px var(--font-mono); fill: var(--fg); }
 .lgsvg circle.led { stroke: var(--line); }
 .lgsvg circle.led.on { fill: var(--result); stroke: var(--result); filter: drop-shadow(0 0 6px var(--result)); }
-.lgins { display: flex; gap: 10px; }
-.lgins button { flex: 1; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--muted); font: 600 18px var(--font-mono); cursor: pointer; }
+.lgins { display: grid; grid-template-columns: repeat(auto-fit, minmax(76px, 1fr)); gap: 10px; }
+.lgins button { padding: 12px 6px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--muted); font: 600 18px var(--font-mono); cursor: pointer; }
 .lgins button.on { border-color: var(--result); color: var(--result); }
 .lgins button[hidden], #lgN[hidden] { display: none; }
 .lgtt td, .lgtt th { text-align: center !important; font-family: var(--font-mono); }
 .lgtt td:last-child { font-weight: 700; }
+/* Длинная таблица (до 64 строк) прокручивается, шапка остаётся на месте */
+.lgttw { max-height: 460px; overflow: auto; }
+.lgttw thead th { position: sticky; top: 0; background: var(--panel); }
 .lgtt tbody tr { cursor: pointer; }
 .lgtt tr.cur td { background: var(--accent-soft); color: var(--accent); }
 .lgtt td.one { color: var(--result); }
@@ -646,14 +649,14 @@ label.check input { width: auto; accent-color: var(--accent); }
       <div class="split" id="lgGates">
         <div class="stack">
           <div class="seg" role="group" aria-label="Логический элемент" id="lgSel"></div>
-          <div class="seg" role="group" aria-label="Число входов" id="lgN"><button type="button" data-n="2" aria-pressed="true">2 входа</button><button type="button" data-n="3" aria-pressed="false">3 входа</button><button type="button" data-n="4" aria-pressed="false">4 входа</button></div>
+          <div class="seg" role="group" aria-label="Число входов" id="lgN"><button type="button" data-n="2" aria-pressed="true">2 вх</button><button type="button" data-n="3" aria-pressed="false">3 вх</button><button type="button" data-n="4" aria-pressed="false">4 вх</button><button type="button" data-n="5" aria-pressed="false">5 вх</button><button type="button" data-n="6" aria-pressed="false">6 вх</button></div>
           <svg class="schem lgsvg" id="lgSchem" viewBox="0 0 300 160" role="img" aria-label="Логический элемент"></svg>
           <div class="lgins" id="lgIns"></div>
           <div class="out" id="lgOut"></div>
         </div>
         <div class="stack">
           <h3 class="gh">Таблица истинности</h3>
-          <table class="board lgtt" id="lgTT"></table>
+          <div class="lgttw"><table class="board lgtt" id="lgTT"></table></div>
           <p class="hint" style="margin:0">Нажми на строку — входы переключатся на неё.</p>
         </div>
       </div>
@@ -1487,23 +1490,24 @@ const GATES = {
 };
 // Многовходовые версии: функция от массива входов, формула, объяснение и микросхемы на 2/3/4 входа
 const GATES_N = {
-  and:  { fa: x => +x.every(Boolean), op: " · ", why: "Выход 1, только когда все входы 1.", chip: { 2: "74HC08 (К555ЛИ1)", 3: "74HC11 (К555ЛИ3)", 4: "74HC21 (К555ЛИ6)" } },
-  or:   { fa: x => +x.some(Boolean), op: " + ", why: "Выход 1, когда хотя бы один вход 1.", chip: { 2: "74HC32 (К555ЛЛ1)", 3: "74LVC1G332", 4: "CD4072" } },
-  nand: { fa: x => 1 - x.every(Boolean), op: " · ", inv: true, why: "Выход 0, только когда все входы 1.", chip: { 2: "74HC00 (К555ЛА3)", 3: "74HC10 (К555ЛА4)", 4: "74HC20 (К555ЛА1)" } },
-  nor:  { fa: x => 1 - x.some(Boolean), op: " + ", inv: true, why: "Выход 1, только когда все входы 0.", chip: { 2: "74HC02 (К555ЛЕ1)", 3: "74HC27 (К555ЛЕ4)", 4: "CD4002" } },
-  xor:  { fa: x => x.reduce((a, b) => a ^ b, 0), op: " ⊕ ", why: "Выход 1, когда единиц на входах нечётное число (проверка чётности).", chip: { 2: "74HC86 (К555ЛП5)", 3: "74LVC1G386", 4: "три 74HC86 цепочкой" } },
+  and:  { fa: x => +x.every(Boolean), op: " · ", why: "Выход 1, только когда все входы 1.", chip: { 2: "74HC08 (К555ЛИ1)", 3: "74HC11 (К555ЛИ3)", 4: "74HC21 (К555ЛИ6)", 5: "CD4068 (8 входов, лишние на +)", 6: "CD4068 (8 входов, лишние на +)" } },
+  or:   { fa: x => +x.some(Boolean), op: " + ", why: "Выход 1, когда хотя бы один вход 1.", chip: { 2: "74HC32 (К555ЛЛ1)", 3: "74LVC1G332", 4: "CD4072", 5: "CD4078 (8 входов, выход OR, лишние на землю)", 6: "CD4078 (8 входов, выход OR, лишние на землю)" } },
+  nand: { fa: x => 1 - x.every(Boolean), op: " · ", inv: true, why: "Выход 0, только когда все входы 1.", chip: { 2: "74HC00 (К555ЛА3)", 3: "74HC10 (К555ЛА4)", 4: "74HC20 (К555ЛА1)", 5: "74HC30 (К555ЛА2, 8 входов, лишние на +)", 6: "74HC30 (К555ЛА2, 8 входов, лишние на +)" } },
+  nor:  { fa: x => 1 - x.some(Boolean), op: " + ", inv: true, why: "Выход 1, только когда все входы 0.", chip: { 2: "74HC02 (К555ЛЕ1)", 3: "74HC27 (К555ЛЕ4)", 4: "CD4002", 5: "74LS260 (два ИЛИ-НЕ по 5 входов)", 6: "CD4078 (8 входов, лишние на землю)" } },
+  xor:  { fa: x => x.reduce((a, b) => a ^ b, 0), op: " ⊕ ", why: "Выход 1, когда единиц на входах нечётное число (проверка чётности).", chip: { 2: "74HC86 (К555ЛП5)", 3: "74LVC1G386", 4: "три 74HC86 цепочкой", 5: "74HC280 (контроль чётности, лишние на землю)", 6: "74HC280 (контроль чётности, лишние на землю)" } },
 };
-const LG_NAMES = "ABCD";
-let lgGate = "and", lgN = 2, lgIn = [0, 0, 0, 0];
+const LG_NAMES = "ABCDEF";
+let lgGate = "and", lgN = 2, lgIn = [0, 0, 0, 0, 0, 0];
 $("lgSel").innerHTML = Object.entries(GATES).map(([k, g]) => `<button type="button" data-g="${k}" aria-pressed="${k === lgGate}">${g.n}</button>`).join("");
 function drawLogic() {
   const g = GATES[lgGate], gn = GATES_N[lgGate], n = g.one ? 1 : lgN, ins = lgIn.slice(0, n);
   const Y = g.one ? g.f(ins[0]) : gn.fa(ins);
   const c = v => (v ? "hi" : "lo");
-  // Входы равномерно по высоте корпуса (30…130)
-  const ys = ins.map((_, i) => Math.round(30 + (100 * (i + 0.5)) / n));
+  // Входы равномерно по высоте корпуса; при 5–6 входах корпус растягиваем почти на всю схему
+  const h = n > 4 ? 136 : 100, top = 80 - h / 2;
+  const ys = ins.map((_, i) => Math.round(top + (h * (i + 0.5)) / n));
   let s = ys.map((y, i) => `<line x1="20" y1="${y}" x2="100" y2="${y}" class="${c(ins[i])}"/><text class="io" x="8" y="${y + 5}">${LG_NAMES[i]}</text><text class="val" x="40" y="${y - 5}">${ins[i]}</text>`).join("");
-  s += `<rect x="100" y="30" width="80" height="100"/><text class="sym" x="140" y="62" text-anchor="middle">${g.sym}</text>`;
+  s += `<rect x="100" y="${top}" width="80" height="${h}"/><text class="sym" x="140" y="${top + 32}" text-anchor="middle">${g.sym}</text>`;
   const ox = g.inv ? 192 : 180;
   if (g.inv) s += `<circle cx="186" cy="80" r="6"/>`;
   s += `<line x1="${ox}" y1="80" x2="250" y2="80" class="${c(Y)}"/><text class="val" x="215" y="74">${Y}</text><text class="io" x="226" y="108">Y</text>`;
@@ -1513,7 +1517,7 @@ function drawLogic() {
   $("lgN").hidden = !!g.one;
   const names = LG_NAMES.slice(0, n).split("");
   const fx = g.one ? g.fx : (gn.inv ? `Y = ¬(${names.join(gn.op)})` : `Y = ${names.join(gn.op)}`);
-  $("lgOut").innerHTML = `<div class="big">${fx} = ${Y}</div>` + row("Элемент", `${g.n} (${g.en})${g.one ? "" : `, ${n} входа`}`) +
+  $("lgOut").innerHTML = `<div class="big">${fx} = ${Y}</div>` + row("Элемент", `${g.n} (${g.en})${g.one ? "" : `, ${n} ${n > 4 ? "входов" : "входа"}`}`) +
     row("Микросхема", g.one ? g.chip : gn.chip[n]) + `<p class="hint" style="margin:6px 0 0">${g.one || n === 2 ? g.why : gn.why}</p>`;
   // Таблица истинности: перебираем все 2ⁿ комбинаций входов
   const rows = Array.from({ length: 2 ** n }, (_, k) => names.map((_, j) => (k >> (n - 1 - j)) & 1));
