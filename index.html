@@ -353,7 +353,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" class="qstart" id="gStart">Играть</button>
         <span class="gbal">Электроны<b id="gCoins">0</b></span>
       </div>
-      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 500, 1500, 3000, 5000… очков — каждый быстрее и злее.</p>
+      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 200, 600, 1200, 2000… очков — каждый быстрее и злее.</p>
       <p class="qfeed" id="gMsg"></p>
       <div class="cols">
         <div class="stack"><h3 class="gh">Магазин бафов</h3><div class="shop" id="gShop"></div></div>
@@ -1598,7 +1598,7 @@ const PX = 90;                       // где по горизонтали ст�
 const GAME_KEY = "calc-game";
 // Магазин: прокачка навсегда (prices по уровням) и расходник «предохранитель»
 const SHOP = [
-  { id: "speed", t: "Быстрые ножки", d: "Бежит быстрее, очков капает больше: +12% за уровень", prices: [20, 50, 100] },
+  { id: "speed", t: "Быстрые ножки", d: "Бежит быстрее, очков капает больше: +5% за уровень", prices: [20, 50, 100] },
   { id: "jump", t: "Пружинистые выводы", d: "Прыгает выше: +10% за уровень", prices: [20, 50, 100] },
   { id: "magnet", t: "Магнит", d: "Притягивает электроны издалека", prices: [100, 200, 300] },
   { id: "dbl", t: "Двойной прыжок", d: "Можно подпрыгнуть ещё раз прямо в воздухе", prices: [120] },
@@ -1682,8 +1682,10 @@ function fitCanvas() {
 const baseSpeed = () => 330 * (1 + 0.08 * gs.upg.speed);
 const jumpV = () => 790 * (1 + 0.1 * gs.upg.jump);
 const best = () => (gs.board.length ? gs.board[0].s : 0);
-// Уровень N начинается с 250·N·(N−1) очков: 500, 1500, 3000, 5000, 7500…
-const level = () => Math.floor((1 + Math.sqrt(1 + (4 * run.score) / 250)) / 2);
+// Прогресс = пройденный путь / 10 (сложность зависит от него, а не от очков)
+const prog = () => run.scroll / 10;
+// Уровень N начинается с прогресса 250·N·(N−1): 500, 1500, 3000… (в очках: 200, 600, 1200, 2000…)
+const level = () => Math.floor((1 + Math.sqrt(1 + (4 * prog()) / 250)) / 2);
 const airTime = () => (2 * jumpV()) / G.GRAV; // сколько секунд резистор в воздухе
 const feetY = () => G.GROUND + run.y;
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
@@ -1732,7 +1734,7 @@ function coinArc(ox, ow) {
 // Препятствия: детали на плате; после 250 очков — летающие искры (не прыгай в них).
 // gap — через сколько пикселей появится следующее препятствие
 function spawnObs(gap) {
-  const s = run.score, x0 = G.W + 20, L = level();
+  const s = prog(), x0 = G.W + 20, L = level();
   if (s > 250 && Math.random() < Math.min(0.5, 0.22 + 0.035 * (L - 1))) {
     const z = { k: "zap", x: x0, w: 38, h: 18, y: G.GROUND - rnd(78, 110) };
     run.obs.push(z);
@@ -1765,7 +1767,7 @@ function update(dt) {
   run.speed = Math.min(950 + 35 * (L - 1), 1250, baseSpeed() + 8 * run.t);
   const dx = run.speed * dt;
   run.scroll += dx;
-  run.score += (dx / 10) * (1 + 0.12 * gs.upg.speed);
+  run.score += (dx / 25) * (1 + 0.05 * gs.upg.speed);   // очки в 2,5 раза медленнее пути; баф скорости даёт +5% за уровень
   // Прыжок: скорость вверх гасится гравитацией, y < 0 — в воздухе
   run.vy += G.GRAV * dt;
   run.y += run.vy * dt;
