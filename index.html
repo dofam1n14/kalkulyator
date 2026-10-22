@@ -21,6 +21,8 @@
   --accent-soft: #f3e3d5;
   --result: #0f5d45;
   --warn: #a8461f;
+  --blue: #2a63b0;
+  --violet: #7a4bb0;
   --font-display: "Chakra Petch", "Segoe UI", sans-serif;
   --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
   --font-mono: "IBM Plex Mono", Consolas, monospace;
@@ -28,13 +30,13 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
-    --accent: #e08a4b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d;
+    --accent: #e08a4b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
     color-scheme: dark;
   }
 }
 :root[data-theme="dark"] {
   --bg: #0f1613; --panel: #16201b; --fg: #e3ebe6; --muted: #93a49a; --line: #2a3832;
-  --accent: #e08a4b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d;
+  --accent: #e08a4b; --accent-soft: #3a2a1d; --result: #6fd3ac; --warn: #f08a5d; --blue: #82b4ff; --violet: #bb9af0;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -145,11 +147,56 @@ label.check input { width: auto; accent-color: var(--accent); }
 }
 .seg button[aria-pressed="true"] { background: var(--accent); color: #fff; }
 .seg button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+/* NE555: экран осциллографа */
 .wave { width: 100%; height: auto; display: block; }
-.wave .sig { fill: none; stroke: var(--result); stroke-width: 3; stroke-linejoin: round; }
-.wave .base { stroke: var(--line); stroke-dasharray: 4 4; }
-.wave text { font: 12px var(--font-mono); fill: var(--muted); }
-.wave .mark { stroke: var(--accent); stroke-dasharray: 3 3; }
+.wave .screen { fill: var(--bg); stroke: var(--line); }
+.wave .grid { stroke: var(--line); stroke-width: 1; }
+.wave .sig { fill: none; stroke: var(--result); stroke-width: 2.5; stroke-linejoin: round; }
+.wave .cap { fill: none; stroke: var(--accent); stroke-width: 2.5; stroke-linejoin: round; }
+.wave .thr { stroke: var(--muted); stroke-dasharray: 4 4; }
+.wave .mark { stroke: var(--blue); stroke-dasharray: 3 3; }
+.wave text { font: 11px var(--font-mono); fill: var(--muted); }
+.wave text.lo { fill: var(--result); }
+.wave text.lc { fill: var(--accent); }
+.wave .scan { fill: var(--result); opacity: .3; display: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .wave .scan { display: block; animation: sweep 2.6s linear infinite; }
+}
+@keyframes sweep { from { transform: translateX(0); } to { transform: translateX(500px); } }
+/* Схема транзисторного ключа */
+.schem { flex: 0 1 320px; width: 100%; max-width: 320px; height: auto; margin-inline: auto; }
+.schem line, .schem rect, .schem circle, .schem polyline { stroke: var(--fg); stroke-width: 2; fill: none; }
+.schem .solid { fill: var(--fg); }
+.schem text { font: 11px var(--font-mono); fill: var(--muted); stroke: none; }
+.schem text.val { fill: var(--accent); font-weight: 600; }
+/* Главная: карточки калькуляторов по разделам */
+.home { display: grid; gap: 24px; }
+.cat h2 {
+  margin: 0 0 10px; display: flex; align-items: center; gap: 8px;
+  font: 600 12px var(--font-body); text-transform: uppercase; letter-spacing: .1em; color: var(--muted);
+}
+.cat h2::before { content: ""; width: 10px; height: 10px; border-radius: 3px; background: var(--cat); }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 12px; }
+.card {
+  display: flex; align-items: center; gap: 14px; min-width: 0; padding: 14px 16px;
+  background: var(--panel); border: 1px solid var(--line); border-radius: 12px;
+  color: var(--fg); text-decoration: none;
+}
+.card:hover { border-color: var(--cat); }
+.card:focus-visible { outline: 2px solid var(--cat); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .card { transition: transform .15s, border-color .15s; }
+  .card:hover { transform: translateY(-2px); }
+}
+.card svg {
+  flex: none; width: 46px; height: 46px; padding: 7px; border-radius: 10px; background: var(--bg);
+  fill: none; stroke: var(--cat); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round;
+}
+.card b { display: block; font: 500 16px var(--font-display); }
+.card small { display: block; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.crumbs a { text-decoration: none; display: inline-block; }
+.chips button[aria-current="page"] { border-color: var(--accent); color: var(--accent); }
+.mod { border-top: 3px solid var(--cat, var(--line)); }
 .swatch { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 6px; vertical-align: middle; border: 1px solid var(--line); }
 footer { color: var(--muted); font-size: 13px; }
 footer code { font-family: var(--font-mono); }
@@ -174,7 +221,7 @@ footer code { font-family: var(--font-mono); }
 <div class="wrap">
   <header>
     <h1>Калькулятор <span>электронщика</span></h1>
-    <p>Маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода, таймер NE555 и перевод единиц. Значения можно вводить с приставками: <code>4.7k</code>, <code>100n</code>, <code>2M</code>, <code>20m</code>.</p>
+    <p>Маркировка резисторов и SMD, закон Ома, транзисторный ключ, таймер NE555, время работы от аккумулятора и другое. Выбери калькулятор ниже. Значения можно вводить с приставками: <code>4.7k</code>, <code>100n</code>, <code>2M</code>, <code>20m</code>.</p>
   </header>
 
   <nav class="bar" aria-label="Модули калькулятора">
@@ -184,6 +231,10 @@ footer code { font-family: var(--font-mono); }
     <div class="chips" id="chips"></div>
   </nav>
   <p class="hint" id="noHits" hidden style="margin:0">Ничего не нашлось. Попробуй другое слово, например «конденсатор» или «частота».</p>
+
+  <!-- Главная: карточки калькуляторов; открытый калькулятор показывается один, со своей ссылкой #id -->
+  <div class="home" id="home"></div>
+  <div class="crumbs" id="crumbs" hidden><a class="tool" href="#">← Все калькуляторы</a></div>
 
   <div class="grid">
     <section class="mod wide" id="color">
@@ -328,6 +379,48 @@ footer code { font-family: var(--font-mono); }
       <div class="out" id="ledOut"></div>
     </section>
 
+    <section class="mod wide" id="tr">
+      <h2>Транзистор как ключ <small>нагрузка от пина МК</small></h2>
+      <div class="seg" role="group" aria-label="Тип транзистора">
+        <button type="button" id="trB" aria-pressed="true">Биполярный NPN</button>
+        <button type="button" id="trM" aria-pressed="false">MOSFET (N-канал)</button>
+      </div>
+      <div class="split">
+        <div class="stack">
+          <div class="fields">
+            <label>Напряжение пина, В<input id="tVp" value="3.3"></label>
+            <label>Ток нагрузки, А<input id="tIl" value="200m"></label>
+          </div>
+          <div class="fields" id="fTrB">
+            <label>Усиление β (h21э)<input id="tBeta" value="100"></label>
+            <label>Uбэ, В<input id="tVbe" value="0.7"></label>
+            <label>Запас по току базы, раз<input id="tK" value="5"></label>
+          </div>
+          <div class="fields" id="fTrM" hidden>
+            <label>Rds(on), Ом<input id="tRds" value="50m"></label>
+            <label>Vgs(th) макс, В<input id="tVth" value="2.5"></label>
+          </div>
+          <label class="check"><input type="checkbox" id="tInd"> Нагрузка — реле, мотор или катушка</label>
+          <div class="out" id="trOut"></div>
+        </div>
+        <svg class="schem" id="trSchem" viewBox="0 0 300 220" role="img" aria-label="Схема транзисторного ключа"></svg>
+      </div>
+    </section>
+
+    <section class="mod" id="bat">
+      <h2>Время работы от аккумулятора <small>t = C / Iср</small></h2>
+      <div class="fields">
+        <label>Ёмкость, мА·ч<input id="bCap" value="2000"></label>
+        <label>Напряжение, В<input id="bV" value="3.7"></label>
+        <label>Ток в работе, А<input id="bIw" value="120m"></label>
+        <label>Ток во сне, А<input id="bIs" value="10u"></label>
+        <label>Работает, % времени<input id="bDuty" value="5"></label>
+        <label>Полезная ёмкость, %<input id="bEff" value="80"></label>
+      </div>
+      <p class="hint" style="margin:0">Полезная ёмкость учитывает потери в стабилизаторе и старение банки. Если устройство не спит, поставь 100% времени. ESP32: Wi-Fi ≈ 120–240 мА, глубокий сон ≈ 10 мкА.</p>
+      <div class="out" id="batOut"></div>
+    </section>
+
     <section class="mod wide" id="t555">
       <h2>Таймер NE555 <small>генератор и одиночный импульс</small></h2>
       <div class="seg" role="group" aria-label="Режим NE555">
@@ -349,7 +442,7 @@ footer code { font-family: var(--font-mono); }
         <label>R, Ом<input id="m555R" value="100k"></label>
         <label>C, Ф<input id="m555C" value="10u"></label>
       </div>
-      <svg class="wave" id="wave555" viewBox="0 0 520 120" aria-label="График выхода NE555"></svg>
+      <svg class="wave" id="wave555" viewBox="0 0 560 270" aria-label="Осциллограмма NE555: выход и напряжение на конденсаторе"></svg>
       <div class="out" id="out555"></div>
       <p class="hint" style="margin:0" id="hint555"></p>
     </section>
@@ -876,33 +969,66 @@ function e24Near(v) {
   const cand = [...E24.map(x => x * dec), 10 * dec];
   return cand.reduce((a, b) => (Math.abs(b - v) < Math.abs(a - v) ? b : a));
 }
-// Рисуем выход таймера: D — доля времени «вкл» за период, mono — одиночный импульс
-function drawWave(D, mono) {
-  const yH = 22, yL = 82, x0 = 20, x1 = 500;
-  let path, labels;
-  if (mono) {
-    const a = 110, b = 400;
-    path = `M${x0} ${yL} L${a} ${yL} L${a} ${yH} L${b} ${yH} L${b} ${yL} L${x1} ${yL}`;
-    labels = `<line class="mark" x1="${a}" y1="10" x2="${a}" y2="96"/><text x="${a - 4}" y="110" text-anchor="end">пуск</text>
-      <text x="${(a + b) / 2}" y="110" text-anchor="middle">T</text>`;
-  } else {
-    const d = Math.min(0.95, Math.max(0.05, D)), w = (x1 - x0) / 3;
-    path = `M${x0} ${yL}`;
-    for (let i = 0; i < 3; i++) {
-      const s = x0 + i * w;
-      path += ` L${s} ${yL} L${s} ${yH} L${s + d * w} ${yH} L${s + d * w} ${yL}`;
-    }
-    path += ` L${x1} ${yL}`;
-    labels = `<text x="${x0 + (d * w) / 2}" y="110" text-anchor="middle">t вкл</text>
-      <text x="${x0 + d * w + ((1 - d) * w) / 2}" y="110" text-anchor="middle">t выкл</text>`;
+// Экран осциллографа: сверху выход (вывод 3), снизу напряжение на конденсаторе (выводы 2 и 6).
+// p = { tH, tL } — генератор; p = { T } — одиночный импульс; null — пустой экран.
+function drawScope(p) {
+  const X0 = 46, X1 = 548, W = X1 - X0, TOP = 18, BOT = 238;
+  const oH = 34, oL = 100;                 // уровни выхода: «1» и «0»
+  const cTop = 138, cBot = 232;            // шкала конденсатора: Vcc и 0
+  const vy = v => (cBot - v * (cBot - cTop)).toFixed(1);
+  let s = `<rect class="screen" x="${X0}" y="${TOP}" width="${W}" height="${BOT - TOP}" rx="6"/>`;
+  for (let i = 1; i < 10; i++) s += `<line class="grid" x1="${X0 + (W * i) / 10}" y1="${TOP}" x2="${X0 + (W * i) / 10}" y2="${BOT}"/>`;
+  s += `<line class="grid" x1="${X0}" y1="118" x2="${X1}" y2="118"/>`;
+  s += `<text class="lo" x="${X0}" y="12">выход, вывод 3</text><text class="lc" x="${X0}" y="132" dy="-2">конденсатор, выводы 2 и 6</text>`;
+  if (!p) {
+    $("wave555").innerHTML = s + `<text x="${(X0 + X1) / 2}" y="128" text-anchor="middle">Заполни поля — здесь появится график</text>`;
+    return;
   }
-  $("wave555").innerHTML = `<line class="base" x1="${x0}" y1="${yL}" x2="${x1}" y2="${yL}"/>
-    <text x="${x0}" y="14">выход (вывод 3)</text><path class="sig" d="${path}"/>${labels}`;
+  // Пороги компаратора: конденсатор «гуляет» между ⅓ и ⅔ питания
+  s += `<line class="thr" x1="${X0}" y1="${vy(2 / 3)}" x2="${X1}" y2="${vy(2 / 3)}"/><text x="${X1 - 4}" y="${+vy(2 / 3) - 4}" text-anchor="end">⅔ Vcc</text>`;
+  if (!p.T) s += `<line class="thr" x1="${X0}" y1="${vy(1 / 3)}" x2="${X1}" y2="${vy(1 / 3)}"/><text x="${X1 - 4}" y="${+vy(1 / 3) - 4}" text-anchor="end">⅓ Vcc</text>`;
+  let total, out, cap = "", labels = "";
+  const N = 400;
+  if (p.T) {
+    // Одновибратор: пуск на 20% экрана, конденсатор заряжается от 0 до ⅔ Vcc за T = 1.1·R·C
+    total = p.T * 1.6;
+    const t0 = 0.2 * p.T, tau = p.T / 1.1, x = t => (X0 + (W * t) / total).toFixed(1);
+    out = `M${X0} ${oL} L${x(t0)} ${oL} L${x(t0)} ${oH} L${x(t0 + p.T)} ${oH} L${x(t0 + p.T)} ${oL} L${X1} ${oL}`;
+    for (let i = 0; i <= N; i++) {
+      const t = (total * i) / N, v = t < t0 || t > t0 + p.T ? 0 : 1 - Math.exp(-(t - t0) / tau);
+      cap += (i ? " L" : "M") + `${x(t)} ${vy(v)}`;
+    }
+    labels = `<line class="mark" x1="${x(t0)}" y1="${TOP}" x2="${x(t0)}" y2="${BOT}"/><text x="${+x(t0) - 4}" y="${oL - 6}" text-anchor="end">пуск</text>` +
+      `<text x="${x(t0 + p.T / 2)}" y="${(oH + oL) / 2 + 4}" text-anchor="middle">T = ${fmt(p.T, "с")}</text>`;
+  } else {
+    // Генератор: заряд через R1+R2 от ⅓ до ⅔ Vcc (выход «1»), разряд через R2 обратно (выход «0»)
+    const T = p.tH + p.tL, tauC = p.tH / Math.LN2, tauD = p.tL / Math.LN2;
+    total = 3 * T;
+    const x = t => (X0 + (W * t) / total).toFixed(1);
+    out = `M${X0} ${oH}`;
+    for (let k = 0; k < 3; k++) {
+      const a = k * T;
+      out += ` L${x(a + p.tH)} ${oH} L${x(a + p.tH)} ${oL} L${x(a + T)} ${oL}` + (k < 2 ? ` L${x(a + T)} ${oH}` : "");
+    }
+    for (let i = 0; i <= N; i++) {
+      const t = (total * i) / N, tm = t % T;
+      const v = tm < p.tH ? 1 - (2 / 3) * Math.exp(-tm / tauC) : (2 / 3) * Math.exp(-(tm - p.tH) / tauD);
+      cap += (i ? " L" : "M") + `${x(t)} ${vy(v)}`;
+    }
+    labels = `<text x="${x(p.tH / 2)}" y="${(oH + oL) / 2 + 4}" text-anchor="middle">t вкл</text>` +
+      `<text x="${x(p.tH + p.tL / 2)}" y="${(oH + oL) / 2 + 4}" text-anchor="middle">t выкл</text>`;
+  }
+  // Шкала времени: начало, середина, конец и цена одной клетки
+  const ticks = `<text x="${X0}" y="254">0</text><text x="${(X0 + X1) / 2}" y="254" text-anchor="middle">${fmt(total / 2, "с")}</text>` +
+    `<text x="${X1}" y="254" text-anchor="end">${fmt(total, "с")}</text><text x="${(X0 + X1) / 2}" y="268" text-anchor="middle">1 клетка = ${fmt(total / 10, "с")}</text>`;
+  s += `<path class="sig" d="${out}"/><path class="cap" d="${cap}"/>${labels}${ticks}` +
+    `<rect class="scan" x="${X0}" y="${TOP}" width="2" height="${BOT - TOP}"/>`;
+  $("wave555").innerHTML = s;
 }
 function astableRows(R1, R2, C) {
   const tH = 0.693 * (R1 + R2) * C, tL = 0.693 * R2 * C, T = tH + tL, D = tH / T;
   return {
-    D,
+    D, tH, tL,
     html: `<div class="big">${fmt(1 / T, "Гц")}</div>` + row("Период", fmt(T, "с")) +
       row("Время «вкл» / «выкл»", fmt(tH, "с") + " / " + fmt(tL, "с")) +
       row("Коэффициент заполнения", (D * 100).toFixed(1) + "%") + row("Скважность", (1 / D).toFixed(2)),
@@ -919,29 +1045,29 @@ function update555() {
   const out = $("out555");
   if (mode555 === "a") {
     const R1 = parse($("a555R1").value), R2 = parse($("a555R2").value), C = parse($("a555C").value);
-    if (!(R1 > 0 && R2 > 0 && C > 0)) { out.innerHTML = `<span class="warn">Заполни R1, R2 и C.</span>`; drawWave(0.6); return; }
+    if (!(R1 > 0 && R2 > 0 && C > 0)) { out.innerHTML = `<span class="warn">Заполни R1, R2 и C.</span>`; drawScope(null); return; }
     const r = astableRows(R1, R2, C);
     out.innerHTML = r.html + warn555(R1, r.f);
-    drawWave(r.D);
+    drawScope(r);
     $("hint555").textContent = "t вкл = 0.693·(R1+R2)·C,  t выкл = 0.693·R2·C,  f = 1.44 / ((R1 + 2·R2)·C)";
   } else if (mode555 === "r") {
     const f = parse($("r555F").value), D = parse($("r555D").value) / 100, C = parse($("r555C").value);
     $("hint555").textContent = "Сначала выбери конденсатор из того, что есть под рукой, потом калькулятор подберёт R1 и R2.";
-    if (!(f > 0 && C > 0 && D > 0 && D < 1)) { out.innerHTML = `<span class="warn">Заполни частоту, заполнение (от 1 до 99%) и C.</span>`; drawWave(0.6); return; }
-    if (D <= 0.5) { out.innerHTML = `<span class="warn">В базовой схеме NE555 заполнение может быть только больше 50%. Введи, например, 60%.</span>`; drawWave(D); return; }
+    if (!(f > 0 && C > 0 && D > 0 && D < 1)) { out.innerHTML = `<span class="warn">Заполни частоту, заполнение (от 1 до 99%) и C.</span>`; drawScope(null); return; }
+    if (D <= 0.5) { out.innerHTML = `<span class="warn">В базовой схеме NE555 заполнение может быть только больше 50%. Введи, например, 60%.</span>`; drawScope(null); return; }
     const T = 1 / f, R2 = ((1 - D) * T) / (0.693 * C), R1 = (D * T) / (0.693 * C) - R2;
     const R1s = e24Near(R1), R2s = e24Near(R2), real = astableRows(R1s, R2s, C);
     out.innerHTML = `<div class="big">R1 = ${fmt(R1s, "Ом")}, R2 = ${fmt(R2s, "Ом")}</div>` +
       row("Точный расчёт R1 / R2", fmt(R1, "Ом") + " / " + fmt(R2, "Ом")) +
       row("Частота с номиналами E24", fmt(real.f, "Гц")) +
       row("Заполнение с номиналами E24", (real.D * 100).toFixed(1) + "%") + warn555(R1s, real.f);
-    drawWave(real.D);
+    drawScope(real);
   } else {
     const R = parse($("m555R").value), C = parse($("m555C").value);
     $("hint555").textContent = "T = 1.1·R·C. Импульс запускается, когда вывод 2 (TRIG) кратко притягивают к земле, например кнопкой.";
-    if (!(R > 0 && C > 0)) { out.innerHTML = `<span class="warn">Заполни R и C.</span>`; drawWave(0, true); return; }
+    if (!(R > 0 && C > 0)) { out.innerHTML = `<span class="warn">Заполни R и C.</span>`; drawScope(null); return; }
     out.innerHTML = `<div class="big">${fmt(1.1 * R * C, "с")}</div>` + row("Длительность импульса", fmt(1.1 * R * C, "с"));
-    drawWave(0, true);
+    drawScope({ T: 1.1 * R * C });
   }
 }
 function set555(m) {
@@ -957,6 +1083,125 @@ $("m555r").onclick = () => set555("r");
 $("m555m").onclick = () => set555("m");
 ["a555R1", "a555R2", "a555C", "r555F", "r555D", "r555C", "m555R", "m555C"].forEach(id => $(id).addEventListener("input", update555));
 
+/* ---------- Время работы от аккумулятора ---------- */
+// Часы → понятная длительность: минуты, часы, сутки, месяцы, годы
+function fmtDur(h) {
+  if (!isFinite(h) || h <= 0) return "—";
+  if (h < 1) return `${Math.round(h * 60)} мин`;
+  if (h < 48) return `${+h.toPrecision(3)} ч`;
+  const d = h / 24;
+  if (d < 60) return `${+d.toPrecision(3)} сут`;
+  if (d < 730) return `${+(d / 30.4).toPrecision(3)} мес`;
+  return `${+(d / 365).toPrecision(3)} лет`;
+}
+function updateBat() {
+  const cap = parse($("bCap").value) / 1000;                   // мА·ч → А·ч
+  const V = parse($("bV").value), Iw = parse($("bIw").value);
+  const Is = parse($("bIs").value) || 0;                        // пустое поле = без сна
+  const D = Math.min(1, Math.max(0, parse($("bDuty").value) / 100));
+  const eff = (parse($("bEff").value) || 100) / 100;
+  if (!(cap > 0 && Iw > 0 && isFinite(D))) { $("batOut").innerHTML = `<span class="warn">Заполни ёмкость, ток в работе и долю времени работы.</span>`; return; }
+  // Средний ток: работа D-ю часть времени, остальное — сон
+  const Iavg = Iw * D + Is * (1 - D);
+  let html = `<div class="big">${fmtDur((cap * eff) / Iavg)}</div>` +
+    row("Средний ток", fmt(Iavg, "А")) + row("Расход за сутки", fmt(Iavg * 24, "А·ч")) +
+    row("Без сна (всё время в работе)", fmtDur((cap * eff) / Iw));
+  if (V > 0) html += row("Запас энергии", fmt(cap * V, "Вт·ч"));
+  if (D < 1 && Is > 0) html += row("Сон съедает", ((Is * (1 - D)) / Iavg * 100).toFixed(1) + "% заряда");
+  if (D < 1 && Is >= 1e-3) html += `<span class="warn">Ток сна больше 1 мА. У отладочных плат (ESP32 DevKit, ESP32-CAM) стабилизатор и USB-чип едят 5–20 мА даже во сне — для долгой работы от батареи нужна голая плата.</span>`;
+  $("batOut").innerHTML = html;
+}
+["bCap", "bV", "bIw", "bIs", "bDuty", "bEff"].forEach(id => $(id).addEventListener("input", updateBat));
+
+/* ---------- Транзистор как ключ ---------- */
+let trMode = "b"; // b — биполярный NPN, m — N-канальный MOSFET
+// Ближайший номинал E24 вниз: резистор меньше → ток базы чуть больше → ключ надёжно открыт
+function e24Down(v) {
+  const dec = Math.pow(10, Math.floor(Math.log10(v))), n = v / dec;
+  const hit = [...E24].reverse().find(x => x <= n + 1e-9);
+  return hit ? hit * dec : 9.1 * (dec / 10);
+}
+// Схема: пин → резистор → база/затвор, подтяжка к земле, нагрузка в цепи коллектора/стока
+function drawTr(rLabel, ind) {
+  const B = trMode === "b";
+  const [lb, lc, le] = B ? ["Б", "К", "Э"] : ["З", "С", "И"];
+  const gnd = (x, y) => `<line x1="${x - 12}" y1="${y}" x2="${x + 12}" y2="${y}"/><line x1="${x - 7}" y1="${y + 5}" x2="${x + 7}" y2="${y + 5}"/><line x1="${x - 2}" y1="${y + 10}" x2="${x + 2}" y2="${y + 10}"/>`;
+  let s = `<text x="222" y="13">+U пит</text><line x1="230" y1="18" x2="230" y2="36"/>
+    <rect x="212" y="36" width="36" height="44" rx="4"/><text x="196" y="62" text-anchor="end">нагрузка</text>
+    <line x1="230" y1="80" x2="230" y2="104"/>
+    <circle cx="222" cy="128" r="24"/>
+    <line x1="230" y1="152" x2="230" y2="190"/>${gnd(230, 190)}
+    <line x1="${B ? 212 : 206}" y1="128" x2="160" y2="128"/>
+    <rect x="110" y="121" width="50" height="14" rx="2"/><text class="val" x="135" y="114" text-anchor="middle">${rLabel}</text>
+    <line x1="110" y1="128" x2="48" y2="128"/><circle class="solid" cx="44" cy="128" r="4"/>
+    <text x="8" y="116">пин МК</text><text class="val" x="8" y="150">${fmt(parse($("tVp").value), "В")}</text>
+    <circle class="solid" cx="182" cy="128" r="3"/><line x1="182" y1="128" x2="182" y2="148"/>
+    <rect x="176" y="148" width="12" height="28" rx="2"/><line x1="182" y1="176" x2="182" y2="190"/>${gnd(182, 190)}
+    <text x="166" y="208" text-anchor="middle">10 кОм</text>
+    <text x="${B ? 200 : 194}" y="122" text-anchor="end">${lb}</text><text x="238" y="112">${lc}</text><text x="238" y="152">${le}</text>`;
+  if (B) {
+    // Биполярный: база-планка, коллектор и эмиттер со стрелкой
+    s += `<line x1="212" y1="114" x2="212" y2="142"/><line x1="212" y1="121" x2="230" y2="104"/><line x1="212" y1="135" x2="230" y2="152"/>
+      <polyline class="solid" points="221,148 230,152 226,143 221,148"/>`;
+  } else {
+    // MOSFET: затвор отделён от канала зазором — ток в затвор почти не течёт
+    s += `<line x1="206" y1="114" x2="206" y2="142"/><line x1="212" y1="112" x2="212" y2="144"/>
+      <polyline points="212,118 230,118 230,104"/><polyline points="212,138 230,138 230,152"/><line x1="212" y1="128" x2="230" y2="128"/>
+      <polyline class="solid" points="214,128 221,124 221,132 214,128"/>`;
+  }
+  if (ind) {
+    // Защитный диод параллельно нагрузке, катодом к плюсу
+    s += `<polyline points="230,30 272,30 272,86 230,86"/><polyline class="solid" points="265,66 279,66 272,54 265,66"/>
+      <line x1="265" y1="53" x2="279" y2="53"/><text x="284" y="62" text-anchor="end" dx="14">VD</text>`;
+  }
+  $("trSchem").innerHTML = s;
+}
+function updateTr() {
+  const Vp = parse($("tVp").value), Il = parse($("tIl").value), ind = $("tInd").checked;
+  const out = $("trOut");
+  const diode = ind ? `<span class="warn">Индуктивная нагрузка: поставь диод параллельно ей, катодом к плюсу (1N4148 для реле, 1N4007 или Шоттки для мотора). Без него выброс при выключении убьёт транзистор.</span>` : "";
+  if (trMode === "b") {
+    const beta = parse($("tBeta").value), Vbe = parse($("tVbe").value), k = parse($("tK").value) || 1;
+    if (!(Vp > Vbe && Il > 0 && beta > 0)) { out.innerHTML = `<span class="warn">Заполни поля: напряжение пина должно быть больше Uбэ.</span>`; drawTr("Rб = ?", ind); return; }
+    // Ток базы с запасом k, чтобы транзистор точно вошёл в насыщение (полностью открылся)
+    const Ib = (Il / beta) * k, Rb = (Vp - Vbe) / Ib, Rbs = e24Down(Rb), IbReal = (Vp - Vbe) / Rbs;
+    const pick = Il <= 0.1 ? "BC547, 2N3904, КТ3102" : Il <= 0.5 ? "2N2222, BC337, S8050" : Il <= 1.5 ? "BD139, TIP31" : "лучше MOSFET (кнопка выше)";
+    let html = `<div class="big">Rб = ${fmt(Rbs, "Ом")}</div>` +
+      row("Точный расчёт", fmt(Rb, "Ом")) + row("Ток базы (из пина)", fmt(IbReal, "А")) +
+      row("Нагрев транзистора (Uкэ нас ≈ 0.2 В)", fmt(Il * 0.2, "Вт")) + row("Подойдёт", pick) +
+      row("Подтяжка база–земля", "10 кОм — чтобы ключ не открывался при старте МК");
+    if (IbReal > 0.02) html += `<span class="warn">Пину нужно отдать больше 20 мА — многовато для ESP32 и Arduino. Возьми транзистор с большим β, составной (TIP120) или MOSFET.</span>`;
+    out.innerHTML = html + diode;
+    drawTr(`Rб ${fmt(Rbs, "Ом")}`, ind);
+  } else {
+    const Rds = parse($("tRds").value), Vth = parse($("tVth").value);
+    if (!(Il > 0 && Rds > 0 && Vp > 0)) { out.innerHTML = `<span class="warn">Заполни ток нагрузки, Rds(on) и напряжение пина.</span>`; drawTr("Rз = ?", ind); return; }
+    // У MOSFET в затвор ток не течёт — греется он только от тока нагрузки через Rds(on)
+    const P = Il * Il * Rds;
+    let html = `<div class="big">Нагрев ${fmt(P, "Вт")}</div>` +
+      row("Падение на транзисторе", fmt(Il * Rds, "В")) + row("Резистор в затвор", "100–220 Ом (гасит звон при переключении)") +
+      row("Подтяжка затвор–земля", "10 кОм") + row("Для пина 3.3 В подойдут", "AO3400, IRLML6344 (SMD); IRLZ44N — лучше от 5 В");
+    if (isFinite(Vth) && Vp < Vth * 1.5) html += `<span class="warn">Пин даёт ${fmt(Vp, "В")}, а транзистор начинает открываться только с ${fmt(Vth, "В")}. Полностью он не откроется и будет греться. Нужен logic-level MOSFET, у которого Rds(on) указан при Vgs = 2.5–4.5 В.</span>`;
+    if (P > 1) html += `<span class="warn">Больше 1 Вт: нужен радиатор или транзистор с меньшим Rds(on).</span>`;
+    out.innerHTML = html + diode;
+    drawTr("Rз 100 Ом", ind);
+  }
+}
+function setTr(m) {
+  trMode = m;
+  $("trB").setAttribute("aria-pressed", m === "b");
+  $("trM").setAttribute("aria-pressed", m === "m");
+  $("fTrB").hidden = m !== "b";
+  $("fTrM").hidden = m !== "m";
+  updateTr();
+}
+$("trB").onclick = () => setTr("b");
+$("trM").onclick = () => setTr("m");
+["tVp", "tIl", "tBeta", "tVbe", "tK", "tRds", "tVth", "tInd"].forEach(id => {
+  $(id).addEventListener("input", updateTr);
+  $(id).addEventListener("change", updateTr);
+});
+
 /* ---------- Почта ---------- */
 $("copyMail").addEventListener("click", () => {
   const btn = $("copyMail"), text = $("mail").textContent;
@@ -965,42 +1210,91 @@ $("copyMail").addEventListener("click", () => {
   try { navigator.clipboard.writeText(text).then(() => done("Скопировано"), selectIt); } catch (e) { selectIt(); }
 });
 
-/* ---------- Меню и поиск ---------- */
-// Короткое имя для кнопки меню и слова, по которым модуль ищется
+/* ---------- Главная, страницы и поиск ---------- */
+// Разделы главной: [код, название, цвет]
+const CATS = [
+  ["mark", "Маркировка", "var(--accent)"],
+  ["circ", "Расчёт схем", "var(--result)"],
+  ["sig", "Сигналы и единицы", "var(--blue)"],
+  ["pwr", "Питание и плата", "var(--violet)"],
+];
+// Для каждого калькулятора: короткое имя (меню), название, описание, раздел, слова для поиска
 const MODS = {
-  color: ["Цвета", "резистор цвет полосы маркировка номинал"],
-  ohm: ["Закон Ома", "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель"],
-  div: ["Делитель", "делитель напряжения ацп"],
-  rc: ["RC", "rc фильтр конденсатор частота среза постоянная времени"],
-  led: ["LED", "светодиод led резистор ток"],
-  t555: ["NE555", "555 таймер генератор импульс мигалка частота"],
-  smd: ["SMD", "smd smt маркировка код корпус конденсатор резистор"],
-  db: ["дБ", "децибел дб dbm усиление мощность"],
-  freq: ["Частота", "частота период длина волны антенна"],
-  len: ["Размеры", "мм mil дюйм плата дорожка шаг"],
+  color: { s: "Цвета", t: "Цветовая маркировка", d: "Номинал резистора по цветным полосам", cat: "mark", k: "резистор цвет полосы маркировка номинал ткс" },
+  smd: { s: "SMD", t: "SMD-маркировка", d: "Коды 103, 4R7, 01C на корпусе", cat: "mark", k: "smd smt маркировка код корпус конденсатор резистор" },
+  ohm: { s: "Закон Ома", t: "Закон Ома", d: "U, I, R, P, соединения и провода", cat: "circ", k: "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель" },
+  div: { s: "Делитель", t: "Делитель напряжения", d: "Выходное напряжение двух резисторов", cat: "circ", k: "делитель напряжения ацп" },
+  led: { s: "LED", t: "Резистор для светодиода", d: "Номинал и мощность резистора", cat: "circ", k: "светодиод led резистор ток" },
+  tr: { s: "Ключ", t: "Транзистор как ключ", d: "Включить реле, мотор или ленту пином МК", cat: "circ", k: "транзистор ключ npn mosfet мосфет база затвор реле мотор пин esp32 arduino" },
+  rc: { s: "RC", t: "RC-фильтр", d: "Частота среза и постоянная времени", cat: "sig", k: "rc фильтр конденсатор частота среза постоянная времени" },
+  t555: { s: "NE555", t: "Таймер NE555", d: "Генератор, одиночный импульс, осциллограмма", cat: "sig", k: "555 таймер генератор импульс мигалка частота осциллограф" },
+  freq: { s: "Частота", t: "Частота и длина волны", d: "f, T, λ и длина антенны", cat: "sig", k: "частота период длина волны антенна" },
+  db: { s: "дБ", t: "Децибелы", d: "дБ, дБм и разы", cat: "sig", k: "децибел дб dbm усиление мощность" },
+  bat: { s: "Аккумулятор", t: "Время работы от аккумулятора", d: "Сколько проживёт устройство на батарее", cat: "pwr", k: "аккумулятор батарея батарейка мач ёмкость сон esp32 время работы" },
+  len: { s: "Размеры", t: "Размеры на плате", d: "Миллиметры, mil и дюймы", cat: "pwr", k: "мм mil дюйм плата дорожка шаг" },
+};
+// Иконки карточек: простые линии, цвет берут из раздела
+const ICONS = {
+  color: `<path d="M3 24h9M36 24h9"/><rect x="12" y="15" width="24" height="18" rx="7"/><path d="M18 15v18M24 15v18M31 15v18"/>`,
+  smd: `<rect x="10" y="15" width="28" height="18" rx="2"/><path d="M5 20h5M5 28h5M38 20h5M38 28h5M16 24h4M23 24h4M30 24h2"/>`,
+  ohm: `<circle cx="24" cy="24" r="17"/><path d="M24 7v34M7 24h34"/>`,
+  div: `<path d="M24 3v6M24 21v6M24 39v6M24 24h14"/><rect x="18" y="9" width="12" height="12" rx="2"/><rect x="18" y="27" width="12" height="12" rx="2"/>`,
+  led: `<path d="M5 26h9M30 26h9"/><path d="M14 16v20l16-10z"/><path d="M30 16v20M32 11l5-5M37 15l5-5"/>`,
+  tr: `<circle cx="26" cy="24" r="17"/><path d="M6 24h14M20 15v18M20 20l12-7V5M20 28l12 7v8"/>`,
+  rc: `<path d="M3 24h6M23 24h9M38 24h7M32 14v20M38 14v20"/><rect x="9" y="18" width="14" height="12" rx="2"/>`,
+  t555: `<path d="M4 34h6V14h12v20h8V14h12v20h2"/>`,
+  freq: `<path d="M3 24c5-15 9-15 14 0s9 15 14 0 9-15 14 0"/>`,
+  db: `<path d="M7 7v34h34"/><path d="M9 39C18 37 22 10 41 9"/>`,
+  bat: `<rect x="5" y="14" width="33" height="20" rx="3"/><path d="M38 20h4v8h-4M11 20v8M17 20v8M23 20v8"/>`,
+  len: `<rect x="3" y="16" width="42" height="16" rx="2"/><path d="M9 16v6M15 16v4M21 16v6M27 16v4M33 16v6M39 16v4"/>`,
 };
 const mods = [...document.querySelectorAll(".mod")];
-const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
-$("chips").innerHTML = mods.map(m => `<button type="button" data-go="${m.id}">${(MODS[m.id] || [m.id])[0]}</button>`).join("");
+const catColor = c => CATS.find(x => x[0] === c)[2];
+mods.forEach(m => m.style.setProperty("--cat", catColor(MODS[m.id].cat)));
+$("chips").innerHTML = mods.map(m => `<button type="button" data-go="${m.id}">${MODS[m.id].s}</button>`).join("");
+$("home").innerHTML = CATS.map(([cat, name, color]) => `
+  <section class="cat" style="--cat:${color}">
+    <h2>${name}</h2>
+    <div class="cards">${mods.filter(m => MODS[m.id].cat === cat).map(m => `
+      <a class="card" href="#${m.id}" data-id="${m.id}">
+        <svg viewBox="0 0 48 48" aria-hidden="true">${ICONS[m.id]}</svg>
+        <span><b>${MODS[m.id].t}</b><small>${MODS[m.id].d}</small></span>
+      </a>`).join("")}</div>
+  </section>`).join("");
 $("chips").addEventListener("click", e => {
   const id = e.target.dataset && e.target.dataset.go;
-  if (!id) return;
-  if ($(id).hidden) { $("search").value = ""; filterMods(); }
-  $(id).scrollIntoView({ behavior: reduceMotion ? "auto" : "smooth", block: "start" });
+  if (id) location.hash = id;
 });
-function filterMods() {
+// Поиск фильтрует карточки на главной
+function filterCards() {
   const q = $("search").value.trim().toLowerCase();
   let hits = 0;
-  mods.forEach(m => {
-    const hay = (m.querySelector("h2").textContent + " " + (MODS[m.id] || ["", ""])[1]).toLowerCase();
-    const ok = !q || hay.includes(q);
-    m.hidden = !ok;
-    $("chips").querySelector(`[data-go="${m.id}"]`).hidden = !ok;
+  $("home").querySelectorAll(".card").forEach(c => {
+    const m = MODS[c.dataset.id];
+    const ok = !q || `${m.t} ${m.d} ${m.k}`.toLowerCase().includes(q);
+    c.hidden = !ok;
     if (ok) hits++;
   });
+  $("home").querySelectorAll(".cat").forEach(sec => { sec.hidden = !sec.querySelector(".card:not([hidden])"); });
   $("noHits").hidden = hits > 0;
 }
-$("search").addEventListener("input", filterMods);
+$("search").addEventListener("input", () => {
+  if (location.hash.length > 1) location.hash = "";
+  filterCards();
+});
+// Страница = кусок адреса после #: пусто — главная, #ohm — закон Ома и т.д.
+function route() {
+  const id = location.hash.slice(1);
+  const cur = mods.find(m => m.id === id) || null;
+  $("home").hidden = !!cur;
+  $("crumbs").hidden = !cur;
+  mods.forEach(m => { m.hidden = m !== cur; });
+  $("chips").querySelectorAll("button").forEach(b => b.setAttribute("aria-current", b.dataset.go === id ? "page" : "false"));
+  document.title = cur ? `${MODS[id].t} — Калькулятор электронщика` : "Калькулятор электронщика";
+  if (cur) { $("search").value = ""; filterCards(); }
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", route);
 
 /* ---------- Тема ---------- */
 const root = document.documentElement;
@@ -1022,7 +1316,7 @@ function saveState() {
   try {
     const vals = {};
     document.querySelectorAll(".mod input[id], .mod select[id]").forEach(i => { vals[i.id] = i.type === "checkbox" ? i.checked : i.value; });
-    localStorage.setItem(KEY, JSON.stringify({ vals, bandCount, sel, smdKind, mode555, ohmOrder, ohmTab }));
+    localStorage.setItem(KEY, JSON.stringify({ vals, bandCount, sel, smdKind, mode555, ohmOrder, ohmTab, trMode }));
   } catch (e) {}
 }
 function loadState() {
@@ -1042,6 +1336,7 @@ if (saved) {
   if (Array.isArray(saved.ohmOrder) && saved.ohmOrder.length === 2 && saved.ohmOrder.every(id => ohmIds.includes(id))) ohmOrder = saved.ohmOrder;
   if (saved.smdKind === "C") smdKind = "C";
   if (["a", "r", "m"].includes(saved.mode555)) mode555 = saved.mode555;
+  if (saved.trMode === "m") trMode = "m";
 }
 document.addEventListener("input", e => { if (e.target.id !== "search") saveState(); });
 document.addEventListener("change", saveState);
@@ -1068,6 +1363,8 @@ $("smdR").setAttribute("aria-pressed", smdKind === "R");
 $("smdC").setAttribute("aria-pressed", smdKind === "C");
 setOhmTab(ohmTab);
 updateOhm(); updateNet(); updateWire(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); set555(mode555);
+updateBat(); setTr(trMode);
+route();
 </script>
 
 </body>
