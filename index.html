@@ -163,6 +163,19 @@ label.check input { width: auto; accent-color: var(--accent); }
   .wave .scan { display: block; animation: sweep 2.6s linear infinite; }
 }
 @keyframes sweep { from { transform: translateX(0); } to { transform: translateX(500px); } }
+/* Частота и длина волны: синусоида + шкала спектра */
+.fviz { width: 100%; height: auto; display: block; }
+.fviz .sine { fill: none; stroke: var(--blue); stroke-width: 3; stroke-linecap: round; }
+.fviz .axis { stroke: var(--line); }
+.fviz .guide { stroke: var(--muted); stroke-dasharray: 3 4; }
+.fviz .dim { stroke: var(--accent); stroke-width: 1.5; }
+.fviz .dim.t { stroke: var(--result); }
+.fviz .band { fill: var(--blue); }
+.fviz .marker { fill: var(--accent); }
+.fviz text { font: 11px var(--font-mono); fill: var(--muted); }
+.fviz text.lam { fill: var(--accent); font-size: 13px; font-weight: 600; }
+.fviz text.per { fill: var(--result); font-size: 13px; font-weight: 600; }
+.fviz text.now { fill: var(--fg); font-size: 12px; }
 /* Схема транзисторного ключа */
 .schem { flex: 0 1 320px; width: 100%; max-width: 320px; height: auto; margin-inline: auto; }
 .schem line, .schem rect, .schem circle, .schem polyline { stroke: var(--fg); stroke-width: 2; fill: none; }
@@ -475,13 +488,14 @@ footer code { font-family: var(--font-mono); }
       </div>
     </section>
 
-    <section class="mod" id="freq">
+    <section class="mod wide" id="freq">
       <h2>Частота и длина волны <small>λ = c/f</small></h2>
       <div class="fields">
         <label>Частота, Гц<input id="fF" value="2.4G"></label>
         <label>Период, с<input id="fT"></label>
         <label>Длина волны, м<input id="fL"></label>
       </div>
+      <svg class="fviz" id="freqViz" viewBox="0 0 560 240" role="img" aria-label="Волна с отмеченными длиной волны и периодом, шкала спектра"></svg>
       <p class="hint" style="margin:0">Длина волны в вакууме. Четвертьволновая антенна: <span id="fQ" style="font-family:var(--font-mono)">—</span></p>
     </section>
 
@@ -878,7 +892,46 @@ link([
   { id: "dbmV", to: x => (x > 0 ? (x * x) / 50 : NaN), from: w => Math.sqrt(w * 50), show: num },
 ]);
 const C0 = 299792458;
-const updateQ = () => { const f = parse($("fF").value); $("fQ").textContent = f > 0 ? fmt(C0 / f / 4, "м") : "—"; };
+const updateQ = () => { const f = parse($("fF").value); $("fQ").textContent = f > 0 ? fmt(C0 / f / 4, "м") : "—"; drawFreq(f); };
+// Диапазоны шкалы спектра: [от, до, название]
+const BANDS = [[1, 3e4, "НЧ"], [3e4, 3e6, "ДВ, СВ радио"], [3e6, 3e7, "КВ радио"], [3e7, 3e8, "УКВ, FM-радио"],
+  [3e8, 3e9, "сотовая связь, Wi-Fi 2.4 ГГц, Bluetooth"], [3e9, 3e11, "СВЧ: Wi-Fi 5 ГГц, радары"], [3e11, 4e14, "инфракрасный"],
+  [4e14, 7.9e14, "видимый свет"], [7.9e14, 1e15, "ультрафиолет"]];
+// Картинка: сверху синусоида (одна λ в пространстве = один T во времени), снизу где частота на шкале от 1 Гц до 1 ПГц
+function drawFreq(f) {
+  const X0 = 30, X1 = 530, P = 250, cy = 72, A = 38;
+  let wave = "";
+  for (let x = X0; x <= X1; x += 2) wave += (x === X0 ? "M" : " L") + `${x} ${(cy - A * Math.sin((2 * Math.PI * (x - X0)) / P)).toFixed(1)}`;
+  const p1 = X0 + P / 4, p2 = p1 + P; // два соседних гребня
+  const ok = f > 0;
+  const lam = ok ? fmt(C0 / f, "м") : "—", per = ok ? fmt(1 / f, "с") : "—";
+  let s = `<line class="axis" x1="${X0}" y1="${cy}" x2="${X1}" y2="${cy}"/><path class="sine" d="${wave}"/>` +
+    `<line class="guide" x1="${p1}" y1="22" x2="${p1}" y2="128"/><line class="guide" x1="${p2}" y1="22" x2="${p2}" y2="128"/>` +
+    `<line class="dim" x1="${p1}" y1="24" x2="${p2}" y2="24"/><line class="dim" x1="${p1}" y1="19" x2="${p1}" y2="29"/><line class="dim" x1="${p2}" y1="19" x2="${p2}" y2="29"/>` +
+    `<text class="lam" x="${(p1 + p2) / 2}" y="16" text-anchor="middle">λ = ${lam}  (в пространстве)</text>` +
+    `<line class="dim t" x1="${p1}" y1="124" x2="${p2}" y2="124"/><line class="dim t" x1="${p1}" y1="119" x2="${p1}" y2="129"/><line class="dim t" x1="${p2}" y1="119" x2="${p2}" y2="129"/>` +
+    `<text class="per" x="${(p1 + p2) / 2}" y="144" text-anchor="middle">T = ${per}  (во времени)</text>`;
+  // Шкала спектра в логарифме: каждая клетка — в 1000 раз больше
+  const lx = v => X0 + ((X1 - X0) * Math.log10(v)) / 15;
+  s += `<defs><linearGradient id="gRainbow" x1="0" x2="1"><stop offset="0" stop-color="#d32f2f"/><stop offset=".25" stop-color="#f57c00"/>` +
+    `<stop offset=".45" stop-color="#fbc02d"/><stop offset=".65" stop-color="#2e7d32"/><stop offset=".85" stop-color="#1565c0"/><stop offset="1" stop-color="#7b1fa2"/></linearGradient></defs>`;
+  BANDS.forEach(([a, b, name], i) => {
+    const fill = name === "видимый свет" ? `fill="url(#gRainbow)"` : `class="band" fill-opacity="${0.15 + (i % 2) * 0.2}"`;
+    s += `<rect x="${lx(a).toFixed(1)}" y="176" width="${(lx(b) - lx(a)).toFixed(1)}" height="16" ${fill}><title>${name}</title></rect>`;
+  });
+  ["1 Гц", "1 кГц", "1 МГц", "1 ГГц", "1 ТГц", "1 ПГц"].forEach((t, i) => {
+    const x = X0 + ((X1 - X0) * i) / 5;
+    s += `<line class="axis" x1="${x}" y1="192" x2="${x}" y2="198"/><text x="${x}" y="210" text-anchor="${i === 0 ? "start" : i === 5 ? "end" : "middle"}">${t}</text>`;
+  });
+  if (ok) {
+    const inside = f >= 1 && f <= 1e15;
+    const mx = lx(Math.min(1e15, Math.max(1, f)));
+    const band = (BANDS.find(([a, b]) => f >= a && f < b) || [0, 0, "вне шкалы"])[2];
+    s += `<polygon class="marker" points="${mx - 7},164 ${mx + 7},164 ${mx},175"/>` +
+      `<text class="now" x="${(X0 + X1) / 2}" y="232" text-anchor="middle">${fmt(f, "Гц")} — ${inside ? band : "вне шкалы"}</text>`;
+  }
+  $("freqViz").innerHTML = s;
+}
 link([
   { id: "fF", to: x => (x > 0 ? x : NaN), from: f => f, show: num },
   { id: "fT", to: x => (x > 0 ? 1 / x : NaN), from: f => 1 / f, show: num },
@@ -1228,7 +1281,7 @@ const MODS = {
   tr: { s: "Ключ", t: "Транзистор как ключ", d: "Включить реле, мотор или ленту пином МК", cat: "circ", k: "транзистор ключ npn mosfet мосфет база затвор реле мотор пин esp32 arduino" },
   rc: { s: "RC", t: "RC-фильтр", d: "Частота среза и постоянная времени", cat: "sig", k: "rc фильтр конденсатор частота среза постоянная времени" },
   t555: { s: "NE555", t: "Таймер NE555", d: "Генератор, одиночный импульс, осциллограмма", cat: "sig", k: "555 таймер генератор импульс мигалка частота осциллограф" },
-  freq: { s: "Частота", t: "Частота и длина волны", d: "f, T, λ и длина антенны", cat: "sig", k: "частота период длина волны антенна" },
+  freq: { s: "Частота", t: "Частота и длина волны", d: "f, T, λ, антенна и шкала спектра", cat: "sig", k: "частота период длина волны антенна спектр радио свет wi-fi" },
   db: { s: "дБ", t: "Децибелы", d: "дБ, дБм и разы", cat: "sig", k: "децибел дб dbm усиление мощность" },
   bat: { s: "Аккумулятор", t: "Время работы от аккумулятора", d: "Сколько проживёт устройство на батарее", cat: "pwr", k: "аккумулятор батарея батарейка мач ёмкость сон esp32 время работы" },
   len: { s: "Размеры", t: "Размеры на плате", d: "Миллиметры, mil и дюймы", cat: "pwr", k: "мм mil дюйм плата дорожка шаг" },
