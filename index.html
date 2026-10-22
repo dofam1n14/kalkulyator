@@ -156,11 +156,14 @@ input.computed { background: var(--accent-soft); border-color: var(--accent); }
   padding: 7px 10px; margin-top: 4px; border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0;
   background: color-mix(in srgb, var(--warn) 9%, transparent);
 }
-.resistor { width: 100%; max-width: 560px; height: auto; display: block; margin: 0 auto; }
+.resistor { width: 100%; max-width: 640px; height: auto; display: block; margin: 0 auto; }
+.blbl line { stroke: var(--line); stroke-width: 1.5; }
+.blbl text { font: 600 13px var(--font-mono); fill: var(--fg); text-anchor: middle; }
+.blbl text.m { fill: var(--muted); font-weight: 500; }
 /* Выбор цвета полос: ряд «бусин» на каждую полосу */
 .bandsel { display: grid; gap: 12px; }
 .band-row { display: grid; gap: 6px; min-width: 0; }
-.band-row .cap { font-size: 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.band-row .cap { font-size: 13px; color: var(--muted); }
 .band-row .cap b { margin-left: 8px; font-size: 13px; font-weight: 500; color: var(--fg); text-transform: none; letter-spacing: 0; }
 .sw { display: flex; flex-wrap: wrap; gap: 7px; }
 .sw button {
@@ -525,7 +528,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" id="b5" aria-pressed="false">5 полос</button>
         <button type="button" id="b6" aria-pressed="false">6 полос</button>
       </div>
-      <svg class="resistor" viewBox="0 0 560 230" role="img" aria-label="Резистор с выбранными полосами">
+      <svg class="resistor" viewBox="0 0 600 176" role="img" aria-label="Резистор с выбранными полосами">
         <defs>
           <!-- Металл выводов: светлая полоса по центру, как у луженой проволоки -->
           <linearGradient id="gLead" x1="0" y1="0" x2="0" y2="1">
@@ -547,25 +550,25 @@ label.check input { width: auto; accent-color: var(--accent); }
           <linearGradient id="gSilver" x1="0" y1="0" x2="0" y2="1">
             <stop offset="0" stop-color="#6c7176"/><stop offset=".3" stop-color="#ffffff"/><stop offset=".55" stop-color="#c3c7cc"/><stop offset="1" stop-color="#5c6166"/>
           </linearGradient>
-          <!-- Профиль «косточки»: плавные утолщения на концах, тонкая шейка, конусы к выводам -->
-          <path id="pBody" d="M112 71 C116 49 126 37 150 37 C173 37 179 46 202 46 L358 46 C381 46 387 37 410 37 C434 37 444 49 448 71
-                              L448 79 C444 101 434 113 410 113 C387 113 381 104 358 104 L202 104 C179 104 173 113 150 113 C126 113 116 101 112 79 Z"/>
+          <!-- Профиль «косточки»: утолщения-колпачки на концах, тонкая шейка посередине -->
+          <path id="pBody" d="M130 85 C130 60 142 47 168 47 C192 47 198 55 218 55 L382 55 C402 55 408 47 432 47 C458 47 470 60 470 85
+                              C470 110 458 123 432 123 C408 123 402 115 382 115 L218 115 C198 115 192 123 168 123 C142 123 130 110 130 85 Z"/>
           <clipPath id="cBody"><use href="#pBody"/></clipPath>
-          <filter id="fShadow" x="-10%" y="-30%" width="120%" height="180%">
-            <feDropShadow dx="0" dy="8" stdDeviation="7" flood-color="#000" flood-opacity=".28"/>
-          </filter>
+          <filter id="fShadow" x="-20%" y="-200%" width="140%" height="500%"><feGaussianBlur stdDeviation="6"/></filter>
         </defs>
-        <!-- Весь резистор наклонён, как на фото -->
-        <g transform="translate(0 40) rotate(-20 280 75)">
-          <rect x="60" y="71.5" width="440" height="7" rx="3.5" fill="url(#gLead)"/>
-          <g filter="url(#fShadow)">
-            <use href="#pBody" fill="url(#gBody)"/>
-            <g clip-path="url(#cBody)">
-              <g id="bands"></g>
-              <rect x="100" y="30" width="360" height="90" fill="url(#gShade)"/>
-            </g>
-          </g>
+        <!-- Тень на столе, выводы, корпус -->
+        <ellipse cx="300" cy="134" rx="175" ry="7" fill="#000" opacity=".22" filter="url(#fShadow)"/>
+        <rect x="18" y="81.5" width="564" height="7" rx="3.5" fill="url(#gLead)"/>
+        <use href="#pBody" fill="url(#gBody)"/>
+        <g clip-path="url(#cBody)">
+          <g id="bands"></g>
+          <rect x="120" y="40" width="360" height="90" fill="url(#gShade)"/>
+          <!-- Блик вдоль корпуса -->
+          <rect x="120" y="62" width="360" height="5" fill="#fff" opacity=".28"/>
         </g>
+        <use href="#pBody" fill="none" stroke="#000" stroke-opacity=".25" stroke-width="1"/>
+        <!-- Что значит каждая полоса -->
+        <g id="bandLbl" class="blbl"></g>
       </svg>
       <div class="bandsel" id="bandsel"></div>
       <div class="out">
@@ -793,7 +796,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <div class="seg" role="group" aria-label="Готовые схемы" id="csPre"></div>
         <div class="cscols">
           <div class="stack">
-            <div class="seg" role="group" aria-label="Число входов" id="csN"><button type="button" data-n="2">2 входа</button><button type="button" data-n="3">3 входа</button><button type="button" data-n="4">4 входа</button></div>
+            <div class="seg" role="group" aria-label="Число входов" id="csN"><button type="button" data-n="2">2 вх</button><button type="button" data-n="3">3 вх</button><button type="button" data-n="4">4 вх</button><button type="button" data-n="5">5 вх</button><button type="button" data-n="6">6 вх</button></div>
             <div class="csgates" id="csGates"></div>
             <button type="button" class="tool" id="csAdd">+ Добавить элемент</button>
           </div>
@@ -916,12 +919,21 @@ $("bandsel").addEventListener("click", e => {
 function updateColor() {
   const idx = sel[bandCount];
   const n = bandCount;
-  // Центры полос: первая — на левом утолщении, цифры на шейке, допуск — на правом утолщении
-  const xs = { 3: [165, 222, 262], 4: [165, 222, 262, 405], 5: [160, 214, 248, 282, 408], 6: [160, 214, 248, 282, 393, 423] }[n];
-  // Полоса чуть изогнута, будто обёрнута вокруг цилиндра; золото и серебро — с металлическим бликом
-  const bandPath = x => `M${x - 8} 30 Q${x - 2} 75 ${x - 8} 120 L${x + 8} 120 Q${x + 14} 75 ${x + 8} 30 Z`;
+  // Центры полос: первая — на левом колпачке, цифры на шейке, допуск — на правом колпачке
+  const xs = { 3: [168, 240, 280], 4: [168, 240, 280, 432], 5: [164, 226, 262, 298, 432], 6: [164, 226, 262, 298, 416, 448] }[n];
+  // Золото и серебро — с металлическим бликом
   const fillOf = ci => (COLORS[ci].n === "Золотой" ? "url(#gGold)" : COLORS[ci].n === "Серебряный" ? "url(#gSilver)" : COLORS[ci].c);
-  $("bands").innerHTML = idx.map((ci, i) => `<path class="band" d="${bandPath(xs[i])}" fill="${fillOf(ci)}"/>`).join("");
+  $("bands").innerHTML = idx.map((ci, i) => `<rect class="band" x="${xs[i] - 8}" y="40" width="16" height="90" fill="${fillOf(ci)}"/>`).join("");
+  // Под каждой полосой — что она значит: цифра, множитель, допуск, ТКС
+  const dc = digitsOf(n), short = m => (m >= 1e9 ? m / 1e9 + "G" : m >= 1e6 ? m / 1e6 + "M" : m >= 1e3 ? m / 1e3 + "k" : String(m).replace(".", ","));
+  const what = (ci, i) => i < dc ? String(COLORS[ci].d) : i === dc ? "×" + short(COLORS[ci].m) : i === dc + 1 ? "±" + String(COLORS[ci].t).replace(".", ",") + "%" : COLORS[ci].tc + "ppm";
+  let lastRow = 0;
+  $("bandLbl").innerHTML = idx.map((ci, i) => {
+    // Если соседние подписи слишком близко — опускаем вторую на строку ниже
+    const row2 = i > 0 && xs[i] - xs[i - 1] < 40 && i > dc && lastRow === 0; lastRow = row2 ? 1 : 0;
+    const y = row2 ? 168 : 152;
+    return `<line x1="${xs[i]}" y1="${xs[i] > 218 && xs[i] < 382 ? 119 : 127}" x2="${xs[i]}" y2="${y - 13}"/><text x="${xs[i]}" y="${y}"${i < dc ? "" : ' class="m"'}>${what(ci, i)}</text>`;
+  }).join("");
   $("bandsel").querySelectorAll("button[data-band]").forEach(b =>
     b.setAttribute("aria-pressed", idx[+b.dataset.band] === +b.dataset.c));
   idx.forEach((ci, i) => { $("bname" + i).textContent = COLORS[ci].n; });
@@ -1744,8 +1756,9 @@ const CS_PRE = {
 const CS_MAX = 8;
 // Сколько элементов в одной микросхеме: НЕ — 6 штук, остальные — 4 двухвходовых
 const CS_CHIP = { and: ["74HC08", 4], or: ["74HC32", 4], not: ["74HC04", 6], nand: ["74HC00", 4], nor: ["74HC02", 4], xor: ["74HC86", 4] };
-let cs = { k: 2, g: CS_PRE.ha.g.map(r => [...r]), ins: [0, 0, 0, 0], p: "ha" };
+let cs = { k: 2, g: CS_PRE.ha.g.map(r => [...r]), ins: [0, 0, 0, 0, 0, 0], p: "ha" };
 try { const c = JSON.parse(localStorage.getItem("calc-cascade")); if (c && c.g && c.g.length) cs = c; } catch (e) {}
+cs.ins = Array.from({ length: 6 }, (_, i) => (cs.ins && cs.ins[i]) || 0); // старое сохранение было на 4 входа
 const csSave = () => { try { localStorage.setItem("calc-cascade", JSON.stringify(cs)); } catch (e) {} };
 const csSrc = g => (GATES[g[0]].one ? [g[1]] : [g[1], g[2]]);
 const csOpts = i => [...LG_NAMES.slice(0, cs.k)].concat(Array.from({ length: i }, (_, j) => "G" + (j + 1)));
@@ -1815,7 +1828,7 @@ function drawCasc() {
     let last = -Infinity;
     want.forEach(w => { const y = Math.max(w.y, last + GAP, TOP); last = y; pos["G" + (w.i + 1)] = { x: X0 + (d - 1) * CW, y }; maxY = Math.max(maxY, y); });
   });
-  const W = X0 + (maxD - 1) * CW + 120, H = maxY + 46;
+  const W = X0 + (maxD - 1) * CW + 150, H = maxY + 46;
   const outX = name => pos[name].x + (GATES[cs.g[+name.slice(1) - 1][0]].inv ? 50 : 42);
   let wires = "", taps = "";
   cs.g.forEach((g, i) => {
@@ -1877,7 +1890,7 @@ $("csPre").innerHTML = Object.entries(CS_PRE).map(([k, p]) => `<button type="but
 $("csPre").addEventListener("click", e => {
   const b = e.target.closest("button[data-p]"); if (!b) return;
   const p = CS_PRE[b.dataset.p];
-  cs = { k: p.k, g: p.g.map(r => [...r]), ins: [0, 0, 0, 0], p: b.dataset.p };
+  cs = { k: p.k, g: p.g.map(r => [...r]), ins: [0, 0, 0, 0, 0, 0], p: b.dataset.p };
   csAll();
 });
 $("csN").addEventListener("click", e => {
