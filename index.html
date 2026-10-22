@@ -398,6 +398,23 @@ label.check input { width: auto; accent-color: var(--accent); }
 .csvg .led { stroke: var(--line); stroke-width: 2; fill: var(--panel); }
 .csvg .led.on { fill: var(--result); stroke: var(--result); filter: drop-shadow(0 0 5px var(--result)); }
 .lgtt th.sink { color: var(--accent); }
+/* Карта Карно */
+.kbar { display: flex; flex-wrap: wrap; gap: 8px; }
+.ksvg { display: block; width: 100%; max-width: 420px; height: auto; margin-inline: auto; }
+.ksvg .kc { cursor: pointer; }
+.ksvg .kc rect { fill: var(--panel); stroke: var(--line); stroke-width: 1.5; }
+.ksvg .kc.v1 rect { fill: var(--accent-soft); }
+.ksvg .kc.vx rect { fill: var(--bg); }
+.ksvg .kc:hover rect, .ksvg .kc:focus-visible rect { stroke: var(--accent); stroke-width: 2.5; }
+.ksvg .kc:focus-visible { outline: none; }
+.ksvg .kc text { font: 700 20px var(--font-mono); fill: var(--fg); text-anchor: middle; dominant-baseline: central; pointer-events: none; }
+.ksvg .kc.v0 text { fill: var(--muted); font-weight: 500; }
+.ksvg .kc.vx text { fill: var(--muted); }
+.ksvg .kc text.mi { font: 500 9px var(--font-mono); fill: var(--muted); text-anchor: start; dominant-baseline: auto; }
+.ksvg .hd { font: 600 13px var(--font-mono); fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+.ksvg .hv { font: 700 13px var(--font-mono); fill: var(--accent); }
+.ksvg .grp { fill: none; stroke-width: 3; pointer-events: none; }
+.kchip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 3px solid; margin-right: 6px; vertical-align: -1px; }
 .out .cs-go { justify-self: start; margin-top: 8px; }
 .cs-big { display: flex; flex-wrap: wrap; gap: 0 28px; }
 .out .hint { font-family: var(--font-body); }
@@ -873,6 +890,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" id="lgTabG" aria-pressed="true">Элементы</button>
         <button type="button" id="lgTabE" aria-pressed="false">Своё выражение</button>
         <button type="button" id="lgTabC" aria-pressed="false">Каскад</button>
+        <button type="button" id="lgTabK" aria-pressed="false">Карта Карно</button>
       </div>
       <div class="split" id="lgGates">
         <div class="stack">
@@ -892,6 +910,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <div class="fields"><label>Выражение (переменные A, B, C, D, E, F)<input id="lgE" value="A & !B | C" autocomplete="off" spellcheck="false"></label></div>
         <p class="hint" style="margin:0">НЕ: <code>!</code> или <code>¬</code> · И: <code>&</code> или <code>*</code> · ИЛИ: <code>|</code> или <code>+</code> · Исключающее ИЛИ: <code>^</code> · скобки <code>( )</code>. Сначала НЕ, потом И, потом ^, потом ИЛИ — как умножение раньше сложения.</p>
         <div class="out" id="lgEOut"></div>
+        <div class="plinks"><button type="button" class="tool" id="lgToK">Упростить на карте Карно</button></div>
         <table class="board lgtt" id="lgETT"></table>
       </div>
       <!-- Каскад: выход одного элемента подаётся на вход другого -->
@@ -912,6 +931,22 @@ label.check input { width: auto; accent-color: var(--accent); }
         </div>
         <h3 class="gh">Таблица истинности</h3>
         <div class="lgttw"><table class="board lgtt" id="csTT"></table></div>
+      </div>
+      <!-- Карта Карно: таблица истинности, разложенная так, чтобы соседние клетки отличались одной переменной -->
+      <div class="stack" id="lgKarn" hidden>
+        <p class="hint" style="margin:0">Нажимай на клетки: 0 → 1 → X (не важно, что там) → 0. Карта сама найдёт самые большие группы из 1, 2, 4, 8… клеток и упростит функцию. Группы могут переходить через край карты — она «свёрнута в бублик».</p>
+        <div class="kbar">
+          <div class="seg" role="group" aria-label="Число переменных" id="kN"><button type="button" data-n="2">2 перем.</button><button type="button" data-n="3">3 перем.</button><button type="button" data-n="4">4 перем.</button></div>
+          <div class="seg" role="group" aria-label="Что ищем" id="kMode"><button type="button" data-m="1">МДНФ — группы из единиц</button><button type="button" data-m="0">МКНФ — группы из нулей</button></div>
+        </div>
+        <div class="plinks"><button type="button" class="tool" id="kFromE">Взять из «Своего выражения»</button><button type="button" class="tool" id="kEx">Пример</button><button type="button" class="tool" id="kClr">Очистить</button></div>
+        <div class="pincols">
+          <div class="pinw"><svg class="ksvg" id="kSvg" role="group" aria-label="Карта Карно, нажми на клетку"></svg></div>
+          <div class="stack">
+            <div class="out" id="kOut"></div>
+            <div class="plinks"><button type="button" class="tool" id="kToE">Проверить во вкладке «Своё выражение»</button></div>
+          </div>
+        </div>
       </div>
     </section>
 
@@ -1862,13 +1897,14 @@ $("lgIns").addEventListener("click", e => { const b = e.target.closest("button[d
 $("lgTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { [...r.dataset.in].forEach((v, j) => { lgIn[j] = +v; }); drawLogic(); } });
 // Вкладки логики: g — элементы, e — своё выражение, c — каскад
 function setLgTab(m) {
-  [["lgTabG", "lgGates", "g"], ["lgTabE", "lgExpr", "e"], ["lgTabC", "lgCasc", "c"]].forEach(([b, box, k]) => {
+  [["lgTabG", "lgGates", "g"], ["lgTabE", "lgExpr", "e"], ["lgTabC", "lgCasc", "c"], ["lgTabK", "lgKarn", "k"]].forEach(([b, box, k]) => {
     $(b).setAttribute("aria-pressed", m === k); $(box).hidden = m !== k;
   });
 }
 $("lgTabG").onclick = () => setLgTab("g");
 $("lgTabE").onclick = () => setLgTab("e");
 $("lgTabC").onclick = () => setLgTab("c");
+$("lgTabK").onclick = () => setLgTab("k");
 
 // Разбор выражения без eval: рекурсивный спуск. Приоритет: НЕ > И > ^ > ИЛИ
 function parseLogic(src) {
@@ -2136,6 +2172,149 @@ $("csOut").addEventListener("click", e => {
   setLgTab("e"); updateLogicExpr();
 });
 csAll();
+
+
+/* ---------- Логика: карта Карно ---------- */
+// Клетка: 0, 1 или 2 (= X, «не важно»). Номер клетки — минтерм: биты переменных слева направо, A — старший
+// Строки и столбцы идут кодом Грея (00, 01, 11, 10): соседние клетки отличаются ровно одной переменной
+const GRAY = { 1: [0, 1], 2: [0, 1, 3, 2] };
+const K_COLORS = ["#e5484d", "#3d8bfd", "#2fb67c", "#d8a43c", "#b07ae0", "#f08c3a", "#14b8c4", "#e05ea8"];
+let kz = { n: 4, names: ["A", "B", "C", "D"], v: Array(16).fill(0), mode: 1 };
+try { const k = JSON.parse(localStorage.getItem("calc-karnaugh")); if (k && k.v && k.names) kz = k; } catch (e) {}
+
+// Минимизация Квайна — Мак-Класки: склеиваем термы, отличающиеся одним битом, пока можно;
+// что не склеилось — простые импликанты. Потом выбираем самое маленькое их число, покрывающее все нужные клетки
+function kMinimize(n, ones, dc) {
+  if (!ones.length) return [];
+  let cur = [...new Set([...ones, ...dc])].map(m => ({ v: m, x: 0 }));
+  const primes = [];
+  while (cur.length) {
+    const next = new Map(), used = new Set();
+    for (let i = 0; i < cur.length; i++) for (let j = i + 1; j < cur.length; j++) {
+      const a = cur[i], b = cur[j], d = a.v ^ b.v;
+      if (a.x === b.x && d && !(d & (d - 1))) { // одинаковые «дырки» и разница ровно в одном бите
+        const t = { v: a.v & ~d, x: a.x | d }; next.set(t.v + ":" + t.x, t); used.add(i); used.add(j);
+      }
+    }
+    cur.forEach((t, i) => { if (!used.has(i) && !primes.some(q => q.v === t.v && q.x === t.x)) primes.push(t); });
+    cur = [...next.values()];
+  }
+  const covers = (t, m) => ((m ^ t.v) & ~t.x) === 0;
+  const lits = t => n - [...Array(n).keys()].filter(b => t.x >> b & 1).length;
+  // Сначала обязательные импликанты — единственные, что покрывают какую-то клетку
+  const chosen = [];
+  ones.forEach(m => { const c = primes.filter(t => covers(t, m)); if (c.length === 1 && !chosen.includes(c[0])) chosen.push(c[0]); });
+  const left = ones.filter(m => !chosen.some(t => covers(t, m)));
+  if (left.length) {
+    // Остаток — перебором: сначала по одной импликанте, потом по две… первое полное покрытие с меньшим числом букв
+    const pool = primes.filter(t => !chosen.includes(t) && left.some(m => covers(t, m)));
+    let best = null;
+    const walk = (start, pick, k) => {
+      if (pick.length === k) {
+        if (left.every(m => pick.some(t => covers(t, m)))) {
+          const cost = pick.reduce((a, t) => a + lits(t), 0);
+          if (!best || cost < best.cost) best = { pick: [...pick], cost };
+        }
+        return;
+      }
+      for (let i = start; i < pool.length; i++) { pick.push(pool[i]); walk(i + 1, pick, k); pick.pop(); }
+    };
+    for (let k = 1; k <= pool.length && !best; k++) walk(0, [], k);
+    chosen.push(...best.pick);
+  }
+  return chosen;
+}
+// Терм → текст. Для МДНФ: произведение (A·¬B). Для МКНФ группа нулей даёт сумму с инверсией: (¬A + B)
+function kTerm(t, n, names, sop) {
+  const L = [];
+  for (let i = 0; i < n; i++) {
+    const b = n - 1 - i; if (t.x >> b & 1) continue;
+    const one = t.v >> b & 1;
+    L.push((sop ? !one : one) ? "¬" + names[i] : names[i]);
+  }
+  if (!L.length) return sop ? "1" : "0";
+  return sop ? L.join("·") : (L.length > 1 ? `(${L.join(" + ")})` : L[0]);
+}
+function kLayout(n) {
+  const rb = n === 4 ? 2 : 1, cb = n - rb;
+  return { rb, cb, R: GRAY[rb], C: GRAY[cb] };
+}
+function drawKarn() {
+  const { n, names, v, mode } = kz, { rb, cb, R, C } = kLayout(n);
+  const want = mode ? 1 : 0, cells = v.slice(0, 2 ** n);
+  const ones = cells.map((x, m) => (x === want ? m : -1)).filter(m => m >= 0), dc = cells.map((x, m) => (x === 2 ? m : -1)).filter(m => m >= 0);
+  const groups = kMinimize(n, ones, dc);
+  const S = 58, X0 = 74, Y0 = 62, W = X0 + C.length * S + 10, H = Y0 + R.length * S + 10;
+  const bits = (x, k) => x.toString(2).padStart(k, "0");
+  let s = `<line x1="10" y1="10" x2="${X0 - 4}" y2="${Y0 - 4}" style="stroke:var(--line);stroke-width:1.5"/>
+    <text class="hd hv" x="${X0 - 18}" y="18" text-anchor="end">${names.slice(rb).join("")}</text><text class="hd hv" x="16" y="${Y0 - 14}" text-anchor="start">${names.slice(0, rb).join("")}</text>`;
+  C.forEach((g, c) => { s += `<text class="hd" x="${X0 + c * S + S / 2}" y="${Y0 - 16}">${bits(g, cb)}</text>`; });
+  R.forEach((g, r) => { s += `<text class="hd" x="${X0 - 22}" y="${Y0 + r * S + S / 2}">${bits(g, rb)}</text>`; });
+  R.forEach((gr, r) => C.forEach((gc, c) => {
+    const m = (gr << cb) | gc, x = X0 + c * S, y = Y0 + r * S, val = cells[m];
+    s += `<g class="kc v${val === 2 ? "x" : val}" data-m="${m}" tabindex="0" role="button" aria-label="Клетка ${m}: ${val === 2 ? "X" : val}">
+      <rect x="${x}" y="${y}" width="${S}" height="${S}"/><text x="${x + S / 2}" y="${y + S / 2 + 2}">${val === 2 ? "X" : val}</text><text class="mi" x="${x + 4}" y="${y + 11}">${m}</text></g>`;
+  }));
+  // Группы: на карте это прямоугольники, которые могут «перелезать» через край — тогда рисуем куски
+  const runs = pos => {
+    const out = []; pos.forEach(p => { const l = out[out.length - 1]; if (l && p === l[1] + 1) l[1] = p; else out.push([p, p]); });
+    return out;
+  };
+  groups.forEach((t, gi) => {
+    const rowSel = R.map((g, r) => (((g ^ (t.v >> cb)) & ~(t.x >> cb)) === 0 ? r : -1)).filter(r => r >= 0);
+    const colSel = C.map((g, c) => (((g ^ (t.v & (2 ** cb - 1))) & ~(t.x & (2 ** cb - 1))) === 0 ? c : -1)).filter(c => c >= 0);
+    const pad = 5 + (gi % 4) * 3, col = K_COLORS[gi % K_COLORS.length];
+    runs(rowSel).forEach(([r0, r1]) => runs(colSel).forEach(([c0, c1]) => {
+      s += `<rect class="grp" x="${X0 + c0 * S + pad}" y="${Y0 + r0 * S + pad}" width="${(c1 - c0 + 1) * S - 2 * pad}" height="${(r1 - r0 + 1) * S - 2 * pad}" rx="12" style="stroke:${col}"/>`;
+    }));
+  });
+  const sv = $("kSvg"); sv.setAttribute("viewBox", `0 0 ${W} ${H}`); sv.innerHTML = s;
+  // Ответ
+  const sop = !!mode, terms = groups.map(t => kTerm(t, n, names, sop));
+  const all = ones.length + dc.length === 2 ** n && ones.length > 0;
+  const f = !ones.length ? (sop ? "0" : "1") : all ? (sop ? "1" : "0") : terms.join(sop ? " + " : " · ");
+  const litCount = groups.reduce((a, t) => a + kTerm(t, n, names, true).split("·").filter(x => x !== "1").length, 0);
+  $("kOut").innerHTML = `<div class="big">Y = ${f}</div>` +
+    row(sop ? "МДНФ — групп из единиц" : "МКНФ — групп из нулей", `${groups.length}, букв: ${all || !ones.length ? 0 : litCount}`) +
+    groups.map((t, gi) => row(`<span class="kchip" style="border-color:${K_COLORS[gi % K_COLORS.length]}"></span>${2 ** (n - lits(t, n))} клет${["ка", "ки", "ки", "ок"][Math.min(3, Math.log2(2 ** (n - lits(t, n))))]}`, kTerm(t, n, names, sop))).join("") +
+    row(sop ? "Клетки с 1 (минтермы)" : "Клетки с 0 (макстермы)", ones.join(", ") || "нет") + (dc.length ? row("Клетки с X", dc.join(", ")) : "") +
+    `<p class="hint" style="margin:6px 0 0">${sop
+      ? "Каждая группа — одно слагаемое: в нём остаются только те переменные, что не меняются внутри группы."
+      : "Каждая группа нулей — одна скобка: переменная, которая в группе равна 1, входит с отрицанием."} X можно включать в группы, если они от этого растут.</p>`;
+  $("kN").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === n));
+  $("kMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.m === mode));
+  kz.f = f;
+  try { localStorage.setItem("calc-karnaugh", JSON.stringify(kz)); } catch (e) {}
+}
+const lits = (t, n) => n - [...Array(n).keys()].filter(b => t.x >> b & 1).length;
+const kSet = i => { kz.v[i] = (kz.v[i] + 1) % 3; drawKarn(); };
+$("kSvg").addEventListener("click", e => { const g = e.target.closest(".kc"); if (g) kSet(+g.dataset.m); });
+$("kSvg").addEventListener("keydown", e => { const g = e.target.closest(".kc"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); kSet(+g.dataset.m); setTimeout(() => $("kSvg").querySelector(`[data-m="${g.dataset.m}"]`).focus(), 0); } });
+$("kN").addEventListener("click", e => {
+  const b = e.target.closest("button[data-n]"); if (!b) return;
+  kz.n = +b.dataset.n; kz.names = ["A", "B", "C", "D"].slice(0, kz.n); kz.v = Array(16).fill(0); drawKarn();
+});
+$("kMode").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (b) { kz.mode = +b.dataset.m; drawKarn(); } });
+$("kClr").onclick = () => { kz.v = Array(16).fill(0); drawKarn(); };
+// Пример из учебников: f = Σm(0, 2, 5, 7, 8, 10, 13, 15) — два «квадрата», один из них через углы
+$("kEx").onclick = () => { kz.n = 4; kz.names = ["A", "B", "C", "D"]; kz.v = Array(16).fill(0); [0, 2, 5, 7, 8, 10, 13, 15].forEach(m => { kz.v[m] = 1; }); drawKarn(); };
+// Выражение → карта: берём его переменные (до 4) и заполняем клетки по таблице истинности
+function kFromExpr(src) {
+  let p;
+  try { p = parseLogic(src); } catch (e) { $("kOut").innerHTML = `<span class="warn">В выражении ошибка: ${esc(e.message)}</span>`; return false; }
+  if (p.vars.length < 2 || p.vars.length > 4) { $("kOut").innerHTML = `<span class="warn">Карта Карно здесь на 2–4 переменные, а в выражении их ${p.vars.length}.</span>`; return false; }
+  const n = p.vars.length;
+  kz.n = n; kz.names = p.vars; kz.v = Array(16).fill(0);
+  for (let m = 0; m < 2 ** n; m++) { const env = {}; p.vars.forEach((x, j) => { env[x] = (m >> (n - 1 - j)) & 1; }); kz.v[m] = p.f(env); }
+  drawKarn(); return true;
+}
+$("kFromE").onclick = () => kFromExpr($("lgE").value);
+$("lgToK").onclick = () => { setLgTab("k"); kFromExpr($("lgE").value); };
+$("kToE").onclick = () => {
+  if (kz.v.slice(0, 2 ** kz.n).includes(2)) { $("kOut").insertAdjacentHTML("beforeend", `<span class="warn">На карте есть X: в «Своём выражении» таблица может отличаться ровно в этих клетках — так и должно быть.</span>`); }
+  $("lgE").value = kz.f; setLgTab("e"); updateLogicExpr();
+};
+drawKarn();
 
 /* ---------- Тренажёр ---------- */
 let quizMode = "c";                 // c — цвета, o — закон Ома, s — SMD-коды
