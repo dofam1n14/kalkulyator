@@ -1599,7 +1599,7 @@ let gs = loadGame();
 function saveGame() { try { localStorage.setItem(GAME_KEY, JSON.stringify(gs)); } catch (e) {} }
 
 const cv = $("gCanvas"), ctx = cv.getContext("2d");
-const run = { on: false, over: false, paused: false, t: 0, speed: 0, score: 0, coins: 0, y: 0, vy: 0, jumps: 0, obs: [], cn: [], nextObs: 0, nextCoin: 0, shield: 0, inv: 0, scroll: 0 };
+const run = { on: false, over: false, paused: false, t: 0, speed: 0, score: 0, coins: 0, y: 0, vy: 0, jumps: 0, obs: [], cn: [], nextObs: 0, shield: 0, inv: 0, scroll: 0 };
 let raf = 0, last = 0, overAt = 0, lastId = 0;
 const C = {};
 // Цвета берём из темы сайта, чтобы игра выглядела своей и в светлой, и в тёмной теме
@@ -1624,7 +1624,7 @@ const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a
 
 function startRun() {
   Object.assign(run, { on: true, over: false, paused: false, t: 0, speed: baseSpeed(), score: 0, coins: 0, y: 0, vy: 0, jumps: 0,
-    obs: [], cn: [], nextObs: 520, nextCoin: 320, shield: gs.shield, inv: 0, scroll: 0 });
+    obs: [], cn: [], nextObs: 520, shield: gs.shield, inv: 0, scroll: 0 });
   gs.shield = 0; // предохранители уходят в забег, неистраченные вернутся
   $("gStart").disabled = true;
   saveGame();
@@ -1647,23 +1647,47 @@ function togglePause() {
   run.paused = !run.paused;
   if (run.paused) draw(); else kick();
 }
-// Препятствия: детали на плате; после 250 очков — летающие искры (не прыгай в них)
-function spawnObs() {
-  const s = run.score;
-  if (s > 250 && Math.random() < 0.22) { run.obs.push({ k: "zap", x: G.W + 20, w: 38, h: 18, y: G.GROUND - rnd(78, 110) }); return; }
+// Электроны кладём только туда, где их реально можно взять:
+// низкий ряд — на высоте тела бегущего резистора, в свободном промежутке
+function coinRow(a, b) {
+  const n = Math.min(5, Math.floor((b - a) / 34) + 1);
+  if (n < 3) return;
+  for (let i = 0; i < n; i++) run.cn.push({ x: a + i * 34, y: G.GROUND - 28 });
+}
+// дуга — ровно по траектории прыжка, вершина над серединой препятствия
+function coinArc(ox, ow) {
+  const jv = jumpV(), air = (2 * jv) / G.GRAV;
+  const D = Math.max(0, (run.speed * air) / 2 - 32 - ow / 2); // за сколько до препятствия оттолкнуться
+  [0.2, 0.35, 0.5, 0.65, 0.8].forEach(f => {
+    const t = air * f;
+    run.cn.push({ x: ox + run.speed * t - 32 - D, y: G.GROUND - (30 + jv * t - 0.5 * G.GRAV * t * t) });
+  });
+}
+// Препятствия: детали на плате; после 250 очков — летающие искры (не прыгай в них).
+// gap — через сколько пикселей появится следующее препятствие
+function spawnObs(gap) {
+  const s = run.score, x0 = G.W + 20;
+  if (s > 250 && Math.random() < 0.22) {
+    const z = { k: "zap", x: x0, w: 38, h: 18, y: G.GROUND - rnd(78, 110) };
+    run.obs.push(z);
+    // Электроны в полосе искры заманивали бы в неё — убираем; под искрой — низкий ряд в награду
+    run.cn = run.cn.filter(c => !(c.x > z.x - 90 && c.x < z.x + z.w + 90 && c.y < G.GROUND - 55));
+    if (Math.random() < 0.6) coinRow(z.x - 30, z.x + z.w + 50);
+    return;
+  }
   const kinds = [["cap", 24, 44], ["chip", 60, 24], ["tr", 22, 34]];
   if (s > 150) kinds.push(["bat", 28, 54]);
   const [k, w, h] = pick(kinds);
-  run.obs.push({ k, x: G.W + 20, w, h, y: G.GROUND - h });
+  run.obs.push({ k, x: x0, w, h, y: G.GROUND - h });
+  let total = w;
   if (s > 400 && Math.random() < 0.25) { // сдвоенное препятствие
     const [k2, w2, h2] = pick(kinds.slice(0, 3));
-    run.obs.push({ k: k2, x: G.W + 26 + w, w: w2, h: h2, y: G.GROUND - h2 });
+    run.obs.push({ k: k2, x: x0 + w + 6, w: w2, h: h2, y: G.GROUND - h2 });
+    total = w + 6 + w2;
   }
-}
-// Электроны группами: низко, средне, высоко или дугой
-function spawnCoins() {
-  const n = rnd(3, 5), h = pick([28, 70, 112]), arc = h === 70 && Math.random() < 0.5;
-  for (let i = 0; i < n; i++) run.cn.push({ x: G.W + 20 + i * 34, y: G.GROUND - h - (arc ? Math.sin((i / (n - 1)) * Math.PI) * 36 : 0) });
+  // Дуга над деталью или ряд в промежутке после неё (с запасом на приземление и следующий прыжок)
+  if (Math.random() < 0.55) coinArc(x0, total);
+  else if (Math.random() < 0.7) coinRow(x0 + total + run.speed * 0.45, x0 + gap - run.speed * 0.35);
 }
 function update(dt) {
   run.t += dt;
@@ -1676,9 +1700,7 @@ function update(dt) {
   run.y += run.vy * dt;
   if (run.y > 0) { run.y = 0; run.vy = 0; run.jumps = 0; }
   run.nextObs -= dx;
-  if (run.nextObs <= 0) { spawnObs(); run.nextObs = run.speed * (0.8 + Math.random() * 0.9); }
-  run.nextCoin -= dx;
-  if (run.nextCoin <= 0) { spawnCoins(); run.nextCoin = rnd(600, 1300); }
+  if (run.nextObs <= 0) { run.nextObs = run.speed * (0.8 + Math.random() * 0.9); spawnObs(run.nextObs); }
   const f = feetY(), me = { x: PX - 4, y: f - 42, w: 64, h: 40 };
   const pcx = PX + 28, pcy = f - 30, R = [0, 80, 130, 180][gs.upg.magnet];
   run.cn.forEach(c => {
