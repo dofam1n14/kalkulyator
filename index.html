@@ -259,6 +259,22 @@ label.check input { width: auto; accent-color: var(--accent); }
 .schem .solid { fill: var(--fg); }
 .schem text { font: 11px var(--font-mono); fill: var(--muted); stroke: none; }
 .schem text.val { fill: var(--accent); font-weight: 600; }
+/* Логика: провода с 1 подсвечены, с 0 — серые */
+.lgsvg line.hi, .lgsvg circle.hi { stroke: var(--result); }
+.lgsvg line.lo { stroke: var(--muted); }
+.lgsvg text.sym { font: 600 26px var(--font-mono); fill: var(--fg); }
+.lgsvg text.io { font: 600 14px var(--font-mono); fill: var(--fg); }
+.lgsvg circle.led { stroke: var(--line); }
+.lgsvg circle.led.on { fill: var(--result); stroke: var(--result); filter: drop-shadow(0 0 6px var(--result)); }
+.lgins { display: flex; gap: 10px; }
+.lgins button { flex: 1; padding: 12px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg); color: var(--muted); font: 600 18px var(--font-mono); cursor: pointer; }
+.lgins button.on { border-color: var(--result); color: var(--result); }
+.lgins button[hidden] { display: none; }
+.lgtt td, .lgtt th { text-align: center !important; font-family: var(--font-mono); }
+.lgtt td:last-child { font-weight: 700; }
+.lgtt tbody tr { cursor: pointer; }
+.lgtt tr.cur td { background: var(--accent-soft); color: var(--accent); }
+.lgtt td.one { color: var(--result); }
 /* Главная: карточки калькуляторов по разделам */
 .home { display: grid; gap: 24px; }
 .cat h2 {
@@ -614,6 +630,33 @@ label.check input { width: auto; accent-color: var(--accent); }
         <label>Уровень, дБм<input id="dbm" value="0"></label>
         <label>Мощность, Вт<input id="dbmW"></label>
         <label>Uэфф на 50 Ом, В<input id="dbmV"></label>
+      </div>
+    </section>
+
+    <section class="mod wide" id="logic">
+      <h2>Логика <small>вентили и таблицы истинности</small></h2>
+      <div class="seg" role="group" aria-label="Режим">
+        <button type="button" id="lgTabG" aria-pressed="true">Элементы</button>
+        <button type="button" id="lgTabE" aria-pressed="false">Своё выражение</button>
+      </div>
+      <div class="split" id="lgGates">
+        <div class="stack">
+          <div class="seg" role="group" aria-label="Логический элемент" id="lgSel"></div>
+          <svg class="schem lgsvg" id="lgSchem" viewBox="0 0 300 160" role="img" aria-label="Логический элемент"></svg>
+          <div class="lgins"><button type="button" id="lgA">A = 0</button><button type="button" id="lgB">B = 0</button></div>
+          <div class="out" id="lgOut"></div>
+        </div>
+        <div class="stack">
+          <h3 class="gh">Таблица истинности</h3>
+          <table class="board lgtt" id="lgTT"></table>
+          <p class="hint" style="margin:0">Нажми на строку — входы переключатся на неё.</p>
+        </div>
+      </div>
+      <div class="stack" id="lgExpr" hidden>
+        <div class="fields"><label>Выражение (переменные A, B, C, D)<input id="lgE" value="A & !B | C" autocomplete="off" spellcheck="false"></label></div>
+        <p class="hint" style="margin:0">НЕ: <code>!</code> или <code>¬</code> · И: <code>&</code> или <code>*</code> · ИЛИ: <code>|</code> или <code>+</code> · Исключающее ИЛИ: <code>^</code> · скобки <code>( )</code>. Сначала НЕ, потом И, потом ^, потом ИЛИ — как умножение раньше сложения.</p>
+        <div class="out" id="lgEOut"></div>
+        <table class="board lgtt" id="lgETT"></table>
       </div>
     </section>
 
@@ -1427,6 +1470,97 @@ $("trM").onclick = () => setTr("m");
   $(id).addEventListener("change", updateTr);
 });
 
+/* ---------- Логика ---------- */
+// Обозначения по ГОСТ: прямоугольник с символом, кружок на выходе — инверсия
+const GATES = {
+  and:  { n: "И", en: "AND", sym: "&", f: (a, b) => a & b, fx: "Y = A · B", chip: "74HC08 (К555ЛИ1)", why: "Выход 1, только когда оба входа 1. Как два выключателя последовательно." },
+  or:   { n: "ИЛИ", en: "OR", sym: "1", f: (a, b) => a | b, fx: "Y = A + B", chip: "74HC32 (К555ЛЛ1)", why: "Выход 1, когда хотя бы один вход 1. Как два выключателя параллельно." },
+  not:  { n: "НЕ", en: "NOT", sym: "1", inv: true, one: true, f: a => 1 - a, fx: "Y = ¬A", chip: "74HC04 (К555ЛН1)", why: "Инвертор: выход всегда противоположен входу." },
+  nand: { n: "И-НЕ", en: "NAND", sym: "&", inv: true, f: (a, b) => 1 - (a & b), fx: "Y = ¬(A · B)", chip: "74HC00 (К555ЛА3)", why: "Выход 0, только когда оба входа 1. Из одних И-НЕ можно собрать любую логическую схему." },
+  nor:  { n: "ИЛИ-НЕ", en: "NOR", sym: "1", inv: true, f: (a, b) => 1 - (a | b), fx: "Y = ¬(A + B)", chip: "74HC02 (К555ЛЕ1)", why: "Выход 1, только когда оба входа 0. Тоже универсальный элемент, как И-НЕ." },
+  xor:  { n: "Искл. ИЛИ", en: "XOR", sym: "=1", f: (a, b) => a ^ b, fx: "Y = A ⊕ B", chip: "74HC86 (К555ЛП5)", why: "Выход 1, когда входы разные. Так складываются два бита (без переноса)." },
+};
+let lgGate = "and", lgIn = [0, 0];
+$("lgSel").innerHTML = Object.entries(GATES).map(([k, g]) => `<button type="button" data-g="${k}" aria-pressed="${k === lgGate}">${g.n}</button>`).join("");
+function drawLogic() {
+  const g = GATES[lgGate], A = lgIn[0], B = g.one ? 0 : lgIn[1], Y = g.one ? g.f(A) : g.f(A, B);
+  const c = v => (v ? "hi" : "lo");
+  const ys = g.one ? [80] : [55, 105], vals = g.one ? [A] : [A, B];
+  let s = ys.map((y, i) => `<line x1="20" y1="${y}" x2="100" y2="${y}" class="${c(vals[i])}"/><text class="io" x="8" y="${y + 5}">${"AB"[i]}</text><text class="val" x="40" y="${y - 6}">${vals[i]}</text>`).join("");
+  s += `<rect x="100" y="30" width="80" height="100"/><text class="sym" x="140" y="62" text-anchor="middle">${g.sym}</text>`;
+  const ox = g.inv ? 192 : 180;
+  if (g.inv) s += `<circle cx="186" cy="80" r="6"/>`;
+  s += `<line x1="${ox}" y1="80" x2="250" y2="80" class="${c(Y)}"/><text class="val" x="215" y="74">${Y}</text><text class="io" x="226" y="108">Y</text>`;
+  s += `<circle class="led${Y ? " on" : ""}" cx="266" cy="80" r="14"/>`;
+  $("lgSchem").innerHTML = s;
+  $("lgA").textContent = `A = ${A}`; $("lgA").classList.toggle("on", !!A);
+  $("lgB").textContent = `B = ${B}`; $("lgB").classList.toggle("on", !!B); $("lgB").hidden = !!g.one;
+  $("lgOut").innerHTML = `<div class="big">${g.fx} = ${Y}</div>` + row("Элемент", `${g.n} (${g.en})`) + row("Микросхема", g.chip) + `<p class="hint" style="margin:6px 0 0">${g.why}</p>`;
+  // Таблица истинности: перебираем все комбинации входов
+  const combos = g.one ? [[0], [1]] : [[0, 0], [0, 1], [1, 0], [1, 1]];
+  const head = (g.one ? "<th>A</th>" : "<th>A</th><th>B</th>") + "<th>Y</th>";
+  $("lgTT").innerHTML = `<thead><tr>${head}</tr></thead><tbody>` + combos.map(cb => {
+    const y = g.f(...cb), cur = cb[0] === A && (g.one || cb[1] === B);
+    return `<tr class="${cur ? "cur" : ""}" data-in="${cb.join("")}">${cb.map(v => `<td>${v}</td>`).join("")}<td class="${y ? "one" : ""}">${y}</td></tr>`;
+  }).join("") + "</tbody>";
+}
+$("lgSel").addEventListener("click", e => {
+  const b = e.target.closest("button[data-g]"); if (!b) return;
+  lgGate = b.dataset.g;
+  $("lgSel").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b));
+  drawLogic();
+});
+$("lgA").addEventListener("click", () => { lgIn[0] ^= 1; drawLogic(); });
+$("lgB").addEventListener("click", () => { lgIn[1] ^= 1; drawLogic(); });
+$("lgTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { lgIn = [+r.dataset.in[0], +(r.dataset.in[1] || 0)]; drawLogic(); } });
+function setLgTab(expr) {
+  $("lgTabG").setAttribute("aria-pressed", !expr); $("lgTabE").setAttribute("aria-pressed", expr);
+  $("lgGates").hidden = expr; $("lgExpr").hidden = !expr;
+}
+$("lgTabG").onclick = () => setLgTab(false);
+$("lgTabE").onclick = () => setLgTab(true);
+
+// Разбор выражения без eval: рекурсивный спуск. Приоритет: НЕ > И > ^ > ИЛИ
+function parseLogic(src) {
+  const map = { "А": "A", "В": "B", "С": "C", "Д": "D", "¬": "!", "~": "!", "*": "&", "·": "&", "∧": "&", "+": "|", "∨": "|", "⊕": "^" };
+  const t = [...src.toUpperCase().replace(/\s+/g, "")].map(ch => map[ch] || ch);
+  let i = 0;
+  const err = m => { throw new Error(m); };
+  const prim = () => {
+    const ch = t[i];
+    if (ch === "!") { i++; const a = prim(); return e => 1 - a(e); }
+    if (ch === "(") { i++; const a = or(); if (t[i] !== ")") err("Не хватает закрывающей скобки )"); i++; return a; }
+    if (/[ABCD]/.test(ch)) { i++; vars.add(ch); return e => e[ch]; }
+    if (ch === "0" || ch === "1") { i++; return () => +ch; }
+    err(ch === undefined ? "Выражение обрывается — после знака нужна переменная" : `Непонятный символ «${ch}»`);
+  };
+  const bin = (op, next, f) => () => { let a = next(); while (t[i] === op) { i++; const l = a, r = next(); a = e => f(l(e), r(e)); } return a; };
+  const and = bin("&", prim, (x, y) => x & y), xor = bin("^", and, (x, y) => x ^ y), or = bin("|", xor, (x, y) => x | y);
+  const vars = new Set();
+  if (!t.length) err("Введи выражение, например A & !B");
+  const f = or();
+  if (i < t.length) err(`Лишний символ «${t[i]}»`);
+  return { f, vars: [...vars].sort() };
+}
+function updateLogicExpr() {
+  let p;
+  try { p = parseLogic($("lgE").value); } catch (e) { $("lgEOut").innerHTML = `<span class="warn">${esc(e.message)}</span>`; $("lgETT").innerHTML = ""; return; }
+  const vs = p.vars, n = vs.length, rows = [];
+  for (let k = 0; k < 2 ** n; k++) {
+    const env = {}; vs.forEach((v, j) => { env[v] = (k >> (n - 1 - j)) & 1; });
+    rows.push([vs.map(v => env[v]), p.f(env)]);
+  }
+  const ones = rows.filter(r => r[1]);
+  // СДНФ: сумма строк, где Y = 1 (переменная с 0 — с отрицанием)
+  const sdnf = ones.map(([ins]) => ins.map((x, j) => (x ? "" : "¬") + vs[j]).join("·")).join(" + ");
+  $("lgEOut").innerHTML = row("Единиц в таблице", `${ones.length} из ${rows.length}`) +
+    row("СДНФ", !n ? "—" : !ones.length ? "нет — выражение всегда 0" : ones.length === rows.length ? "всегда 1 (тавтология)" : sdnf);
+  $("lgETT").innerHTML = `<thead><tr>${vs.map(v => `<th>${v}</th>`).join("")}<th>Y</th></tr></thead><tbody>` +
+    rows.map(([ins, y]) => `<tr>${ins.map(x => `<td>${x}</td>`).join("")}<td class="${y ? "one" : ""}">${y}</td></tr>`).join("") + "</tbody>";
+}
+$("lgE").addEventListener("input", updateLogicExpr);
+drawLogic(); updateLogicExpr();
+
 /* ---------- Тренажёр ---------- */
 let quizMode = "c";                 // c — цвета, o — закон Ома, s — SMD-коды
 const QUIZ_LIVES = 3, QUIZ_PER_LVL = 5;   // 3 жизни; каждые 5 верных ответов — новый уровень
@@ -2164,12 +2298,14 @@ const MODS = {
   rc: { s: "RC", t: "RC-фильтр", d: "Частота среза и постоянная времени", cat: "sig", k: "rc фильтр конденсатор частота среза постоянная времени" },
   t555: { s: "NE555", t: "Таймер NE555", d: "Генератор, одиночный импульс, осциллограмма", cat: "sig", k: "555 таймер генератор импульс мигалка частота осциллограф" },
   freq: { s: "Частота", t: "Частота и длина волны", d: "f, T, λ, антенна и шкала спектра", cat: "sig", k: "частота период длина волны антенна спектр радио свет wi-fi" },
+  logic: { s: "Логика", t: "Логика", d: "И, ИЛИ, НЕ, XOR и таблицы истинности", cat: "sig", k: "логика вентиль таблица истинности и или не xor nand nor булева цифровая сднф" },
   db: { s: "дБ", t: "Децибелы", d: "дБ, дБм и разы", cat: "sig", k: "децибел дб dbm усиление мощность" },
   bat: { s: "Аккумулятор", t: "Время работы от аккумулятора", d: "Сколько проживёт устройство на батарее", cat: "pwr", k: "аккумулятор батарея батарейка мач ёмкость сон esp32 время работы" },
   len: { s: "Размеры", t: "Размеры на плате", d: "Миллиметры, mil и дюймы", cat: "pwr", k: "мм mil дюйм плата дорожка шаг" },
 };
 // Иконки карточек: простые линии, цвет берут из раздела
 const ICONS = {
+  logic: `<path d="M4 17h10M4 31h10M34 24h10"/><path d="M14 10h10a14 14 0 0 1 0 28H14z"/>`,
   game: `<path d="M4 21h6M38 21h6"/><rect x="10" y="14" width="28" height="14" rx="6"/><path d="M17 14v14M23 14v14M13 28l-4 13M35 28l5 13"/>`,
   quiz: `<circle cx="24" cy="27" r="15"/><path d="M24 27v-8M20 6h8M24 6v6M36 14l3-3"/>`,
   color: `<path d="M3 24h9M36 24h9"/><rect x="12" y="15" width="24" height="18" rx="7"/><path d="M18 15v18M24 15v18M31 15v18"/>`,
