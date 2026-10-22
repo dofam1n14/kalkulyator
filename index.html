@@ -229,6 +229,7 @@ label.check input { width: auto; accent-color: var(--accent); }
 .qtime { flex: 1 1 160px; height: 8px; border: 1px solid var(--line); border-radius: 99px; background: var(--bg); overflow: hidden; }
 .qtime span { display: block; height: 100%; width: 100%; background: var(--result); }
 .qtime.low span { background: var(--warn); }
+.qhead b.qlives { color: var(--warn); letter-spacing: .1em; }
 .qprompt { font: 500 20px var(--font-display); text-align: center; text-wrap: balance; }
 .qprompt .chip { display: inline-block; margin-top: 8px; padding: 8px 22px; border-radius: 6px; background: #1d1f21; color: #e9ecef; font: 700 40px var(--font-mono); letter-spacing: .12em; box-shadow: inset 0 -4px 0 #000; }
 .qres { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; }
@@ -324,15 +325,15 @@ label.check input { width: auto; accent-color: var(--accent); }
 
   <div class="grid">
     <section class="mod wide" id="quiz">
-      <h2>Тренажёр <small>блиц на 60 секунд</small></h2>
+      <h2>Тренажёр <small>3 жизни, уровни, таймер на каждый вопрос</small></h2>
       <div class="seg" role="group" aria-label="Режим тренажёра">
         <button type="button" id="qmC" aria-pressed="true">Цвета резистора</button>
         <button type="button" id="qmO" aria-pressed="false">Закон Ома</button>
         <button type="button" id="qmS" aria-pressed="false">SMD-коды</button>
       </div>
       <div class="qhead">
-        <span>Очки<b id="qScore">0</b></span><span>Серия<b id="qStreak">0</b></span><span>Рекорд<b id="qBest">0</b></span>
-        <div class="qtime" id="qTimeBox"><span id="qTimeBar"></span></div><b id="qTime">60</b>
+        <span>Очки<b id="qScore">0</b></span><span>Уровень<b id="qLvl">1</b></span><span>Жизни<b id="qLives" class="qlives">❤❤❤</b></span><span>Серия<b id="qStreak">0</b></span><span>Рекорд<b id="qBest">0</b></span>
+        <div class="qtime" id="qTimeBox"><span id="qTimeBar"></span></div><b id="qTime">15</b>
       </div>
       <p class="qintro" id="qIntro"></p>
       <div class="stack" id="qStage" hidden>
@@ -342,6 +343,13 @@ label.check input { width: auto; accent-color: var(--accent); }
         <p class="qfeed" id="qFeed"></p>
       </div>
       <button type="button" class="qstart" id="qStart">Старт</button>
+      <div class="cols">
+        <label>Твой ник (общий с игрой)<input id="qName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"><small class="gnick" data-nick></small></label>
+        <div class="stack">
+          <h3 class="gh" id="qBoardTitle">Онлайн-рекорды</h3>
+          <table class="board" id="qBoard"></table>
+        </div>
+      </div>
     </section>
 
     <section class="mod wide" id="game">
@@ -349,7 +357,7 @@ label.check input { width: auto; accent-color: var(--accent); }
       <canvas id="gCanvas" width="900" height="300" aria-label="Игра: резистор бежит по плате и перепрыгивает детали"></canvas>
       <button type="button" class="gjump" id="gJump" aria-label="Прыжок">⤒ Прыжок</button>
       <div class="gctl">
-        <label>Твой ник<input id="gName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"><small id="gNick" class="gnick"></small></label>
+        <label>Твой ник<input id="gName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"><small class="gnick" data-nick></small></label>
         <button type="button" class="qstart" id="gStart">Играть</button>
         <span class="gbal">Электроны<b id="gCoins">0</b></span>
       </div>
@@ -1421,9 +1429,11 @@ $("trM").onclick = () => setTr("m");
 
 /* ---------- Тренажёр ---------- */
 let quizMode = "c";                 // c — цвета, o — закон Ома, s — SMD-коды
-const QUIZ_SEC = 60;
-const QUIZ_INTRO = "За минуту ответь на как можно больше вопросов. Ошибка обнуляет серию, но не очки. Отвечать можно клавишами 1–4.";
-const quiz = { running: false, score: 0, streak: 0, end: 0, timer: null, q: null, lock: false };
+const QUIZ_LIVES = 3, QUIZ_PER_LVL = 5;   // 3 жизни; каждые 5 верных ответов — новый уровень
+const QUIZ_INTRO = "3 жизни. Каждые 5 верных ответов — новый уровень: вопросы сложнее, времени меньше. Ошибка или вышло время — минус жизнь. Быстрые ответы и серия дают больше очков. Отвечать можно клавишами 1–4.";
+const quiz = { running: false, score: 0, streak: 0, right: 0, lives: QUIZ_LIVES, lvl: 1, qEnd: 0, qDur: 15000, timer: null, q: null, lock: false };
+// Время на вопрос: 15 с на 1-м уровне, дальше на 2 с меньше, но не меньше 4 с
+const qDur = L => Math.max(4, 17 - 2 * L) * 1000;
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -1436,16 +1446,19 @@ function makeOpts(correct, wrong, extra) {
   shuffle(opts);
   return { opts, ans: opts.indexOf(correct) };
 }
-function bestOf(mode) { try { return +(JSON.parse(localStorage.getItem("calc-quiz-best")) || {})[mode] || 0; } catch (e) { return 0; } }
+function bestOf(mode) { try { return +(JSON.parse(localStorage.getItem("calc-quiz-best2")) || {})[mode] || 0; } catch (e) { return 0; } }
 function saveBest(mode, v) {
-  try { const b = JSON.parse(localStorage.getItem("calc-quiz-best")) || {}; b[mode] = v; localStorage.setItem("calc-quiz-best", JSON.stringify(b)); } catch (e) {}
+  try { const b = JSON.parse(localStorage.getItem("calc-quiz-best2")) || {}; b[mode] = v; localStorage.setItem("calc-quiz-best2", JSON.stringify(b)); } catch (e) {}
 }
 const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
-// Вопрос «угадай номинал по цветам»: рисуем ровный резистор с 4 полосами
-function qColor() {
-  const d1 = rnd(1, 9), d2 = rnd(0, 9), mi = pick([0, 1, 2, 3, 4, 5, 6, 10]), ti = pick([10, 10, 1, 2]);
-  const m = COLORS[mi].m, v = (10 * d1 + d2) * m, f = x => fmt(x, "Ом", 3);
-  const xs = [165, 222, 262, 405], idx = [d1, d2, mi, ti];
+// Вопрос «угадай номинал по цветам». Уровень 1: множитель до кОм; 2: до МОм; 3: + золотой множитель; 4+: 5 полос
+function qColor(L) {
+  const five = L >= 4;
+  const mults = L === 1 ? [0, 1, 2, 3] : L === 2 ? [0, 1, 2, 3, 4, 5, 6] : five ? [0, 1, 2, 3, 4, 10] : [0, 1, 2, 3, 4, 5, 6, 10];
+  const d1 = rnd(1, 9), d2 = rnd(0, 9), d3 = rnd(0, 9), mi = pick(mults);
+  const ti = five ? pick([1, 2, 5, 6]) : pick([10, 10, 1, 2]);
+  const m = COLORS[mi].m, base = five ? 100 * d1 + 10 * d2 + d3 : 10 * d1 + d2, v = base * m, f = x => fmt(x, "Ом", 3);
+  const xs = five ? [158, 200, 242, 284, 405] : [165, 222, 262, 405], idx = five ? [d1, d2, d3, mi, ti] : [d1, d2, mi, ti];
   const fillOf = ci => (COLORS[ci].n === "Золотой" ? "url(#qGold)" : COLORS[ci].n === "Серебряный" ? "url(#qSilver)" : COLORS[ci].c);
   $("qRes").innerHTML = `<defs>
       <linearGradient id="qLead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8287"/><stop offset=".35" stop-color="#eef0f2"/><stop offset="1" stop-color="#5f6469"/></linearGradient>
@@ -1458,18 +1471,29 @@ function qColor() {
     <rect x="40" y="71.5" width="480" height="7" rx="3.5" fill="url(#qLead)"/><use href="#qBodyP" fill="url(#qBody)"/>
     <g clip-path="url(#qClip)">${idx.map((ci, i) => `<path d="M${xs[i] - 8} 30 Q${xs[i] - 2} 75 ${xs[i] - 8} 120 L${xs[i] + 8} 120 Q${xs[i] + 14} 75 ${xs[i] + 8} 30 Z" fill="${fillOf(ci)}"/>`).join("")}
       <rect x="100" y="30" width="360" height="90" fill="url(#qShade)"/></g>`;
-  const wrong = [f(v * 10), f(v / 10), d2 && d2 !== d1 ? f((10 * d2 + d1) * m) : "", f((10 * d1 + ((d2 + 1) % 10)) * m), f(v * 100)];
+  // На высоких уровнях неправильные ответы похожи на правильный: соседняя цифра, переставленные цифры
+  const wrong = five
+    ? [f((100 * d1 + 10 * d2 + ((d3 + 1) % 10)) * m), f((100 * d1 + 10 * d3 + d2) * m), f(v * 10), f(v / 10), f((10 * d1 + d2) * m)]
+    : [f(v * 10), f(v / 10), d2 && d2 !== d1 ? f((10 * d2 + d1) * m) : "", f((10 * d1 + ((d2 + 1) % 10)) * m), f(v * 100)];
+  if (L >= 3) shuffle(wrong);
   const multTxt = m >= 1 ? m.toLocaleString("ru-RU") : String(m).replace(".", ",");
+  const digits = five ? [d1, d2, d3, mi] : [d1, d2, mi];
   return {
-    prompt: "Какой номинал у резистора?", res: true, ...makeOpts(f(v), wrong, k => f(v * 10 ** k)),
-    why: `${[d1, d2, mi].map(ci => COLORS[ci].n.toLowerCase()).join(", ")} → ${d1}${d2} × ${multTxt} = ${f(v)}`,
+    prompt: five ? "Какой номинал? (5 полос: три цифры, множитель, допуск)" : "Какой номинал у резистора?", res: true, ...makeOpts(f(v), wrong, k => f(v * 10 ** k)),
+    why: `${digits.map(ci => COLORS[ci].n.toLowerCase()).join(", ")} → ${base} × ${multTxt} = ${f(v)}`,
   };
 }
-// Вопрос на закон Ома: даны две величины, найти третью
-function qOhm() {
-  const Us = [3.3, 5, 9, 12, 24], Rs = [100, 220, 330, 470, 1e3, 2.2e3, 4.7e3, 10e3], Is = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2];
+// Закон Ома. Уровень 1: I, U, R; 2: + мощность; 3: + P = U²/R и близкие варианты; 4+: последовательное и параллельное соединение
+function qOhm(L) {
+  const Us = L < 3 ? [3.3, 5, 9, 12, 24] : [1.5, 3.3, 3.7, 5, 9, 12, 15, 24, 48];
+  const Rs = L < 3 ? [100, 220, 330, 470, 1e3, 2.2e3, 4.7e3, 10e3] : [47, 68, 100, 150, 220, 330, 470, 680, 1e3, 1.5e3, 2.2e3, 4.7e3, 6.8e3, 10e3, 47e3];
+  const Is = L < 3 ? [0.005, 0.01, 0.02, 0.05, 0.1, 0.2] : [0.002, 0.005, 0.015, 0.02, 0.03, 0.05, 0.12, 0.25, 0.5];
   const n = x => String(+x.toPrecision(3));
-  const t = pick(["I", "U", "P", "R", "PI"]);
+  const types = ["I", "U", "R"];
+  if (L >= 2) types.push("P", "PI");
+  if (L >= 3) types.push("PU");
+  if (L >= 4) types.push("SER", "PAR", "SER", "PAR");
+  const t = pick(types);
   let prompt, x, unit, wrong, why;
   if (t === "I") {
     const U = pick(Us), R = pick(Rs); x = U / R; unit = "А";
@@ -1479,68 +1503,126 @@ function qOhm() {
     const I = pick(Is), R = pick(Rs); x = I * R; unit = "В";
     prompt = `I = ${fmt(I, "А")}, R = ${fmt(R, "Ом")}. Найди напряжение U`; wrong = [x * 10, x / 10, R / I, I / R];
     why = `U = I·R = ${n(I)} · ${n(R)}`;
-  } else if (t === "P") {
-    const U = pick(Us), I = pick(Is); x = U * I; unit = "Вт";
-    prompt = `U = ${fmt(U, "В")}, I = ${fmt(I, "А")}. Найди мощность P`; wrong = [x * 10, x / 10, U / I, U * U * I];
-    why = `P = U·I = ${n(U)} · ${n(I)}`;
   } else if (t === "R") {
     const U = pick(Us), I = pick(Is); x = U / I; unit = "Ом";
     prompt = `U = ${fmt(U, "В")}, I = ${fmt(I, "А")}. Найди сопротивление R`; wrong = [x * 10, x / 10, U * I, I / U];
     why = `R = U / I = ${n(U)} / ${n(I)}`;
-  } else {
+  } else if (t === "P") {
+    const U = pick(Us), I = pick(Is); x = U * I; unit = "Вт";
+    prompt = `U = ${fmt(U, "В")}, I = ${fmt(I, "А")}. Найди мощность P`; wrong = [x * 10, x / 10, U / I, U * U * I];
+    why = `P = U·I = ${n(U)} · ${n(I)}`;
+  } else if (t === "PI") {
     const I = pick(Is), R = pick(Rs); x = I * I * R; unit = "Вт";
     prompt = `I = ${fmt(I, "А")}, R = ${fmt(R, "Ом")}. Сколько тепла выделит резистор (P)?`; wrong = [x * 10, x / 10, I * R, I * R * R];
     why = `P = I²·R = ${n(I)}² · ${n(R)}`;
+  } else if (t === "PU") {
+    const U = pick(Us), R = pick(Rs); x = U * U / R; unit = "Вт";
+    prompt = `U = ${fmt(U, "В")} на резисторе R = ${fmt(R, "Ом")}. Какая мощность P?`; wrong = [U / R, x * 2, x / 2, U * R];
+    why = `P = U²/R = ${n(U)}² / ${n(R)}`;
+  } else if (t === "SER") {
+    const U = pick(Us), R1 = pick(Rs), R2 = pick(Rs); x = U / (R1 + R2); unit = "А";
+    prompt = `R1 = ${fmt(R1, "Ом")} и R2 = ${fmt(R2, "Ом")} последовательно, U = ${fmt(U, "В")}. Найди ток I`;
+    wrong = [U / R1, U / R2, U * (R1 + R2) / (R1 * R2), x * 2];
+    why = `Последовательно: R = R1 + R2 = ${n(R1 + R2)}; I = U / R = ${n(U)} / ${n(R1 + R2)}`;
+  } else {
+    const R1 = pick(Rs), R2 = pick(Rs); x = R1 * R2 / (R1 + R2); unit = "Ом";
+    prompt = `R1 = ${fmt(R1, "Ом")} и R2 = ${fmt(R2, "Ом")} параллельно. Найди общее R`;
+    wrong = [R1 + R2, (R1 + R2) / 4, Math.min(R1, R2) * 1.5, Math.abs(R1 - R2) || x * 2];
+    why = `Параллельно: R = R1·R2 / (R1 + R2) = ${n(R1)}·${n(R2)} / ${n(R1 + R2)}`;
   }
+  if (L >= 3) wrong.unshift(x * 2, x / 2);   // близкие варианты — угадать по порядку величины уже не выйдет
   const f = v => fmt(v, unit), cor = f(x);
   return { prompt, res: false, ...makeOpts(cor, wrong.map(f), k => f(x * 10 ** k)), why: `${why} = ${cor}` };
 }
-// Вопрос по SMD-коду из трёх цифр
-function qSmd() {
-  const d1 = rnd(1, 9), d2 = rnd(0, 9), m = rnd(0, 5), code = `${d1}${d2}${m}`, v = (10 * d1 + d2) * 10 ** m, f = x => fmt(x, "Ом", 3);
-  const wrong = [f(v * 10), f(v / 10), f(+code), f(v * 100)];
+// SMD-коды. Уровень 1: три цифры; 2: + четыре цифры; 3: + R-нотация (4R7); 4+: + коды конденсаторов
+function qSmd(L) {
+  const f = x => fmt(x, "Ом", 3);
+  const types = ["3"];
+  if (L >= 2) types.push("4");
+  if (L >= 3) types.push("R", "R");
+  if (L >= 4) types.push("C", "C");
+  const t = pick(types);
+  let code, v, why, unit = "Ом";
+  if (t === "3") {
+    const d1 = rnd(1, 9), d2 = rnd(0, 9), m = rnd(0, L === 1 ? 4 : 6); code = `${d1}${d2}${m}`; v = (10 * d1 + d2) * 10 ** m;
+    why = `${code}: первые две цифры ${d1}${d2}, третья — сколько нулей дописать: ${d1}${d2} × 10${SUP[m]} = ${f(v)}`;
+  } else if (t === "4") {
+    const d = `${rnd(1, 9)}${rnd(0, 9)}${rnd(0, 9)}`, m = rnd(0, 4); code = d + m; v = +d * 10 ** m;
+    why = `${code}: первые три цифры ${d}, четвёртая — сколько нулей: ${d} × 10${SUP[m]} = ${f(v)}`;
+  } else if (t === "R") {
+    const a = rnd(1, 9), b = rnd(0, 9), pos = pick([0, 1, 2]);
+    code = pos === 0 ? `R${a}${b}` : pos === 1 ? `${a}R${b}` : `${a}${b}R${rnd(0, 9)}`;
+    v = code.startsWith("R") ? parseFloat("0." + code.slice(1)) : parseFloat(code.replace("R", "."));
+    why = `${code}: R — это запятая, значит ${String(v).replace(".", ",")} Ом`;
+  } else {
+    const d1 = rnd(1, 9), d2 = rnd(0, 9), m = rnd(0, 5); code = `${d1}${d2}${m}`; v = (10 * d1 + d2) * 10 ** m * 1e-12; unit = "Ф";
+    why = `Конденсатор ${code}: ${d1}${d2} × 10${SUP[m]} пФ = ${fmt(v, "Ф", 3)}`;
+  }
+  const g = x => fmt(x, unit, 3);
+  const wrong = t === "R" ? [g(v * 10), g(v / 10), g(+code.replace("R", "")), g(v * 100)] : [g(v * 10), g(v / 10), g(+code * (unit === "Ф" ? 1e-12 : 1)), g(v * 100)];
+  const kind = t === "C" ? "Конденсатор" : "Резистор";
   return {
-    prompt: `Резистор с кодом<br><span class="chip">${code}</span>`, res: false, ...makeOpts(f(v), wrong, k => f(v * 10 ** k)),
-    why: `${code}: первые две цифры ${d1}${d2}, третья — сколько нулей дописать: ${d1}${d2} × 10${SUP[m]} = ${f(v)}`,
+    prompt: `${kind} с кодом<br><span class="chip">${code}</span>`, res: false, ...makeOpts(g(v), wrong, k => g(v * 10 ** k)), why,
   };
 }
 function quizNext() {
-  quiz.q = quizMode === "c" ? qColor() : quizMode === "o" ? qOhm() : qSmd();
+  quiz.q = quizMode === "c" ? qColor(quiz.lvl) : quizMode === "o" ? qOhm(quiz.lvl) : qSmd(quiz.lvl);
   $("qPrompt").innerHTML = quiz.q.prompt;
   $("qRes").toggleAttribute("hidden", !quiz.q.res); // у SVG нет свойства hidden — меняем атрибут
   $("qOpts").innerHTML = quiz.q.opts.map((o, i) => `<button type="button" data-i="${i}"><span class="k">${i + 1}</span>${o}</button>`).join("");
   $("qFeed").textContent = "";
   $("qFeed").className = "qfeed";
+  quiz.qDur = qDur(quiz.lvl);
+  quiz.qEnd = Date.now() + quiz.qDur;
   quiz.lock = false;
+  quizTick();
 }
 function quizHead() {
   $("qScore").textContent = quiz.score;
   $("qStreak").textContent = quiz.streak;
+  $("qLvl").textContent = quiz.lvl;
+  $("qLives").textContent = "❤".repeat(quiz.lives) + "♡".repeat(QUIZ_LIVES - quiz.lives);
   $("qBest").textContent = bestOf(quizMode);
 }
+// i = -1 — время на вопрос вышло
 function quizAnswer(i) {
   if (!quiz.running || quiz.lock) return;
   quiz.lock = true;
+  const left = Math.max(0, quiz.qEnd - Date.now()) / 1000;
   const btns = $("qOpts").querySelectorAll("button");
   btns.forEach(b => { b.disabled = true; });
   btns[quiz.q.ans].classList.add("ok");
   const right = i === quiz.q.ans;
-  if (right) { quiz.score++; quiz.streak++; } else { quiz.streak = 0; btns[i].classList.add("bad"); }
+  let msg;
+  if (right) {
+    quiz.streak++; quiz.right++;
+    // Очки: 10 за уровень + бонус за скорость (секунды в запасе), × серия (до ×2)
+    const pts = Math.round((10 * quiz.lvl + left) * (1 + 0.1 * Math.min(quiz.streak - 1, 10)));
+    quiz.score += pts;
+    msg = `Верно! +${pts}` + (quiz.streak >= 3 ? ` · серия ${quiz.streak} 🔥` : "") + " ";
+    const L = 1 + Math.floor(quiz.right / QUIZ_PER_LVL);
+    if (L > quiz.lvl) { quiz.lvl = L; msg = `Уровень ${L}! Вопросы сложнее, времени ${qDur(L) / 1000} с. ` + msg; }
+  } else {
+    quiz.streak = 0; quiz.lives--;
+    if (i >= 0) btns[i].classList.add("bad");
+    msg = (i < 0 ? "Время вышло! " : "Не то. ") + (quiz.lives ? "" : "Жизни кончились. ");
+  }
   $("qFeed").className = "qfeed " + (right ? "ok" : "bad");
-  $("qFeed").textContent = (right ? (quiz.streak >= 3 ? `Верно! Серия ${quiz.streak} 🔥 ` : "Верно! ") : "Не то. ") + quiz.q.why;
+  $("qFeed").textContent = msg + quiz.q.why;
   quizHead();
   // На ошибке даём время прочитать разбор
-  setTimeout(() => { if (quiz.running) quizNext(); }, right ? 900 : 2200);
+  setTimeout(() => { if (!quiz.running) return; if (quiz.lives <= 0) quizStop(true); else quizNext(); }, right ? 900 : 2400);
 }
 function quizTick() {
-  const left = Math.max(0, quiz.end - Date.now());
+  if (!quiz.running || quiz.lock) return;   // пока показан разбор, таймер стоит
+  const left = Math.max(0, quiz.qEnd - Date.now());
   $("qTime").textContent = Math.ceil(left / 1000);
-  $("qTimeBar").style.width = (left / (QUIZ_SEC * 1000)) * 100 + "%";
-  $("qTimeBox").classList.toggle("low", left < 10000);
-  if (left <= 0) quizStop(true);
+  $("qTimeBar").style.width = (left / quiz.qDur) * 100 + "%";
+  $("qTimeBox").classList.toggle("low", left < quiz.qDur * 0.3);
+  if (left <= 0) quizAnswer(-1);
 }
 function quizStart() {
-  Object.assign(quiz, { running: true, score: 0, streak: 0, end: Date.now() + QUIZ_SEC * 1000 });
+  Object.assign(quiz, { running: true, score: 0, streak: 0, right: 0, lives: QUIZ_LIVES, lvl: 1 });
   $("qIntro").hidden = true;
   $("qStage").hidden = false;
   $("qStart").hidden = true;
@@ -1548,9 +1630,8 @@ function quizStart() {
   quizNext();
   clearInterval(quiz.timer);
   quiz.timer = setInterval(quizTick, 100);
-  quizTick();
 }
-// finished = true — время вышло; false — ушли со страницы или сменили режим
+// finished = true — кончились жизни; false — ушли со страницы или сменили режим
 function quizStop(finished) {
   if (!quiz.running) return;
   quiz.running = false;
@@ -1562,11 +1643,43 @@ function quizStop(finished) {
   if (finished) {
     const best = bestOf(quizMode), rec = quiz.score > best;
     if (rec) saveBest(quizMode, quiz.score);
-    $("qIntro").textContent = rec ? `Новый рекорд: ${quiz.score}! 🏆 Попробуешь побить?` : `Время! Результат: ${quiz.score}. Рекорд: ${best}.`;
+    $("qIntro").textContent = (rec ? `Новый рекорд: ${quiz.score}! 🏆` : `Игра окончена. Очки: ${quiz.score}, рекорд: ${best}.`) + ` Дошёл до ${quiz.lvl}-го уровня.`;
+    if (quiz.score > 0) submitQuiz(quizMode, quiz.score);
   } else {
+    // Забег прерван — показываем всё как перед стартом
     $("qIntro").textContent = QUIZ_INTRO;
+    Object.assign(quiz, { score: 0, streak: 0, lives: QUIZ_LIVES, lvl: 1 });
+    $("qTime").textContent = qDur(1) / 1000;
+    $("qTimeBar").style.width = "100%";
+    $("qTimeBox").classList.remove("low");
   }
   quizHead();
+}
+// Онлайн-рекорды тренажёра — отдельно для каждого режима
+const QUIZ_NAMES = { c: "цвета", o: "закон Ома", s: "SMD-коды" };
+let quizOnline = undefined;   // undefined — грузится, null — ошибка
+async function loadQuizBoard() {
+  const m = quizMode;
+  quizOnline = undefined; renderQuizBoard();
+  let rows = null;
+  try { rows = await sb(`/quiz_leaderboard?select=nick,best,updated_at&mode=eq.${m}&order=best.desc&limit=10`); } catch (e) {}
+  if (m === quizMode) { quizOnline = rows; renderQuizBoard(); }
+}
+function renderQuizBoard() {
+  $("qBoardTitle").textContent = `Онлайн-рекорды: ${QUIZ_NAMES[quizMode]}`;
+  const me = gs.name.toLowerCase(), dd = t => new Date(t).toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" });
+  const msg = quizOnline === undefined ? "Загружаю…" : quizOnline === null ? "Не удалось загрузить — нет интернета?" : "Пока пусто — стань первым!";
+  const rows = (quizOnline || []).map((r, i) => `<tr class="${nickState === "mine" && r.nick.toLowerCase() === me ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.nick)}</td><td>${+r.best || 0}</td><td>${esc(dd(r.updated_at))}</td></tr>`).join("");
+  $("qBoard").innerHTML = `<thead><tr><th>#</th><th>Ник</th><th>Очки</th><th>Дата</th></tr></thead><tbody>${rows || `<tr><td colspan="4">${msg}</td></tr>`}</tbody>`;
+}
+async function submitQuiz(mode, s) {
+  const add = t => { $("qIntro").textContent += t; };
+  if (!gs.name) { add(" Впиши ник ниже, чтобы попасть в онлайн-таблицу."); return; }
+  let r;
+  try { r = await sb("/rpc/submit_quiz", { p_nick: gs.name, p_secret: gs.secret, p_mode: mode, p_score: s }); } catch (e) { add(" Онлайн недоступен."); return; }
+  if (r === "taken") add(` Ник «${gs.name}» занят, в онлайн не попало.`);
+  else if (r === "new" || r === "record") add(" Рекорд в онлайн-таблице 🌐");
+  checkNick(); if (mode === quizMode) loadQuizBoard();
 }
 function setQuizMode(m) {
   quizStop(false);
@@ -1574,11 +1687,12 @@ function setQuizMode(m) {
   [["c", "qmC"], ["o", "qmO"], ["s", "qmS"]].forEach(([k, id]) => $(id).setAttribute("aria-pressed", k === m));
   $("qIntro").textContent = QUIZ_INTRO;
   $("qStart").textContent = "Старт";
-  $("qTime").textContent = QUIZ_SEC;
+  $("qTime").textContent = qDur(1) / 1000;
   $("qTimeBar").style.width = "100%";
   $("qTimeBox").classList.remove("low");
-  quiz.score = 0; quiz.streak = 0;
+  Object.assign(quiz, { score: 0, streak: 0, lives: QUIZ_LIVES, lvl: 1 });
   quizHead();
+  loadQuizBoard();
 }
 $("qmC").onclick = () => setQuizMode("c");
 $("qmO").onclick = () => setQuizMode("o");
@@ -1641,15 +1755,15 @@ async function loadOnline() {
 let nickTimer = 0;
 function checkNick() {
   clearTimeout(nickTimer);
-  const el = $("gNick"), n = gs.name;
-  el.classList.remove("bad");
-  if (!n) { nickState = ""; el.textContent = "Без ника рекорд не попадёт в онлайн-таблицу"; return; }
+  // Подсказка под ником — и в игре, и в тренажёре (ник у них общий)
+  const show = (t, bad) => document.querySelectorAll("[data-nick]").forEach(el => { el.textContent = t; el.classList.toggle("bad", !!bad); });
+  const n = gs.name;
+  if (!n) { nickState = ""; show("Без ника рекорд не попадёт в онлайн-таблицу"); return; }
   nickTimer = setTimeout(async () => {
-    try { nickState = await sb("/rpc/check_nick", { p_nick: n, p_secret: gs.secret }); } catch (e) { nickState = ""; el.textContent = "Онлайн недоступен"; return; }
+    try { nickState = await sb("/rpc/check_nick", { p_nick: n, p_secret: gs.secret }); } catch (e) { nickState = ""; show("Онлайн недоступен"); return; }
     if (n !== gs.name) return;   // пока ждали ответ, ник уже поменяли
-    el.textContent = { free: "Ник свободен — займёшь его первым рекордом", mine: "Это твой ник ✔", taken: "Ник занят другим игроком — выбери другой" }[nickState] || "";
-    el.classList.toggle("bad", nickState === "taken");
-    renderBoard();
+    show({ free: "Ник свободен — займёшь его первым рекордом", mine: "Это твой ник ✔", taken: "Ник занят другим игроком — выбери другой" }[nickState] || "", nickState === "taken");
+    renderBoard(); renderQuizBoard();
   }, 400);
 }
 async function submitOnline(s) {
@@ -1989,7 +2103,12 @@ $("gShop").addEventListener("click", e => {
   $("gMsg").textContent = `Куплено: ${it.t}!`;
   renderShop(); renderCoins();
 });
-$("gName").addEventListener("input", () => { gs.name = $("gName").value.trim(); saveGame(); checkNick(); });
+// Ник общий: правишь в одном поле — меняется и во втором
+["gName", "qName"].forEach(id => $(id).addEventListener("input", () => {
+  gs.name = $(id).value.trim(); saveGame();
+  $(id === "gName" ? "qName" : "gName").value = $(id).value;
+  checkNick();
+}));
 $("gTabs").addEventListener("click", e => { const b = e.target.closest("button[data-b]"); if (b) { boardTab = b.dataset.b; renderBoard(); } });
 $("gStart").addEventListener("click", () => { $("gStart").blur(); if (!run.on) startRun(); });
 cv.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
@@ -2008,7 +2127,7 @@ document.addEventListener("visibilitychange", () => { if (document.hidden && run
 window.addEventListener("resize", () => { if (!$("game").hidden) { fitCanvas(); draw(); } });
 $("themeBtn").addEventListener("click", () => { readColors(); draw(); });
 function initGame() {
-  $("gName").value = gs.name;
+  $("gName").value = $("qName").value = gs.name;
   checkNick(); loadOnline();
   readColors(); fitCanvas();
   renderShop(); renderBoard(); renderCoins();
@@ -2035,7 +2154,7 @@ const CATS = [
 // Для каждого калькулятора: короткое имя (меню), название, описание, раздел, слова для поиска
 const MODS = {
   game: { s: "Игра", t: "Бегущий резистор", d: "Раннер: прыгай через детали, копи электроны, качай бафы", cat: "play", k: "игра раннер динозавр дракончик резистор прыжки рекорд магазин бафы" },
-  quiz: { s: "Тренажёр", t: "Тренажёр", d: "Блиц на минуту: цвета, закон Ома, SMD", cat: "play", k: "тренажёр игра квиз тест угадай блиц тренировка рекорд" },
+  quiz: { s: "Тренажёр", t: "Тренажёр", d: "Уровни и 3 жизни: цвета, закон Ома, SMD. Онлайн-рекорды", cat: "play", k: "тренажёр игра квиз тест угадай блиц тренировка рекорд" },
   color: { s: "Цвета", t: "Цветовая маркировка", d: "Номинал резистора по цветным полосам", cat: "mark", k: "резистор цвет полосы маркировка номинал ткс" },
   smd: { s: "SMD", t: "SMD-маркировка", d: "Коды 103, 4R7, 01C на корпусе", cat: "mark", k: "smd smt маркировка код корпус конденсатор резистор" },
   ohm: { s: "Закон Ома", t: "Закон Ома", d: "U, I, R, P, соединения и провода", cat: "circ", k: "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель" },
