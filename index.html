@@ -178,6 +178,36 @@ label.check input { width: auto; accent-color: var(--accent); }
 .fviz text.lam { fill: var(--accent); font-size: 13px; font-weight: 600; }
 .fviz text.per { fill: var(--result); font-size: 13px; font-weight: 600; }
 .fviz text.now { fill: var(--fg); font-size: 12px; }
+/* Игра «Бегущий резистор» */
+#gCanvas {
+  display: block; width: 100%; height: auto; aspect-ratio: 3 / 1;
+  border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+  cursor: pointer; touch-action: manipulation; user-select: none; -webkit-user-select: none;
+}
+.gctl { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 12px; }
+.gctl label { flex: 1 1 180px; }
+.gbal { font-size: 14px; color: var(--muted); }
+.gbal b { margin-left: 6px; font: 600 20px var(--font-mono); color: var(--blue); }
+.gh { margin: 0; font: 500 16px var(--font-display); }
+.shop { display: grid; gap: 8px; }
+.item {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 2px 12px;
+  padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg);
+}
+.item b { font: 600 15px var(--font-body); }
+.item .lvl { margin-left: 4px; font: 12px var(--font-mono); color: var(--accent); }
+.item small { grid-column: 1; color: var(--muted); font-size: 13px; line-height: 1.35; }
+.item button {
+  grid-row: 1 / span 2; grid-column: 2; padding: 8px 12px; border-radius: 8px; cursor: pointer; white-space: nowrap;
+  border: 1px solid var(--blue); background: transparent; color: var(--blue); font: 600 13px var(--font-mono);
+}
+.item button:disabled, .qstart:disabled { opacity: .45; cursor: not-allowed; }
+.item button:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+.board { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+.board th, .board td { padding: 6px 8px; border-bottom: 1px solid var(--line); text-align: left; }
+.board th { font-size: 12px; font-weight: 500; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.board th:nth-child(3), .board td:nth-child(3) { text-align: right; font-family: var(--font-mono); }
+.board tr.me td { color: var(--accent); font-weight: 600; }
 /* Тренажёр: блиц-викторина */
 .qhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 13px; color: var(--muted); }
 .qhead b { margin-left: 6px; font: 600 20px var(--font-mono); color: var(--fg); }
@@ -297,6 +327,26 @@ label.check input { width: auto; accent-color: var(--accent); }
         <p class="qfeed" id="qFeed"></p>
       </div>
       <button type="button" class="qstart" id="qStart">Старт</button>
+    </section>
+
+    <section class="mod wide" id="game">
+      <h2>Бегущий резистор <small>прыгай через детали, собирай электроны</small></h2>
+      <canvas id="gCanvas" width="900" height="300" aria-label="Игра: резистор бежит по плате и перепрыгивает детали"></canvas>
+      <div class="gctl">
+        <label>Твой ник<input id="gName" maxlength="16" placeholder="Например, Кирилл" autocomplete="off"></label>
+        <button type="button" class="qstart" id="gStart">Играть</button>
+        <span class="gbal">Электроны<b id="gCoins">0</b></span>
+      </div>
+      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Не прыгай в искры: под ними можно пробежать. Электроны тратятся в магазине.</p>
+      <p class="qfeed" id="gMsg"></p>
+      <div class="cols">
+        <div class="stack"><h3 class="gh">Магазин бафов</h3><div class="shop" id="gShop"></div></div>
+        <div class="stack">
+          <h3 class="gh">Таблица рекордов</h3>
+          <table class="board" id="gBoard"></table>
+          <p class="hint" style="margin:0">Рекорды и электроны хранятся в этом браузере.</p>
+        </div>
+      </div>
     </section>
 
     <section class="mod wide" id="color">
@@ -1524,6 +1574,317 @@ document.addEventListener("keydown", e => {
 });
 window.addEventListener("hashchange", () => { if (location.hash !== "#quiz") quizStop(false); });
 
+/* ---------- Игра «Бегущий резистор» ---------- */
+// Мир в своих координатах 900×300; канвас масштабируется под ширину экрана
+const G = { W: 900, H: 300, GROUND: 252, GRAV: 2400 };
+const PX = 90;                       // где по горизонтали стоит резистор
+const GAME_KEY = "calc-game";
+// Магазин: прокачка навсегда (prices по уровням) и расходник «предохранитель»
+const SHOP = [
+  { id: "speed", t: "Быстрые ножки", d: "Бежит быстрее, очков капает больше: +12% за уровень", prices: [20, 50, 100] },
+  { id: "jump", t: "Пружинистые выводы", d: "Прыгает выше: +10% за уровень", prices: [20, 50, 100] },
+  { id: "magnet", t: "Магнит", d: "Притягивает электроны издалека", prices: [30, 70, 140] },
+  { id: "dbl", t: "Двойной прыжок", d: "Можно подпрыгнуть ещё раз прямо в воздухе", prices: [120] },
+  { id: "shield", t: "Предохранитель", d: "Прощает одно столкновение. Расходник, до 3 штук", price: 25, max: 3 },
+];
+function loadGame() {
+  const def = { coins: 0, upg: { speed: 0, jump: 0, magnet: 0, dbl: 0 }, shield: 0, board: [], name: "" };
+  try {
+    const s = JSON.parse(localStorage.getItem(GAME_KEY));
+    if (s && typeof s === "object") return { ...def, ...s, upg: { ...def.upg, ...(s.upg || {}) }, board: Array.isArray(s.board) ? s.board.slice(0, 10) : [] };
+  } catch (e) {}
+  return def;
+}
+let gs = loadGame();
+function saveGame() { try { localStorage.setItem(GAME_KEY, JSON.stringify(gs)); } catch (e) {} }
+
+const cv = $("gCanvas"), ctx = cv.getContext("2d");
+const run = { on: false, over: false, paused: false, t: 0, speed: 0, score: 0, coins: 0, y: 0, vy: 0, jumps: 0, obs: [], cn: [], nextObs: 0, nextCoin: 0, shield: 0, inv: 0, scroll: 0 };
+let raf = 0, last = 0, overAt = 0, lastId = 0;
+const C = {};
+// Цвета берём из темы сайта, чтобы игра выглядела своей и в светлой, и в тёмной теме
+function readColors() {
+  const cs = getComputedStyle(document.documentElement);
+  ["bg", "panel", "fg", "muted", "line", "accent", "result", "blue", "warn"].forEach(k => { C[k] = cs.getPropertyValue("--" + k).trim(); });
+}
+function fitCanvas() {
+  // На узком экране поле выше (2:1 вместо 3:1), иначе на телефоне всё мелкое
+  G.W = (cv.parentElement.clientWidth || 900) < 560 ? 600 : 900;
+  cv.style.aspectRatio = `${G.W} / ${G.H}`;
+  const dpr = Math.min(2, window.devicePixelRatio || 1), w = cv.clientWidth || G.W;
+  cv.width = Math.round(w * dpr);
+  cv.height = Math.round(((w * G.H) / G.W) * dpr);
+  ctx.setTransform(cv.width / G.W, 0, 0, cv.height / G.H, 0, 0);
+}
+const baseSpeed = () => 330 * (1 + 0.08 * gs.upg.speed);
+const jumpV = () => 790 * (1 + 0.1 * gs.upg.jump);
+const best = () => (gs.board.length ? gs.board[0].s : 0);
+const feetY = () => G.GROUND + run.y;
+const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
+
+function startRun() {
+  Object.assign(run, { on: true, over: false, paused: false, t: 0, speed: baseSpeed(), score: 0, coins: 0, y: 0, vy: 0, jumps: 0,
+    obs: [], cn: [], nextObs: 520, nextCoin: 320, shield: gs.shield, inv: 0, scroll: 0 });
+  gs.shield = 0; // предохранители уходят в забег, неистраченные вернутся
+  $("gStart").disabled = true;
+  saveGame();
+  readColors();
+  $("gMsg").textContent = "";
+  renderShop();
+  kick();
+}
+function jump() {
+  if (!run.on) {
+    if (!run.over || performance.now() - overAt > 450) startRun(); // пауза после проигрыша, чтобы не перезапустить случайно
+    return;
+  }
+  if (run.paused) { togglePause(); return; }
+  if (run.y === 0) { run.vy = -jumpV(); run.jumps = 1; }
+  else if (gs.upg.dbl && run.jumps < 2) { run.vy = -jumpV() * 0.85; run.jumps = 2; }
+}
+function togglePause() {
+  if (!run.on) return;
+  run.paused = !run.paused;
+  if (run.paused) draw(); else kick();
+}
+// Препятствия: детали на плате; после 250 очков — летающие искры (не прыгай в них)
+function spawnObs() {
+  const s = run.score;
+  if (s > 250 && Math.random() < 0.22) { run.obs.push({ k: "zap", x: G.W + 20, w: 38, h: 18, y: G.GROUND - rnd(78, 110) }); return; }
+  const kinds = [["cap", 24, 44], ["chip", 60, 24], ["tr", 22, 34]];
+  if (s > 150) kinds.push(["bat", 28, 54]);
+  const [k, w, h] = pick(kinds);
+  run.obs.push({ k, x: G.W + 20, w, h, y: G.GROUND - h });
+  if (s > 400 && Math.random() < 0.25) { // сдвоенное препятствие
+    const [k2, w2, h2] = pick(kinds.slice(0, 3));
+    run.obs.push({ k: k2, x: G.W + 26 + w, w: w2, h: h2, y: G.GROUND - h2 });
+  }
+}
+// Электроны группами: низко, средне, высоко или дугой
+function spawnCoins() {
+  const n = rnd(3, 5), h = pick([28, 70, 112]), arc = h === 70 && Math.random() < 0.5;
+  for (let i = 0; i < n; i++) run.cn.push({ x: G.W + 20 + i * 34, y: G.GROUND - h - (arc ? Math.sin((i / (n - 1)) * Math.PI) * 36 : 0) });
+}
+function update(dt) {
+  run.t += dt;
+  run.speed = Math.min(950, baseSpeed() + 8 * run.t);
+  const dx = run.speed * dt;
+  run.scroll += dx;
+  run.score += (dx / 10) * (1 + 0.12 * gs.upg.speed);
+  // Прыжок: скорость вверх гасится гравитацией, y < 0 — в воздухе
+  run.vy += G.GRAV * dt;
+  run.y += run.vy * dt;
+  if (run.y > 0) { run.y = 0; run.vy = 0; run.jumps = 0; }
+  run.nextObs -= dx;
+  if (run.nextObs <= 0) { spawnObs(); run.nextObs = run.speed * (0.8 + Math.random() * 0.9); }
+  run.nextCoin -= dx;
+  if (run.nextCoin <= 0) { spawnCoins(); run.nextCoin = rnd(600, 1300); }
+  const f = feetY(), me = { x: PX - 4, y: f - 42, w: 64, h: 40 };
+  const pcx = PX + 28, pcy = f - 30, R = [0, 80, 130, 180][gs.upg.magnet];
+  run.cn.forEach(c => {
+    c.x -= dx;
+    const ddx = pcx - c.x, ddy = pcy - c.y, d = Math.hypot(ddx, ddy);
+    if (R && d < R) { c.x += (ddx / d) * 700 * dt; c.y += (ddy / d) * 700 * dt; }
+    if (d < 26) { c.dead = true; run.coins++; }
+  });
+  run.cn = run.cn.filter(c => !c.dead && c.x > -20);
+  run.obs.forEach(o => { o.x -= dx * (o.k === "zap" ? 1.15 : 1); });
+  run.obs = run.obs.filter(o => o.x + o.w > -20);
+  if (run.inv > 0) { run.inv -= dt; return; }
+  for (const o of run.obs) {
+    if (!hit(me, { x: o.x + 2, y: o.y + 2, w: o.w - 4, h: o.h - 4 })) continue;
+    if (run.shield > 0) { run.shield--; run.inv = 1.5; o.x = -999; $("gMsg").textContent = "Предохранитель сгорел вместо тебя!"; }
+    else { gameOver(); }
+    break;
+  }
+}
+function gameOver() {
+  run.on = false;
+  run.over = true;
+  overAt = performance.now();
+  $("gStart").disabled = false;
+  $("gStart").textContent = "Ещё раз";
+  gs.coins += run.coins;
+  gs.shield = run.shield;
+  const s = Math.floor(run.score);
+  let rank = -1;
+  if (s > 0) {
+    lastId = Date.now();
+    gs.board.push({ id: lastId, n: (gs.name || "Аноним").slice(0, 16), s, d: new Date().toLocaleDateString("ru-RU", { day: "2-digit", month: "2-digit" }) });
+    gs.board.sort((a, b) => b.s - a.s);
+    gs.board = gs.board.slice(0, 10);
+    rank = gs.board.findIndex(r => r.id === lastId);
+  }
+  saveGame();
+  $("gMsg").textContent = `Очки: ${s} · электронов +${run.coins}` + (rank === 0 ? " · Новый рекорд! 🏆" : rank > 0 ? ` · ${rank + 1}-е место в таблице` : "");
+  renderShop(); renderBoard(); renderCoins();
+}
+function loop(ts) {
+  const dt = Math.min(0.033, Math.max(0, (ts - last) / 1000));
+  last = ts;
+  if (run.on && !run.paused) update(dt);
+  draw();
+  raf = run.on && !run.paused ? requestAnimationFrame(loop) : 0;
+}
+function kick() { if (!raf) { last = performance.now(); raf = requestAnimationFrame(loop); } }
+
+/* --- Рисование --- */
+function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x, y, w, h, r); else ctx.rect(x, y, w, h); }
+// Тёмный корпус + светлая обводка — видно и на тёмной теме
+function darkBody() { ctx.fillStyle = "#2b2b2b"; ctx.fill(); ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.stroke(); }
+function drawCoin(c) {
+  ctx.save();
+  ctx.shadowColor = C.blue; ctx.shadowBlur = 12; ctx.fillStyle = C.blue;
+  ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI * 2); ctx.fill();
+  ctx.restore();
+  ctx.fillStyle = C.bg; ctx.font = "bold 11px 'IBM Plex Mono', monospace"; ctx.textAlign = "center";
+  ctx.fillText("e", c.x, c.y + 3.5);
+}
+function drawObs(o) {
+  const { x, y, w, h } = o;
+  if (o.k === "cap") {            // электролитический конденсатор
+    ctx.fillStyle = "#1f4f8f"; rr(x, y + 4, w, h - 4, 4); ctx.fill();
+    ctx.fillStyle = "#a9c1e3"; ctx.fillRect(x + w - 7, y + 7, 4, h - 10);
+    ctx.fillStyle = "#c9d3df"; ctx.beginPath(); ctx.ellipse(x + w / 2, y + 5, w / 2, 4, 0, 0, Math.PI * 2); ctx.fill();
+  } else if (o.k === "chip") {    // микросхема в DIP-корпусе
+    ctx.fillStyle = "#b9bdc2";
+    for (let i = 0; i < 5; i++) ctx.fillRect(x + 5 + i * 12, y + h - 7, 4, 7);
+    rr(x, y, w, h - 6, 3); darkBody();
+    ctx.fillStyle = "#555"; ctx.beginPath(); ctx.arc(x + 7, y + (h - 6) / 2, 3, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#ddd"; ctx.font = "bold 10px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.fillText("NE555", x + w / 2 + 3, y + 12);
+  } else if (o.k === "tr") {      // транзистор TO-92
+    ctx.strokeStyle = "#b9bdc2"; ctx.lineWidth = 2;
+    [5, 11, 17].forEach(lx => { ctx.beginPath(); ctx.moveTo(x + lx, y + h - 10); ctx.lineTo(x + lx, y + h); ctx.stroke(); });
+    ctx.beginPath();
+    ctx.moveTo(x, y + h - 10); ctx.lineTo(x, y + w / 2); ctx.arc(x + w / 2, y + w / 2, w / 2, Math.PI, 0); ctx.lineTo(x + w, y + h - 10); ctx.closePath(); darkBody();
+  } else if (o.k === "bat") {     // батарейка
+    ctx.fillStyle = "#b9bdc2"; ctx.fillRect(x + w / 2 - 4, y, 8, 6);
+    rr(x, y + 6, w, h - 6, 3); darkBody();
+    ctx.fillStyle = "#d9822b"; ctx.fillRect(x, y + 6, w, (h - 6) * 0.45);
+    ctx.fillStyle = "#fff"; ctx.font = "bold 14px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.fillText("+", x + w / 2, y + 22);
+  } else {                        // искра
+    ctx.save(); ctx.shadowColor = C.warn; ctx.shadowBlur = 14; ctx.fillStyle = C.warn;
+    ctx.beginPath(); [[0, 9], [15, 0], [13, 6], [38, 3], [21, 18], [23, 11], [0, 14]].forEach(([px, py], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x + px, y + py));
+    ctx.closePath(); ctx.fill(); ctx.restore();
+  }
+}
+// Герой: резистор-«косточка» с полосами, глазками и ножками-выводами
+function drawPlayer() {
+  const x = PX, f = feetY(), cy = f - 30, air = run.y < 0;
+  const sw = air ? 0 : Math.sin(run.on ? run.scroll / 16 : 0) * 7, foot = air ? cy + 14 : f;
+  ctx.strokeStyle = "#a9adb2"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
+  ctx.beginPath(); ctx.moveTo(x + 4, cy); ctx.lineTo(x - 6, cy); ctx.lineTo(x - 6 + sw, foot); ctx.lineTo(x - 12 + sw, foot); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(x + 52, cy); ctx.lineTo(x + 62, cy); ctx.lineTo(x + 62 - sw, foot); ctx.lineTo(x + 68 - sw, foot); ctx.stroke();
+  const body = () => {
+    ctx.beginPath();
+    ctx.moveTo(x + 21, cy); ctx.ellipse(x + 10, cy, 11, 13, 0, 0, Math.PI * 2);
+    ctx.moveTo(x + 57, cy); ctx.ellipse(x + 46, cy, 11, 13, 0, 0, Math.PI * 2);
+    ctx.rect(x + 10, cy - 10, 36, 20);
+  };
+  const g = ctx.createLinearGradient(0, cy - 13, 0, cy + 13);
+  g.addColorStop(0, "#b98c58"); g.addColorStop(0.3, "#f2d8ab"); g.addColorStop(0.5, "#e3c08c"); g.addColorStop(1, "#8f6738");
+  ctx.fillStyle = g; body(); ctx.fill();
+  ctx.save(); body(); ctx.clip();
+  [[x + 6, "#7a4a24"], [x + 17, "#1b1b1b"], [x + 25, "#d32f2f"], [x + 34, "#c9a227"]].forEach(([bx, c]) => { ctx.fillStyle = c; ctx.fillRect(bx, cy - 14, 5, 28); });
+  const sh = ctx.createLinearGradient(0, cy - 13, 0, cy + 13);
+  sh.addColorStop(0, "rgba(255,255,255,.35)"); sh.addColorStop(0.45, "rgba(255,255,255,0)"); sh.addColorStop(1, "rgba(0,0,0,.3)");
+  ctx.fillStyle = sh; ctx.fillRect(x - 2, cy - 14, 62, 28);
+  ctx.restore();
+  // Глазки и рот: в прыжке рот «О»
+  ctx.fillStyle = "#fff";
+  [44, 51].forEach(ex => { ctx.beginPath(); ctx.arc(x + ex, cy - 4, 3.4, 0, Math.PI * 2); ctx.fill(); });
+  ctx.fillStyle = "#111";
+  [45, 52].forEach(ex => { ctx.beginPath(); ctx.arc(x + ex, cy - 4, 1.7, 0, Math.PI * 2); ctx.fill(); });
+  ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 1.5; ctx.beginPath();
+  if (air) ctx.arc(x + 48, cy + 4, 2, 0, Math.PI * 2); else ctx.arc(x + 48, cy + 1, 3, 0.15 * Math.PI, 0.85 * Math.PI);
+  ctx.stroke();
+}
+function overlay(lines) {
+  ctx.fillStyle = C.bg; ctx.globalAlpha = 0.78; ctx.fillRect(0, 0, G.W, G.H); ctx.globalAlpha = 1;
+  ctx.textAlign = "center";
+  lines.forEach(([txt, size, color], i) => { ctx.font = `600 ${size}px 'Chakra Petch', sans-serif`; ctx.fillStyle = color; ctx.fillText(txt, G.W / 2, 100 + i * 42); });
+}
+function draw() {
+  const { W, H, GROUND: GR } = G, sc = run.scroll;
+  ctx.fillStyle = C.bg; ctx.fillRect(0, 0, W, H);
+  // Сетка «платы» уезжает медленнее земли — эффект глубины
+  ctx.strokeStyle = C.line; ctx.lineWidth = 1; ctx.globalAlpha = 0.6;
+  for (let x = -((sc * 0.3) % 60); x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, GR); ctx.stroke(); }
+  for (let y = 30; y < GR; y += 60) { ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke(); }
+  ctx.globalAlpha = 1;
+  ctx.fillStyle = C.panel; ctx.fillRect(0, GR, W, H - GR);
+  ctx.strokeStyle = C.muted; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(0, GR); ctx.lineTo(W, GR); ctx.stroke();
+  ctx.fillStyle = C.accent; ctx.globalAlpha = 0.55;
+  for (let x = -(sc % 90); x < W + 10; x += 90) { ctx.beginPath(); ctx.arc(x, GR + 24, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(x + 5, GR + 22, 40, 4); }
+  ctx.globalAlpha = 1;
+  run.cn.forEach(drawCoin);
+  run.obs.forEach(drawObs);
+  if (!(run.inv > 0 && Math.floor(run.inv * 10) % 2)) drawPlayer();
+  ctx.font = "600 20px 'IBM Plex Mono', monospace";
+  ctx.textAlign = "right"; ctx.fillStyle = C.fg; ctx.fillText(String(Math.floor(run.score)).padStart(5, "0"), W - 16, 32);
+  ctx.font = "13px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.muted; ctx.fillText(`рекорд ${best()}`, W - 16, 52);
+  ctx.textAlign = "left"; ctx.font = "600 20px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.blue; ctx.fillText(`e⁻ ${run.coins}`, 16, 32);
+  if (run.shield > 0) { ctx.font = "16px sans-serif"; ctx.fillText("🛡".repeat(run.shield), 16, 56); }
+  if (!run.on && !run.over) overlay([["Бегущий резистор", 34, C.fg], ["Пробел, ↑ или тап — старт", 18, C.muted]]);
+  else if (run.over) overlay([["Сгорел! 💥", 36, C.warn], [`Очки ${Math.floor(run.score)} · электронов +${run.coins}`, 20, C.fg], ["Пробел или тап — ещё раз", 16, C.muted]]);
+  else if (run.paused) overlay([["Пауза", 34, C.fg], ["P или тап — дальше", 16, C.muted]]);
+}
+
+/* --- Магазин и таблица --- */
+function priceOf(it) {
+  if (it.id === "shield") return gs.shield >= it.max ? null : it.price;
+  const l = gs.upg[it.id];
+  return l < it.prices.length ? it.prices[l] : null;
+}
+function renderCoins() { $("gCoins").textContent = gs.coins; }
+function renderShop() {
+  $("gShop").innerHTML = SHOP.map(it => {
+    const p = priceOf(it);
+    const lvl = it.id === "shield" ? `есть ${gs.shield} из ${it.max}` : "●".repeat(gs.upg[it.id]) + "○".repeat(it.prices.length - gs.upg[it.id]);
+    const can = p !== null && gs.coins >= p && !run.on;
+    return `<div class="item"><span><b>${it.t}</b> <span class="lvl">${lvl}</span></span><small>${it.d}</small>` +
+      `<button type="button" data-buy="${it.id}" ${can ? "" : "disabled"}>${p === null ? "Максимум" : `${p} e⁻`}</button></div>`;
+  }).join("");
+}
+function renderBoard() {
+  const rows = gs.board.map((r, i) => `<tr class="${r.id === lastId ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.n)}</td><td>${r.s}</td><td>${r.d}</td></tr>`).join("");
+  $("gBoard").innerHTML = `<thead><tr><th>#</th><th>Ник</th><th>Очки</th><th>Дата</th></tr></thead>` +
+    `<tbody>${rows || `<tr><td colspan="4">Пока пусто — сыграй первым!</td></tr>`}</tbody>`;
+}
+$("gShop").addEventListener("click", e => {
+  const b = e.target.closest("button[data-buy]");
+  if (!b || run.on) return;
+  const it = SHOP.find(s => s.id === b.dataset.buy), p = priceOf(it);
+  if (p === null || gs.coins < p) return;
+  gs.coins -= p;
+  if (it.id === "shield") gs.shield++; else gs.upg[it.id]++;
+  saveGame();
+  $("gMsg").textContent = `Куплено: ${it.t}!`;
+  renderShop(); renderCoins();
+});
+$("gName").addEventListener("input", () => { gs.name = $("gName").value.trim(); saveGame(); });
+$("gStart").addEventListener("click", () => { $("gStart").blur(); if (!run.on) startRun(); });
+cv.addEventListener("pointerdown", e => { e.preventDefault(); jump(); });
+document.addEventListener("keydown", e => {
+  if ($("game").hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.code === "Space" || e.key === "ArrowUp" || e.key === "w" || e.key === "ц") { e.preventDefault(); jump(); }
+  else if (e.key === "p" || e.key === "з") togglePause();
+});
+// Ушли со страницы игры или свернули вкладку — пауза
+window.addEventListener("hashchange", () => {
+  if (location.hash === "#game") requestAnimationFrame(() => { fitCanvas(); readColors(); draw(); });
+  else if (run.on && !run.paused) togglePause();
+});
+document.addEventListener("visibilitychange", () => { if (document.hidden && run.on && !run.paused) togglePause(); });
+window.addEventListener("resize", () => { if (!$("game").hidden) { fitCanvas(); draw(); } });
+$("themeBtn").addEventListener("click", () => { readColors(); draw(); });
+function initGame() {
+  $("gName").value = gs.name;
+  readColors(); fitCanvas();
+  renderShop(); renderBoard(); renderCoins();
+  draw();
+}
+
 /* ---------- Почта ---------- */
 $("copyMail").addEventListener("click", () => {
   const btn = $("copyMail"), text = $("mail").textContent;
@@ -1543,6 +1904,7 @@ const CATS = [
 ];
 // Для каждого калькулятора: короткое имя (меню), название, описание, раздел, слова для поиска
 const MODS = {
+  game: { s: "Игра", t: "Бегущий резистор", d: "Раннер: прыгай через детали, копи электроны, качай бафы", cat: "play", k: "игра раннер динозавр дракончик резистор прыжки рекорд магазин бафы" },
   quiz: { s: "Тренажёр", t: "Тренажёр", d: "Блиц на минуту: цвета, закон Ома, SMD", cat: "play", k: "тренажёр игра квиз тест угадай блиц тренировка рекорд" },
   color: { s: "Цвета", t: "Цветовая маркировка", d: "Номинал резистора по цветным полосам", cat: "mark", k: "резистор цвет полосы маркировка номинал ткс" },
   smd: { s: "SMD", t: "SMD-маркировка", d: "Коды 103, 4R7, 01C на корпусе", cat: "mark", k: "smd smt маркировка код корпус конденсатор резистор" },
@@ -1559,6 +1921,7 @@ const MODS = {
 };
 // Иконки карточек: простые линии, цвет берут из раздела
 const ICONS = {
+  game: `<path d="M4 21h6M38 21h6"/><rect x="10" y="14" width="28" height="14" rx="6"/><path d="M17 14v14M23 14v14M13 28l-4 13M35 28l5 13"/>`,
   quiz: `<circle cx="24" cy="27" r="15"/><path d="M24 27v-8M20 6h8M24 6v6M36 14l3-3"/>`,
   color: `<path d="M3 24h9M36 24h9"/><rect x="12" y="15" width="24" height="18" rx="7"/><path d="M18 15v18M24 15v18M31 15v18"/>`,
   smd: `<rect x="10" y="15" width="28" height="18" rx="2"/><path d="M5 20h5M5 28h5M38 20h5M38 28h5M16 24h4M23 24h4M30 24h2"/>`,
@@ -1688,7 +2051,7 @@ $("smdR").setAttribute("aria-pressed", smdKind === "R");
 $("smdC").setAttribute("aria-pressed", smdKind === "C");
 setOhmTab(ohmTab);
 updateOhm(); updateNet(); updateWire(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); set555(mode555);
-updateBat(); setTr(trMode); setQuizMode(quizMode);
+updateBat(); setTr(trMode); setQuizMode(quizMode); initGame();
 route();
 </script>
 
