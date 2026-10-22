@@ -339,7 +339,8 @@ label.check input { width: auto; accent-color: var(--accent); }
 .cscols { display: grid; grid-template-columns: minmax(0, 340px) minmax(0, 1fr); gap: 20px; align-items: start; }
 @media (max-width: 760px) { .cscols { grid-template-columns: minmax(0, 1fr); } }
 .csgates { display: grid; gap: 8px; }
-.csrow { display: grid; grid-template-columns: 30px minmax(0, 1.25fr) minmax(0, 1fr) minmax(0, 1fr) 30px; gap: 6px; align-items: center; }
+.csrow { display: grid; grid-template-columns: 30px minmax(0, 1.4fr) minmax(0, 1fr) 30px; gap: 6px; align-items: center; padding-bottom: 8px; border-bottom: 1px dotted var(--line); }
+.csins { grid-column: 2 / -1; display: grid; grid-template-columns: repeat(auto-fill, minmax(64px, 1fr)); gap: 6px; }
 .csrow b { font: 600 14px var(--font-mono); color: var(--accent); }
 .csrow select { padding: 7px 6px; font-size: 14px; }
 .csrow select[disabled] { visibility: hidden; }
@@ -1744,7 +1745,7 @@ $("lgE").addEventListener("input", updateLogicExpr);
 drawLogic(); updateLogicExpr();
 
 /* ---------- Логика: каскад из нескольких элементов ---------- */
-// Элемент — [тип, вход1, вход2]; вход — буква A–D или выход прошлого элемента G1, G2…
+// Элемент — [тип, вход1, вход2, …] (у НЕ один вход, у остальных 2–6); вход — буква A–F или выход прошлого элемента G1, G2…
 // Ссылаться можно только на элементы выше по списку, поэтому петель (обратной связи) не бывает
 const CS_PRE = {
   ha: { n: "Полусумматор", k: 2, g: [["xor", "A", "B"], ["and", "A", "B"]], why: "Складывает два бита: G1 — сумма, G2 — перенос в следующий разряд. 1 + 1 = 10 в двоичной: сумма 0, перенос 1." },
@@ -1760,14 +1761,14 @@ let cs = { k: 2, g: CS_PRE.ha.g.map(r => [...r]), ins: [0, 0, 0, 0, 0, 0], p: "h
 try { const c = JSON.parse(localStorage.getItem("calc-cascade")); if (c && c.g && c.g.length) cs = c; } catch (e) {}
 cs.ins = Array.from({ length: 6 }, (_, i) => (cs.ins && cs.ins[i]) || 0); // старое сохранение было на 4 входа
 const csSave = () => { try { localStorage.setItem("calc-cascade", JSON.stringify(cs)); } catch (e) {} };
-const csSrc = g => (GATES[g[0]].one ? [g[1]] : [g[1], g[2]]);
+const csSrc = g => (GATES[g[0]].one ? [g[1]] : g.slice(1));
 const csOpts = i => [...LG_NAMES.slice(0, cs.k)].concat(Array.from({ length: i }, (_, j) => "G" + (j + 1)));
 
 // Значения всех входов и выходов элементов при заданных входах
 function csEval(ins) {
   const v = {};
   [...LG_NAMES.slice(0, cs.k)].forEach((L, i) => { v[L] = ins[i]; });
-  cs.g.forEach((g, i) => { const G = GATES[g[0]]; v["G" + (i + 1)] = G.one ? G.f(v[g[1]]) : G.f(v[g[1]], v[g[2]]); });
+  cs.g.forEach((g, i) => { v["G" + (i + 1)] = GATES[g[0]].one ? GATES[g[0]].f(v[g[1]]) : GATES_N[g[0]].fa(csSrc(g).map(x => v[x])); });
   return v;
 }
 // Формула каждого выхода через буквы входов (понимает и вкладка «Своё выражение»)
@@ -1784,8 +1785,8 @@ function csExpr() {
   const op = x => (whole(x) ? x : `(${x})`);
   [...LG_NAMES.slice(0, cs.k)].forEach(L => { e[L] = L; });
   cs.g.forEach((g, i) => {
-    const G = GATES[g[0]], a = op(e[g[1]]);
-    let t = G.one ? "¬" + a : a + OPS[g[0]] + op(e[g[2]]);
+    const G = GATES[g[0]];
+    let t = G.one ? "¬" + op(e[g[1]]) : csSrc(g).map(x => op(e[x])).join(OPS[g[0]]);
     if (G.inv && !G.one) t = `¬(${t})`;
     e["G" + (i + 1)] = t;
   });
@@ -1798,12 +1799,12 @@ function csRows() {
   const opt = (list, cur) => list.map(x => `<option value="${x}"${x === cur ? " selected" : ""}>${x}</option>`).join("");
   const types = Object.entries(GATES).map(([k, g]) => [k, g.n]);
   $("csGates").innerHTML = cs.g.map((g, i) => {
-    const name = "G" + (i + 1), src = csOpts(i), one = GATES[g[0]].one;
+    const name = "G" + (i + 1), src = csOpts(i), one = GATES[g[0]].one, ins = csSrc(g);
     return `<div class="csrow" data-k="${i}"><b>${name}</b>
       <select data-f="0" aria-label="Тип элемента ${name}">${types.map(([k, n]) => `<option value="${k}"${k === g[0] ? " selected" : ""}>${n}</option>`).join("")}</select>
-      <select data-f="1" aria-label="Первый вход ${name}">${opt(src, g[1])}</select>
-      <select data-f="2" aria-label="Второй вход ${name}"${one ? " disabled" : ""}>${opt(src, g[2])}</select>
-      <button type="button" class="csdel" aria-label="Удалить ${name}"${cs.g.length < 2 ? " disabled" : ""}>×</button></div>`;
+      <select data-f="n" aria-label="Число входов ${name}"${one ? " disabled" : ""}>${[2, 3, 4, 5, 6].map(m => `<option value="${m}"${m === ins.length && !one ? " selected" : ""}>${m} вх</option>`).join("")}</select>
+      <button type="button" class="csdel" aria-label="Удалить ${name}"${cs.g.length < 2 ? " disabled" : ""}>×</button>
+      <div class="csins">${ins.map((x, j) => `<select data-f="${j + 1}" aria-label="Вход ${j + 1} элемента ${name}">${opt(src, x)}</select>`).join("")}</div></div>`;
   }).join("");
   $("csAdd").disabled = cs.g.length >= CS_MAX;
   $("csN").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === cs.k));
@@ -1815,7 +1816,9 @@ function drawCasc() {
   // Раскладка: глубина элемента = 1 + самая большая глубина его входов → номер столбца
   const depth = {}; [...LG_NAMES.slice(0, n)].forEach(L => { depth[L] = 0; });
   cs.g.forEach((g, i) => { depth["G" + (i + 1)] = 1 + Math.max(...csSrc(g).map(x => depth[x])); });
-  const busX = i => 22 + i * 28, X0 = busX(n - 1) + 40, CW = 118, TOP = 52, GAP = 64;
+  const busX = i => 22 + i * 28, X0 = busX(n - 1) + 40, CW = 124, TOP = 52, PIN = 14;
+  // Половина высоты корпуса: 20 для 1–2 входов, дальше +7 на каждый вход
+  const half = i => Math.max(20, (csSrc(cs.g[i]).length * PIN + 12) / 2);
   const cols = {}; cs.g.forEach((_, i) => { (cols[depth["G" + (i + 1)]] ||= []).push(i); });
   const pos = {}; let maxY = TOP, maxD = 1;
   Object.keys(cols).map(Number).sort((a, b) => a - b).forEach(d => {
@@ -1825,8 +1828,11 @@ function drawCasc() {
       const ys = csSrc(cs.g[i]).filter(x => x[0] === "G").map(x => pos[x].y);
       return { i, y: ys.length ? ys.reduce((a, b) => a + b) / ys.length : TOP };
     }).sort((a, b) => a.y - b.y || a.i - b.i);
-    let last = -Infinity;
-    want.forEach(w => { const y = Math.max(w.y, last + GAP, TOP); last = y; pos["G" + (w.i + 1)] = { x: X0 + (d - 1) * CW, y }; maxY = Math.max(maxY, y); });
+    let bottom = -Infinity;
+    want.forEach(w => {
+      const h = half(w.i), y = Math.max(w.y, bottom + h + 24, TOP + h - 20);
+      bottom = y + h; pos["G" + (w.i + 1)] = { x: X0 + (d - 1) * CW, y }; maxY = Math.max(maxY, bottom - 20);
+    });
   });
   const W = X0 + (maxD - 1) * CW + 150, H = maxY + 46;
   const outX = name => pos[name].x + (GATES[cs.g[+name.slice(1) - 1][0]].inv ? 50 : 42);
@@ -1834,9 +1840,9 @@ function drawCasc() {
   cs.g.forEach((g, i) => {
     const p = pos["G" + (i + 1)], src = csSrc(g);
     src.forEach((sName, j) => {
-      const ty = src.length === 1 ? p.y : p.y + (j ? 10 : -10);
+      const ty = Math.round(p.y + (j - (src.length - 1) / 2) * (src.length === 2 ? 20 : PIN));
       if (sName[0] === "G") {
-        const sx = outX(sName), sy = pos[sName].y, mx = p.x - 12 - j * 7;
+        const sx = outX(sName), sy = pos[sName].y, mx = p.x - 10 - j * 6;
         wires += `<path class="${c(sName)}" d="M${sx} ${sy} H${mx} V${ty} H${p.x}"/>`;
       } else {
         const bx = busX(LG_NAMES.indexOf(sName));
@@ -1853,22 +1859,25 @@ function drawCasc() {
   cs.g.forEach((g, i) => {
     const name = "G" + (i + 1), p = pos[name], G = GATES[g[0]], ox = outX(name);
     svg += `<path class="${c(name)}" d="M${p.x + 40} ${p.y} H${ox}"/>`;
-    svg += `<rect class="box" x="${p.x}" y="${p.y - 20}" width="40" height="40" rx="2"/><text class="sym" x="${p.x + 20}" y="${p.y}">${G.sym}</text>`;
+    const h = half(i);
+    svg += `<rect class="box" x="${p.x}" y="${p.y - h}" width="40" height="${2 * h}" rx="2"/><text class="sym" x="${p.x + 20}" y="${p.y}">${G.sym}</text>`;
     if (G.inv) svg += `<circle class="bub" cx="${p.x + 45}" cy="${p.y}" r="5"/>`;
-    svg += `<text class="gn" x="${p.x + 20}" y="${p.y - 26}">${name}</text>`;
+    svg += `<text class="gn" x="${p.x + 20}" y="${p.y - h - 6}">${name}</text>`;
     if (sinks.includes(name)) svg += `<path class="${c(name)}" d="M${ox} ${p.y} H${ox + 30}"/><circle class="led${v[name] ? " on" : ""}" cx="${ox + 40}" cy="${p.y}" r="9"/><text x="${ox + 54}" y="${p.y + 4}" style="fill:var(--fg)">${name}=${v[name]}</text>`;
   });
   const sv = $("csSchem");
   sv.setAttribute("viewBox", `0 0 ${W} ${H}`);
   // На широком экране схема растягивается, на узком не мельчает, а прокручивается
-  sv.style.minWidth = Math.round(W * 0.95) + "px"; sv.style.maxWidth = Math.round(W * 1.7) + "px";
+  sv.style.minWidth = Math.round(W * 0.95) + "px"; sv.style.maxWidth = Math.round(W * 1.4) + "px";
   sv.innerHTML = svg;
   $("csIns").innerHTML = [...LG_NAMES.slice(0, n)].map((L, i) => `<button type="button" data-i="${i}" class="${v[L] ? "on" : ""}">${L} = ${v[L]}</button>`).join("");
 
   // Формулы выходов, нужные микросхемы, пояснение к примеру
   const ex = csExpr(), used = {};
-  cs.g.forEach(g => { used[g[0]] = (used[g[0]] || 0) + 1; });
-  const chips = Object.entries(used).map(([t, k]) => `${GATES[t].n} ×${k} → ${Math.ceil(k / CS_CHIP[t][1])} × ${CS_CHIP[t][0]}`).join(", ");
+  cs.g.forEach(g => { const m = GATES[g[0]].one ? 1 : csSrc(g).length, key = g[0] + m; used[key] = used[key] || { t: g[0], m, k: 0 }; used[key].k++; });
+  const chips = Object.values(used).map(({ t, m, k }) => m <= 2
+    ? `${GATES[t].n} ×${k} → ${Math.ceil(k / CS_CHIP[t][1])} × ${CS_CHIP[t][0]}`
+    : `${GATES[t].n} на ${m} ${m > 4 ? "входов" : "входа"} ×${k} → ${GATES_N[t].chip[m]}`).join(", ");
   const last = sinks[sinks.length - 1];
   $("csOut").innerHTML = `<div class="big cs-big">${sinks.map(s => `<span>${s} = ${v[s]}</span>`).join("")}</div>` +
     sinks.map(s => row(s, esc(ex[s]))).join("") + row("Микросхемы", chips) +
@@ -1897,14 +1906,24 @@ $("csN").addEventListener("click", e => {
   const b = e.target.closest("button[data-n]"); if (!b) return;
   cs.k = +b.dataset.n; cs.p = null;
   // Буквы, которых больше нет, меняем на A
-  cs.g.forEach(g => { [1, 2].forEach(j => { if (g[j][0] !== "G" && LG_NAMES.indexOf(g[j]) >= cs.k) g[j] = "A"; }); });
+  cs.g.forEach(g => { for (let j = 1; j < g.length; j++) if (g[j][0] !== "G" && LG_NAMES.indexOf(g[j]) >= cs.k) g[j] = "A"; });
   csAll();
 });
 $("csGates").addEventListener("change", e => {
   const sel = e.target.closest("select"), r = e.target.closest(".csrow"); if (!sel || !r) return;
-  cs.g[+r.dataset.k][+sel.dataset.f] = sel.value; cs.p = null;
-  if (sel.dataset.f === "0") csRows();
-  else $("csPre").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false"));
+  const g = cs.g[+r.dataset.k], f = sel.dataset.f; cs.p = null;
+  if (f === "n") {
+    // Меняем число входов: лишние отрезаем, новые подключаем к следующим буквам
+    const m = +sel.value;
+    while (g.length - 1 > m) g.pop();
+    while (g.length - 1 < m) g.push(LG_NAMES[(g.length - 1) % cs.k]);
+    csRows();
+  } else if (f === "0") {
+    g[0] = sel.value;
+    if (!GATES[g[0]].one && g.length < 3) g.push(g[1] === "A" ? "B" : "A"); // из НЕ в двухвходовый
+    csRows();
+  } else g[+f] = sel.value;
+  if (f !== "n" && f !== "0") $("csPre").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", "false"));
   drawCasc();
 });
 $("csGates").addEventListener("click", e => {
@@ -1912,10 +1931,10 @@ $("csGates").addEventListener("click", e => {
   const k = +r.dataset.k, gone = "G" + (k + 1);
   cs.g.splice(k, 1); cs.p = null;
   // Ссылки на удалённый элемент → A, номера тех, что ниже, сдвигаются на 1
-  cs.g.forEach(g => { [1, 2].forEach(j => {
+  cs.g.forEach(g => { for (let j = 1; j < g.length; j++) {
     if (g[j] === gone) g[j] = "A";
     else if (g[j][0] === "G" && +g[j].slice(1) > k + 1) g[j] = "G" + (+g[j].slice(1) - 1);
-  }); });
+  } });
   csAll();
 });
 $("csAdd").addEventListener("click", () => {
