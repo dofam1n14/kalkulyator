@@ -337,7 +337,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" class="qstart" id="gStart">Играть</button>
         <span class="gbal">Электроны<b id="gCoins">0</b></span>
       </div>
-      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Не прыгай в искры: под ними можно пробежать. Электроны тратятся в магазине.</p>
+      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 500, 1500, 3000, 5000… очков — каждый быстрее и злее.</p>
       <p class="qfeed" id="gMsg"></p>
       <div class="cols">
         <div class="stack"><h3 class="gh">Магазин бафов</h3><div class="shop" id="gShop"></div></div>
@@ -1619,12 +1619,15 @@ function fitCanvas() {
 const baseSpeed = () => 330 * (1 + 0.08 * gs.upg.speed);
 const jumpV = () => 790 * (1 + 0.1 * gs.upg.jump);
 const best = () => (gs.board.length ? gs.board[0].s : 0);
+// Уровень N начинается с 250·N·(N−1) очков: 500, 1500, 3000, 5000, 7500…
+const level = () => Math.floor((1 + Math.sqrt(1 + (4 * run.score) / 250)) / 2);
+const airTime = () => (2 * jumpV()) / G.GRAV; // сколько секунд резистор в воздухе
 const feetY = () => G.GROUND + run.y;
 const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a.y + a.h > b.y;
 
 function startRun() {
   Object.assign(run, { on: true, over: false, paused: false, t: 0, speed: baseSpeed(), score: 0, coins: 0, y: 0, vy: 0, jumps: 0,
-    obs: [], cn: [], nextObs: 520, shield: gs.shield, inv: 0, scroll: 0 });
+    obs: [], cn: [], nextObs: 520, shield: gs.shield, inv: 0, scroll: 0, lvl: 1, banner: 0 });
   gs.shield = 0; // предохранители уходят в забег, неистраченные вернутся
   $("gStart").disabled = true;
   saveGame();
@@ -1666,21 +1669,22 @@ function coinArc(ox, ow) {
 // Препятствия: детали на плате; после 250 очков — летающие искры (не прыгай в них).
 // gap — через сколько пикселей появится следующее препятствие
 function spawnObs(gap) {
-  const s = run.score, x0 = G.W + 20;
-  if (s > 250 && Math.random() < 0.22) {
+  const s = run.score, x0 = G.W + 20, L = level();
+  if (s > 250 && Math.random() < Math.min(0.5, 0.22 + 0.035 * (L - 1))) {
     const z = { k: "zap", x: x0, w: 38, h: 18, y: G.GROUND - rnd(78, 110) };
     run.obs.push(z);
     // Электроны в полосе искры заманивали бы в неё — убираем; под искрой — низкий ряд в награду
     run.cn = run.cn.filter(c => !(c.x > z.x - 90 && c.x < z.x + z.w + 90 && c.y < G.GROUND - 55));
     if (Math.random() < 0.6) coinRow(z.x - 30, z.x + z.w + 50);
-    return;
+    return 0;
   }
   const kinds = [["cap", 24, 44], ["chip", 60, 24], ["tr", 22, 34]];
   if (s > 150) kinds.push(["bat", 28, 54]);
+  if (L >= 3) kinds.push(["spark", 30, 16]); // искра по земле: через неё прыгать
   const [k, w, h] = pick(kinds);
   run.obs.push({ k, x: x0, w, h, y: G.GROUND - h });
   let total = w;
-  if (s > 400 && Math.random() < 0.25) { // сдвоенное препятствие
+  if (s > 400 && Math.random() < Math.min(0.55, 0.25 + 0.035 * (L - 2))) { // сдвоенное препятствие
     const [k2, w2, h2] = pick(kinds.slice(0, 3));
     run.obs.push({ k: k2, x: x0 + w + 6, w: w2, h: h2, y: G.GROUND - h2 });
     total = w + 6 + w2;
@@ -1688,10 +1692,14 @@ function spawnObs(gap) {
   // Дуга над деталью или ряд в промежутке после неё (с запасом на приземление и следующий прыжок)
   if (Math.random() < 0.55) coinArc(x0, total);
   else if (Math.random() < 0.7) coinRow(x0 + total + run.speed * 0.45, x0 + gap - run.speed * 0.35);
+  return total;
 }
 function update(dt) {
   run.t += dt;
-  run.speed = Math.min(950, baseSpeed() + 8 * run.t);
+  const L = level();
+  if (L > run.lvl) { run.lvl = L; run.banner = 1.8; } // надпись «Уровень N»
+  if (run.banner > 0) run.banner -= dt;
+  run.speed = Math.min(950 + 35 * (L - 1), 1250, baseSpeed() + 8 * run.t);
   const dx = run.speed * dt;
   run.scroll += dx;
   run.score += (dx / 10) * (1 + 0.12 * gs.upg.speed);
@@ -1700,7 +1708,12 @@ function update(dt) {
   run.y += run.vy * dt;
   if (run.y > 0) { run.y = 0; run.vy = 0; run.jumps = 0; }
   run.nextObs -= dx;
-  if (run.nextObs <= 0) { run.nextObs = run.speed * (0.8 + Math.random() * 0.9); spawnObs(run.nextObs); }
+  if (run.nextObs <= 0) {
+    // Минимальный промежуток = время прыжка + запас на реакцию; с уровнем убираются только «лёгкие» длинные промежутки
+    const spread = Math.max(0.3, 0.9 - 0.07 * (L - 1));
+    run.nextObs = run.speed * (airTime() + 0.15 + Math.random() * spread);
+    run.nextObs += spawnObs(run.nextObs); // широкая/сдвоенная деталь — промежуток длиннее
+  }
   const f = feetY(), me = { x: PX - 4, y: f - 42, w: 64, h: 40 };
   const pcx = PX + 28, pcy = f - 30, R = [0, 80, 130, 180][gs.upg.magnet];
   run.cn.forEach(c => {
@@ -1710,7 +1723,7 @@ function update(dt) {
     if (d < 26) { c.dead = true; run.coins++; }
   });
   run.cn = run.cn.filter(c => !c.dead && c.x > -20);
-  run.obs.forEach(o => { o.x -= dx * (o.k === "zap" ? 1.15 : 1); });
+  run.obs.forEach(o => { o.x -= dx; });
   run.obs = run.obs.filter(o => o.x + o.w > -20);
   if (run.inv > 0) { run.inv -= dt; return; }
   for (const o of run.obs) {
@@ -1784,6 +1797,10 @@ function drawObs(o) {
     rr(x, y + 6, w, h - 6, 3); darkBody();
     ctx.fillStyle = "#d9822b"; ctx.fillRect(x, y + 6, w, (h - 6) * 0.45);
     ctx.fillStyle = "#fff"; ctx.font = "bold 14px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.fillText("+", x + w / 2, y + 22);
+  } else if (o.k === "spark") {  // искра по земле — мерцает
+    ctx.save(); ctx.shadowColor = C.warn; ctx.shadowBlur = 10 + 6 * Math.sin(run.t * 30); ctx.fillStyle = C.warn;
+    ctx.beginPath(); [[0, 16], [8, 4], [12, 11], [18, 0], [22, 10], [30, 16]].forEach(([px, py], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x + px, y + py));
+    ctx.closePath(); ctx.fill(); ctx.restore();
   } else {                        // искра
     ctx.save(); ctx.shadowColor = C.warn; ctx.shadowBlur = 14; ctx.fillStyle = C.warn;
     ctx.beginPath(); [[0, 9], [15, 0], [13, 6], [38, 3], [21, 18], [23, 11], [0, 14]].forEach(([px, py], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x + px, y + py));
@@ -1847,6 +1864,14 @@ function draw() {
   ctx.font = "13px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.muted; ctx.fillText(`рекорд ${best()}`, W - 16, 52);
   ctx.textAlign = "left"; ctx.font = "600 20px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.blue; ctx.fillText(`e⁻ ${run.coins}`, 16, 32);
   if (run.shield > 0) { ctx.font = "16px sans-serif"; ctx.fillText("🛡".repeat(run.shield), 16, 56); }
+  ctx.textAlign = "center"; ctx.font = "600 14px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.muted;
+  ctx.fillText(`уровень ${run.on || run.over ? level() : 1}`, W / 2, 26);
+  if (run.banner > 0) {
+    ctx.globalAlpha = Math.min(1, run.banner); ctx.font = "700 30px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.accent;
+    ctx.fillText(`Уровень ${run.lvl}!`, W / 2, 92);
+    ctx.font = "600 15px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.fg; ctx.fillText("Быстрее и злее", W / 2, 116);
+    ctx.globalAlpha = 1;
+  }
   if (!run.on && !run.over) overlay([["Бегущий резистор", 34, C.fg], ["Пробел, ↑ или тап — старт", 18, C.muted]]);
   else if (run.over) overlay([["Сгорел! 💥", 36, C.warn], [`Очки ${Math.floor(run.score)} · электронов +${run.coins}`, 20, C.fg], ["Пробел или тап — ещё раз", 16, C.muted]]);
   else if (run.paused) overlay([["Пауза", 34, C.fg], ["P или тап — дальше", 16, C.muted]]);
