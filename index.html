@@ -396,6 +396,7 @@ footer code { font-family: var(--font-mono); }
       <h2>Транзистор как ключ <small>нагрузка от пина МК</small></h2>
       <div class="seg" role="group" aria-label="Тип транзистора">
         <button type="button" id="trB" aria-pressed="true">Биполярный NPN</button>
+        <button type="button" id="trP" aria-pressed="false">Биполярный PNP</button>
         <button type="button" id="trM" aria-pressed="false">MOSFET (N-канал)</button>
       </div>
       <div class="split">
@@ -408,6 +409,9 @@ footer code { font-family: var(--font-mono); }
             <label>Усиление β (h21э)<input id="tBeta" value="100"></label>
             <label>Uбэ, В<input id="tVbe" value="0.7"></label>
             <label>Запас по току базы, раз<input id="tK" value="5"></label>
+          </div>
+          <div class="fields" id="fTrP" hidden>
+            <label>Питание нагрузки, В<input id="tVs" value="3.3"></label>
           </div>
           <div class="fields" id="fTrM" hidden>
             <label>Rds(on), Ом<input id="tRds" value="50m"></label>
@@ -1167,7 +1171,7 @@ function updateBat() {
 ["bCap", "bV", "bIw", "bIs", "bDuty", "bEff"].forEach(id => $(id).addEventListener("input", updateBat));
 
 /* ---------- Транзистор как ключ ---------- */
-let trMode = "b"; // b — биполярный NPN, m — N-канальный MOSFET
+let trMode = "b"; // b — биполярный NPN, p — биполярный PNP, m — N-канальный MOSFET
 // Ближайший номинал E24 вниз: резистор меньше → ток базы чуть больше → ключ надёжно открыт
 function e24Down(v) {
   const dec = Math.pow(10, Math.floor(Math.log10(v))), n = v / dec;
@@ -1176,6 +1180,7 @@ function e24Down(v) {
 }
 // Схема: пин → резистор → база/затвор, подтяжка к земле, нагрузка в цепи коллектора/стока
 function drawTr(rLabel, ind) {
+  if (trMode === "p") { drawPnp(rLabel, ind); return; }
   const B = trMode === "b";
   const [lb, lc, le] = B ? ["Б", "К", "Э"] : ["З", "С", "И"];
   const gnd = (x, y) => `<line x1="${x - 12}" y1="${y}" x2="${x + 12}" y2="${y}"/><line x1="${x - 7}" y1="${y + 5}" x2="${x + 7}" y2="${y + 5}"/><line x1="${x - 2}" y1="${y + 10}" x2="${x + 2}" y2="${y + 10}"/>`;
@@ -1209,11 +1214,51 @@ function drawTr(rLabel, ind) {
   }
   $("trSchem").innerHTML = s;
 }
+// PNP: эмиттер к плюсу, нагрузка между коллектором и землёй; стрелка эмиттера смотрит в базу
+function drawPnp(rLabel, ind) {
+  const gnd = (x, y) => `<line x1="${x - 12}" y1="${y}" x2="${x + 12}" y2="${y}"/><line x1="${x - 7}" y1="${y + 5}" x2="${x + 7}" y2="${y + 5}"/><line x1="${x - 2}" y1="${y + 10}" x2="${x + 2}" y2="${y + 10}"/>`;
+  let s = `<text x="222" y="13">+U пит</text><line x1="230" y1="18" x2="230" y2="104"/>
+    <line x1="182" y1="30" x2="230" y2="30"/><circle class="solid" cx="230" cy="30" r="3"/>
+    <circle cx="222" cy="128" r="24"/>
+    <line x1="212" y1="114" x2="212" y2="142"/><line x1="212" y1="121" x2="230" y2="104"/><line x1="212" y1="135" x2="230" y2="152"/>
+    <polyline class="solid" points="214,123 222,114 224,121 214,123"/>
+    <line x1="230" y1="152" x2="230" y2="158"/><rect x="212" y="158" width="36" height="28" rx="4"/>
+    <text x="196" y="176" text-anchor="end">нагрузка</text><line x1="230" y1="186" x2="230" y2="196"/>${gnd(230, 196)}
+    <line x1="212" y1="128" x2="160" y2="128"/>
+    <rect x="110" y="121" width="50" height="14" rx="2"/><text class="val" x="135" y="146" text-anchor="middle">${rLabel}</text>
+    <line x1="110" y1="128" x2="48" y2="128"/><circle class="solid" cx="44" cy="128" r="4"/>
+    <text x="8" y="116">пин МК</text><text class="val" x="8" y="150">LOW = вкл</text>
+    <circle class="solid" cx="182" cy="128" r="3"/><line x1="182" y1="128" x2="182" y2="104"/>
+    <rect x="176" y="76" width="12" height="28" rx="2"/><line x1="182" y1="76" x2="182" y2="30"/>
+    <text x="170" y="94" text-anchor="end">10 кОм</text>
+    <text x="200" y="122" text-anchor="end">Б</text><text x="238" y="112">Э</text><text x="238" y="152">К</text>`;
+  if (ind) {
+    // Защитный диод параллельно нагрузке, катодом к коллектору (к плюсу нагрузки)
+    s += `<polyline points="230,156 272,156 272,190 230,190"/><polyline class="solid" points="265,180 279,180 272,168 265,180"/>
+      <line x1="265" y1="167" x2="279" y2="167"/><text x="284" y="176" text-anchor="end" dx="14">VD</text>`;
+  }
+  $("trSchem").innerHTML = s;
+}
 function updateTr() {
   const Vp = parse($("tVp").value), Il = parse($("tIl").value), ind = $("tInd").checked;
   const out = $("trOut");
   const diode = ind ? `<span class="warn">Индуктивная нагрузка: поставь диод параллельно ей, катодом к плюсу (1N4148 для реле, 1N4007 или Шоттки для мотора). Без него выброс при выключении убьёт транзистор.</span>` : "";
-  if (trMode === "b") {
+  if (trMode === "p") {
+    const Vs = parse($("tVs").value), beta = parse($("tBeta").value), Veb = parse($("tVbe").value), k = parse($("tK").value) || 1;
+    if (!(Vs > Veb && Il > 0 && beta > 0)) { out.innerHTML = `<span class="warn">Заполни поля: питание нагрузки должно быть больше Uэб.</span>`; drawTr("Rб = ?", ind); return; }
+    // Ключ открыт, когда пин в LOW (0 В): ток базы идёт от плюса через эмиттер-базу и Rб в пин
+    const Ib = (Il / beta) * k, Rb = (Vs - Veb) / Ib, Rbs = e24Down(Rb), IbReal = (Vs - Veb) / Rbs;
+    const pick = Il <= 0.1 ? "BC557, 2N3906, КТ3107" : Il <= 0.5 ? "BC327, S8550, 2N2907" : Il <= 1.5 ? "BD140, TIP32" : "лучше P-MOSFET";
+    let html = `<div class="big">Rб = ${fmt(Rbs, "Ом")}</div>` +
+      row("Точный расчёт", fmt(Rb, "Ом")) + row("Ток базы (втекает в пин)", fmt(IbReal, "А")) +
+      row("Нагрев транзистора (Uэк нас ≈ 0.2 В)", fmt(Il * 0.2, "Вт")) + row("Подойдёт", pick) +
+      row("Логика", "пин LOW — нагрузка включена, HIGH — выключена") +
+      row("Подтяжка база–плюс", "10 кОм — чтобы ключ был закрыт, пока МК стартует");
+    if (Vs > Vp + 0.3) html += `<span class="warn">Нагрузка питается от ${fmt(Vs, "В")}, а пин даёт максимум ${fmt(Vp, "В")}. В HIGH на базе будет ${fmt(Vp, "В")} — для PNP это всё ещё «открыто», нагрузка не выключится. Поставь перед PNP маленький NPN-ключ (BC547), который будет тянуть базу к земле, или питай нагрузку от того же напряжения, что и МК.</span>`;
+    if (IbReal > 0.02) html += `<span class="warn">В пин втекает больше 20 мА — многовато для ESP32 и Arduino. Возьми транзистор с большим β или P-MOSFET.</span>`;
+    out.innerHTML = html + diode;
+    drawTr(`Rб ${fmt(Rbs, "Ом")}`, ind);
+  } else if (trMode === "b") {
     const beta = parse($("tBeta").value), Vbe = parse($("tVbe").value), k = parse($("tK").value) || 1;
     if (!(Vp > Vbe && Il > 0 && beta > 0)) { out.innerHTML = `<span class="warn">Заполни поля: напряжение пина должно быть больше Uбэ.</span>`; drawTr("Rб = ?", ind); return; }
     // Ток базы с запасом k, чтобы транзистор точно вошёл в насыщение (полностью открылся)
@@ -1243,14 +1288,17 @@ function updateTr() {
 function setTr(m) {
   trMode = m;
   $("trB").setAttribute("aria-pressed", m === "b");
+  $("trP").setAttribute("aria-pressed", m === "p");
   $("trM").setAttribute("aria-pressed", m === "m");
-  $("fTrB").hidden = m !== "b";
+  $("fTrB").hidden = m === "m";
+  $("fTrP").hidden = m !== "p";
   $("fTrM").hidden = m !== "m";
   updateTr();
 }
 $("trB").onclick = () => setTr("b");
+$("trP").onclick = () => setTr("p");
 $("trM").onclick = () => setTr("m");
-["tVp", "tIl", "tBeta", "tVbe", "tK", "tRds", "tVth", "tInd"].forEach(id => {
+["tVp", "tIl", "tVs", "tBeta", "tVbe", "tK", "tRds", "tVth", "tInd"].forEach(id => {
   $(id).addEventListener("input", updateTr);
   $(id).addEventListener("change", updateTr);
 });
@@ -1278,7 +1326,7 @@ const MODS = {
   ohm: { s: "Закон Ома", t: "Закон Ома", d: "U, I, R, P, соединения и провода", cat: "circ", k: "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель" },
   div: { s: "Делитель", t: "Делитель напряжения", d: "Выходное напряжение двух резисторов", cat: "circ", k: "делитель напряжения ацп" },
   led: { s: "LED", t: "Резистор для светодиода", d: "Номинал и мощность резистора", cat: "circ", k: "светодиод led резистор ток" },
-  tr: { s: "Ключ", t: "Транзистор как ключ", d: "Включить реле, мотор или ленту пином МК", cat: "circ", k: "транзистор ключ npn mosfet мосфет база затвор реле мотор пин esp32 arduino" },
+  tr: { s: "Ключ", t: "Транзистор как ключ", d: "Включить реле, мотор или ленту пином МК", cat: "circ", k: "транзистор ключ npn pnp mosfet мосфет база затвор реле мотор пин esp32 arduino" },
   rc: { s: "RC", t: "RC-фильтр", d: "Частота среза и постоянная времени", cat: "sig", k: "rc фильтр конденсатор частота среза постоянная времени" },
   t555: { s: "NE555", t: "Таймер NE555", d: "Генератор, одиночный импульс, осциллограмма", cat: "sig", k: "555 таймер генератор импульс мигалка частота осциллограф" },
   freq: { s: "Частота", t: "Частота и длина волны", d: "f, T, λ, антенна и шкала спектра", cat: "sig", k: "частота период длина волны антенна спектр радио свет wi-fi" },
@@ -1389,7 +1437,7 @@ if (saved) {
   if (Array.isArray(saved.ohmOrder) && saved.ohmOrder.length === 2 && saved.ohmOrder.every(id => ohmIds.includes(id))) ohmOrder = saved.ohmOrder;
   if (saved.smdKind === "C") smdKind = "C";
   if (["a", "r", "m"].includes(saved.mode555)) mode555 = saved.mode555;
-  if (saved.trMode === "m") trMode = "m";
+  if (["b", "p", "m"].includes(saved.trMode)) trMode = saved.trMode;
 }
 document.addEventListener("input", e => { if (e.target.id !== "search") saveState(); });
 document.addEventListener("change", saveState);
