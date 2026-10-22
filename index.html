@@ -176,6 +176,35 @@ label.check input { width: auto; accent-color: var(--accent); }
 .fviz text.lam { fill: var(--accent); font-size: 13px; font-weight: 600; }
 .fviz text.per { fill: var(--result); font-size: 13px; font-weight: 600; }
 .fviz text.now { fill: var(--fg); font-size: 12px; }
+/* Тренажёр: блиц-викторина */
+.qhead { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.qhead b { margin-left: 6px; font: 600 20px var(--font-mono); color: var(--fg); }
+.qtime { flex: 1 1 160px; height: 8px; border: 1px solid var(--line); border-radius: 99px; background: var(--bg); overflow: hidden; }
+.qtime span { display: block; height: 100%; width: 100%; background: var(--result); }
+.qtime.low span { background: var(--warn); }
+.qprompt { font: 500 20px var(--font-display); text-align: center; text-wrap: balance; }
+.qprompt .chip { display: inline-block; margin-top: 8px; padding: 8px 22px; border-radius: 6px; background: #1d1f21; color: #e9ecef; font: 700 40px var(--font-mono); letter-spacing: .12em; box-shadow: inset 0 -4px 0 #000; }
+.qres { display: block; width: 100%; max-width: 440px; height: auto; margin: 0 auto; }
+.qopts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.qopts button {
+  padding: 14px 10px; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); color: var(--fg);
+  font: 600 18px var(--font-mono); cursor: pointer; overflow-wrap: anywhere;
+}
+.qopts button:hover:not(:disabled) { border-color: var(--accent); }
+.qopts button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.qopts button .k { margin-right: 8px; font-size: 11px; color: var(--muted); }
+.qopts button.ok { background: var(--result); border-color: var(--result); color: var(--bg); }
+.qopts button.bad { background: var(--warn); border-color: var(--warn); color: #fff; }
+.qopts button.ok .k, .qopts button.bad .k { color: inherit; }
+.qfeed { min-height: 1.5em; margin: 0; text-align: center; font-size: 14px; }
+.qfeed.ok { color: var(--result); }
+.qfeed.bad { color: var(--warn); }
+.qintro { margin: 0; text-align: center; color: var(--muted); }
+.qstart {
+  justify-self: center; padding: 12px 34px; border: 0; border-radius: 999px; cursor: pointer;
+  background: var(--accent); color: #fff; font: 600 16px var(--font-body);
+}
+.qstart:focus-visible { outline: 2px solid var(--fg); outline-offset: 2px; }
 /* Схема транзисторного ключа */
 .schem { flex: 0 1 320px; width: 100%; max-width: 320px; height: auto; margin-inline: auto; }
 .schem line, .schem rect, .schem circle, .schem polyline { stroke: var(--fg); stroke-width: 2; fill: none; }
@@ -250,6 +279,27 @@ footer code { font-family: var(--font-mono); }
   <div class="crumbs" id="crumbs" hidden><a class="tool" href="#">← Все калькуляторы</a></div>
 
   <div class="grid">
+    <section class="mod wide" id="quiz">
+      <h2>Тренажёр <small>блиц на 60 секунд</small></h2>
+      <div class="seg" role="group" aria-label="Режим тренажёра">
+        <button type="button" id="qmC" aria-pressed="true">Цвета резистора</button>
+        <button type="button" id="qmO" aria-pressed="false">Закон Ома</button>
+        <button type="button" id="qmS" aria-pressed="false">SMD-коды</button>
+      </div>
+      <div class="qhead">
+        <span>Очки<b id="qScore">0</b></span><span>Серия<b id="qStreak">0</b></span><span>Рекорд<b id="qBest">0</b></span>
+        <div class="qtime" id="qTimeBox"><span id="qTimeBar"></span></div><b id="qTime">60</b>
+      </div>
+      <p class="qintro" id="qIntro"></p>
+      <div class="stack" id="qStage" hidden>
+        <div class="qprompt" id="qPrompt"></div>
+        <svg class="qres" id="qRes" viewBox="0 0 560 150" role="img" aria-label="Резистор для угадывания" hidden></svg>
+        <div class="qopts" id="qOpts"></div>
+        <p class="qfeed" id="qFeed"></p>
+      </div>
+      <button type="button" class="qstart" id="qStart">Старт</button>
+    </section>
+
     <section class="mod wide" id="color">
       <h2>Цветовая маркировка <small>IEC 60062</small></h2>
       <div class="seg" role="group" aria-label="Число полос">
@@ -1303,6 +1353,178 @@ $("trM").onclick = () => setTr("m");
   $(id).addEventListener("change", updateTr);
 });
 
+/* ---------- Тренажёр ---------- */
+let quizMode = "c";                 // c — цвета, o — закон Ома, s — SMD-коды
+const QUIZ_SEC = 60;
+const QUIZ_INTRO = "За минуту ответь на как можно больше вопросов. Ошибка обнуляет серию, но не очки. Отвечать можно клавишами 1–4.";
+const quiz = { running: false, score: 0, streak: 0, end: 0, timer: null, q: null, lock: false };
+const pick = a => a[Math.floor(Math.random() * a.length)];
+const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
+const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
+// Правильный ответ + 3 неправильных; варианты не повторяются. extra() — запасные неправильные, если не хватило
+function makeOpts(correct, wrong, extra) {
+  const opts = [correct];
+  const add = w => { if (w && w !== "—" && !opts.includes(w) && opts.length < 4) opts.push(w); };
+  wrong.forEach(add);
+  for (let k = 2; opts.length < 4 && k < 40; k++) add(extra(k));
+  shuffle(opts);
+  return { opts, ans: opts.indexOf(correct) };
+}
+function bestOf(mode) { try { return +(JSON.parse(localStorage.getItem("calc-quiz-best")) || {})[mode] || 0; } catch (e) { return 0; } }
+function saveBest(mode, v) {
+  try { const b = JSON.parse(localStorage.getItem("calc-quiz-best")) || {}; b[mode] = v; localStorage.setItem("calc-quiz-best", JSON.stringify(b)); } catch (e) {}
+}
+const SUP = "⁰¹²³⁴⁵⁶⁷⁸⁹";
+// Вопрос «угадай номинал по цветам»: рисуем ровный резистор с 4 полосами
+function qColor() {
+  const d1 = rnd(1, 9), d2 = rnd(0, 9), mi = pick([0, 1, 2, 3, 4, 5, 6, 10]), ti = pick([10, 10, 1, 2]);
+  const m = COLORS[mi].m, v = (10 * d1 + d2) * m, f = x => fmt(x, "Ом", 3);
+  const xs = [165, 222, 262, 405], idx = [d1, d2, mi, ti];
+  const fillOf = ci => (COLORS[ci].n === "Золотой" ? "url(#qGold)" : COLORS[ci].n === "Серебряный" ? "url(#qSilver)" : COLORS[ci].c);
+  $("qRes").innerHTML = `<defs>
+      <linearGradient id="qLead" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7d8287"/><stop offset=".35" stop-color="#eef0f2"/><stop offset="1" stop-color="#5f6469"/></linearGradient>
+      <linearGradient id="qBody" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#b98c58"/><stop offset=".28" stop-color="#f2d8ab"/><stop offset=".5" stop-color="#e3c08c"/><stop offset="1" stop-color="#8f6738"/></linearGradient>
+      <linearGradient id="qShade" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#000" stop-opacity=".28"/><stop offset=".28" stop-color="#fff" stop-opacity=".35"/><stop offset=".45" stop-color="#fff" stop-opacity="0"/><stop offset="1" stop-color="#000" stop-opacity=".4"/></linearGradient>
+      <linearGradient id="qGold" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#7a5a12"/><stop offset=".3" stop-color="#fff2b0"/><stop offset=".55" stop-color="#d8ab3c"/><stop offset="1" stop-color="#6e4f0e"/></linearGradient>
+      <linearGradient id="qSilver" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#6c7176"/><stop offset=".3" stop-color="#fff"/><stop offset=".55" stop-color="#c3c7cc"/><stop offset="1" stop-color="#5c6166"/></linearGradient>
+      <path id="qBodyP" d="${$("pBody").getAttribute("d")}"/><clipPath id="qClip"><use href="#qBodyP"/></clipPath>
+    </defs>
+    <rect x="40" y="71.5" width="480" height="7" rx="3.5" fill="url(#qLead)"/><use href="#qBodyP" fill="url(#qBody)"/>
+    <g clip-path="url(#qClip)">${idx.map((ci, i) => `<path d="M${xs[i] - 8} 30 Q${xs[i] - 2} 75 ${xs[i] - 8} 120 L${xs[i] + 8} 120 Q${xs[i] + 14} 75 ${xs[i] + 8} 30 Z" fill="${fillOf(ci)}"/>`).join("")}
+      <rect x="100" y="30" width="360" height="90" fill="url(#qShade)"/></g>`;
+  const wrong = [f(v * 10), f(v / 10), d2 && d2 !== d1 ? f((10 * d2 + d1) * m) : "", f((10 * d1 + ((d2 + 1) % 10)) * m), f(v * 100)];
+  const multTxt = m >= 1 ? m.toLocaleString("ru-RU") : String(m).replace(".", ",");
+  return {
+    prompt: "Какой номинал у резистора?", res: true, ...makeOpts(f(v), wrong, k => f(v * 10 ** k)),
+    why: `${[d1, d2, mi].map(ci => COLORS[ci].n.toLowerCase()).join(", ")} → ${d1}${d2} × ${multTxt} = ${f(v)}`,
+  };
+}
+// Вопрос на закон Ома: даны две величины, найти третью
+function qOhm() {
+  const Us = [3.3, 5, 9, 12, 24], Rs = [100, 220, 330, 470, 1e3, 2.2e3, 4.7e3, 10e3], Is = [0.005, 0.01, 0.02, 0.05, 0.1, 0.2];
+  const n = x => String(+x.toPrecision(3));
+  const t = pick(["I", "U", "P", "R", "PI"]);
+  let prompt, x, unit, wrong, why;
+  if (t === "I") {
+    const U = pick(Us), R = pick(Rs); x = U / R; unit = "А";
+    prompt = `U = ${fmt(U, "В")}, R = ${fmt(R, "Ом")}. Найди ток I`; wrong = [x * 10, x / 10, R / U, U * R];
+    why = `I = U / R = ${n(U)} / ${n(R)}`;
+  } else if (t === "U") {
+    const I = pick(Is), R = pick(Rs); x = I * R; unit = "В";
+    prompt = `I = ${fmt(I, "А")}, R = ${fmt(R, "Ом")}. Найди напряжение U`; wrong = [x * 10, x / 10, R / I, I / R];
+    why = `U = I·R = ${n(I)} · ${n(R)}`;
+  } else if (t === "P") {
+    const U = pick(Us), I = pick(Is); x = U * I; unit = "Вт";
+    prompt = `U = ${fmt(U, "В")}, I = ${fmt(I, "А")}. Найди мощность P`; wrong = [x * 10, x / 10, U / I, U * U * I];
+    why = `P = U·I = ${n(U)} · ${n(I)}`;
+  } else if (t === "R") {
+    const U = pick(Us), I = pick(Is); x = U / I; unit = "Ом";
+    prompt = `U = ${fmt(U, "В")}, I = ${fmt(I, "А")}. Найди сопротивление R`; wrong = [x * 10, x / 10, U * I, I / U];
+    why = `R = U / I = ${n(U)} / ${n(I)}`;
+  } else {
+    const I = pick(Is), R = pick(Rs); x = I * I * R; unit = "Вт";
+    prompt = `I = ${fmt(I, "А")}, R = ${fmt(R, "Ом")}. Сколько тепла выделит резистор (P)?`; wrong = [x * 10, x / 10, I * R, I * R * R];
+    why = `P = I²·R = ${n(I)}² · ${n(R)}`;
+  }
+  const f = v => fmt(v, unit), cor = f(x);
+  return { prompt, res: false, ...makeOpts(cor, wrong.map(f), k => f(x * 10 ** k)), why: `${why} = ${cor}` };
+}
+// Вопрос по SMD-коду из трёх цифр
+function qSmd() {
+  const d1 = rnd(1, 9), d2 = rnd(0, 9), m = rnd(0, 5), code = `${d1}${d2}${m}`, v = (10 * d1 + d2) * 10 ** m, f = x => fmt(x, "Ом", 3);
+  const wrong = [f(v * 10), f(v / 10), f(+code), f(v * 100)];
+  return {
+    prompt: `Резистор с кодом<br><span class="chip">${code}</span>`, res: false, ...makeOpts(f(v), wrong, k => f(v * 10 ** k)),
+    why: `${code}: первые две цифры ${d1}${d2}, третья — сколько нулей дописать: ${d1}${d2} × 10${SUP[m]} = ${f(v)}`,
+  };
+}
+function quizNext() {
+  quiz.q = quizMode === "c" ? qColor() : quizMode === "o" ? qOhm() : qSmd();
+  $("qPrompt").innerHTML = quiz.q.prompt;
+  $("qRes").toggleAttribute("hidden", !quiz.q.res); // у SVG нет свойства hidden — меняем атрибут
+  $("qOpts").innerHTML = quiz.q.opts.map((o, i) => `<button type="button" data-i="${i}"><span class="k">${i + 1}</span>${o}</button>`).join("");
+  $("qFeed").textContent = "";
+  $("qFeed").className = "qfeed";
+  quiz.lock = false;
+}
+function quizHead() {
+  $("qScore").textContent = quiz.score;
+  $("qStreak").textContent = quiz.streak;
+  $("qBest").textContent = bestOf(quizMode);
+}
+function quizAnswer(i) {
+  if (!quiz.running || quiz.lock) return;
+  quiz.lock = true;
+  const btns = $("qOpts").querySelectorAll("button");
+  btns.forEach(b => { b.disabled = true; });
+  btns[quiz.q.ans].classList.add("ok");
+  const right = i === quiz.q.ans;
+  if (right) { quiz.score++; quiz.streak++; } else { quiz.streak = 0; btns[i].classList.add("bad"); }
+  $("qFeed").className = "qfeed " + (right ? "ok" : "bad");
+  $("qFeed").textContent = (right ? (quiz.streak >= 3 ? `Верно! Серия ${quiz.streak} 🔥 ` : "Верно! ") : "Не то. ") + quiz.q.why;
+  quizHead();
+  // На ошибке даём время прочитать разбор
+  setTimeout(() => { if (quiz.running) quizNext(); }, right ? 900 : 2200);
+}
+function quizTick() {
+  const left = Math.max(0, quiz.end - Date.now());
+  $("qTime").textContent = Math.ceil(left / 1000);
+  $("qTimeBar").style.width = (left / (QUIZ_SEC * 1000)) * 100 + "%";
+  $("qTimeBox").classList.toggle("low", left < 10000);
+  if (left <= 0) quizStop(true);
+}
+function quizStart() {
+  Object.assign(quiz, { running: true, score: 0, streak: 0, end: Date.now() + QUIZ_SEC * 1000 });
+  $("qIntro").hidden = true;
+  $("qStage").hidden = false;
+  $("qStart").hidden = true;
+  quizHead();
+  quizNext();
+  clearInterval(quiz.timer);
+  quiz.timer = setInterval(quizTick, 100);
+  quizTick();
+}
+// finished = true — время вышло; false — ушли со страницы или сменили режим
+function quizStop(finished) {
+  if (!quiz.running) return;
+  quiz.running = false;
+  clearInterval(quiz.timer);
+  $("qStage").hidden = true;
+  $("qStart").hidden = false;
+  $("qStart").textContent = "Ещё раз";
+  $("qIntro").hidden = false;
+  if (finished) {
+    const best = bestOf(quizMode), rec = quiz.score > best;
+    if (rec) saveBest(quizMode, quiz.score);
+    $("qIntro").textContent = rec ? `Новый рекорд: ${quiz.score}! 🏆 Попробуешь побить?` : `Время! Результат: ${quiz.score}. Рекорд: ${best}.`;
+  } else {
+    $("qIntro").textContent = QUIZ_INTRO;
+  }
+  quizHead();
+}
+function setQuizMode(m) {
+  quizStop(false);
+  quizMode = m;
+  [["c", "qmC"], ["o", "qmO"], ["s", "qmS"]].forEach(([k, id]) => $(id).setAttribute("aria-pressed", k === m));
+  $("qIntro").textContent = QUIZ_INTRO;
+  $("qStart").textContent = "Старт";
+  $("qTime").textContent = QUIZ_SEC;
+  $("qTimeBar").style.width = "100%";
+  $("qTimeBox").classList.remove("low");
+  quiz.score = 0; quiz.streak = 0;
+  quizHead();
+}
+$("qmC").onclick = () => setQuizMode("c");
+$("qmO").onclick = () => setQuizMode("o");
+$("qmS").onclick = () => setQuizMode("s");
+$("qStart").addEventListener("click", quizStart);
+$("qOpts").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) quizAnswer(+b.dataset.i); });
+document.addEventListener("keydown", e => {
+  if (!quiz.running || $("quiz").hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
+  if (e.key >= "1" && e.key <= "4") quizAnswer(+e.key - 1);
+});
+window.addEventListener("hashchange", () => { if (location.hash !== "#quiz") quizStop(false); });
+
 /* ---------- Почта ---------- */
 $("copyMail").addEventListener("click", () => {
   const btn = $("copyMail"), text = $("mail").textContent;
@@ -1314,6 +1536,7 @@ $("copyMail").addEventListener("click", () => {
 /* ---------- Главная, страницы и поиск ---------- */
 // Разделы главной: [код, название, цвет]
 const CATS = [
+  ["play", "Тренировка", "var(--warn)"],
   ["mark", "Маркировка", "var(--accent)"],
   ["circ", "Расчёт схем", "var(--result)"],
   ["sig", "Сигналы и единицы", "var(--blue)"],
@@ -1321,6 +1544,7 @@ const CATS = [
 ];
 // Для каждого калькулятора: короткое имя (меню), название, описание, раздел, слова для поиска
 const MODS = {
+  quiz: { s: "Тренажёр", t: "Тренажёр", d: "Блиц на минуту: цвета, закон Ома, SMD", cat: "play", k: "тренажёр игра квиз тест угадай блиц тренировка рекорд" },
   color: { s: "Цвета", t: "Цветовая маркировка", d: "Номинал резистора по цветным полосам", cat: "mark", k: "резистор цвет полосы маркировка номинал ткс" },
   smd: { s: "SMD", t: "SMD-маркировка", d: "Коды 103, 4R7, 01C на корпусе", cat: "mark", k: "smd smt маркировка код корпус конденсатор резистор" },
   ohm: { s: "Закон Ома", t: "Закон Ома", d: "U, I, R, P, соединения и провода", cat: "circ", k: "ом ток напряжение мощность сопротивление соединение параллельно последовательно провод сечение кабель" },
@@ -1336,6 +1560,7 @@ const MODS = {
 };
 // Иконки карточек: простые линии, цвет берут из раздела
 const ICONS = {
+  quiz: `<circle cx="24" cy="27" r="15"/><path d="M24 27v-8M20 6h8M24 6v6M36 14l3-3"/>`,
   color: `<path d="M3 24h9M36 24h9"/><rect x="12" y="15" width="24" height="18" rx="7"/><path d="M18 15v18M24 15v18M31 15v18"/>`,
   smd: `<rect x="10" y="15" width="28" height="18" rx="2"/><path d="M5 20h5M5 28h5M38 20h5M38 28h5M16 24h4M23 24h4M30 24h2"/>`,
   ohm: `<circle cx="24" cy="24" r="17"/><path d="M24 7v34M7 24h34"/>`,
@@ -1464,7 +1689,7 @@ $("smdR").setAttribute("aria-pressed", smdKind === "R");
 $("smdC").setAttribute("aria-pressed", smdKind === "C");
 setOhmTab(ohmTab);
 updateOhm(); updateNet(); updateWire(); updateDiv(); updateRC(); updateLED(); updateSMD(); updateQ(); set555(mode555);
-updateBat(); setTr(trMode);
+updateBat(); setTr(trMode); setQuizMode(quizMode);
 route();
 </script>
 
