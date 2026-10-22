@@ -2,6 +2,8 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Калькулятор электронщика: маркировка резисторов и SMD, закон Ома, делитель, RC-фильтр, резистор для светодиода, таймер NE555, перевод единиц.">
 <style>body{margin:0}[hidden]{display:none!important}img{max-width:100%}</style><title>Калькулятор электронщика</title>
@@ -1894,7 +1896,7 @@ function renderShop() {
   }).join("");
 }
 function renderBoard() {
-  const rows = gs.board.map((r, i) => `<tr class="${r.id === lastId ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.n)}</td><td>${r.s}</td><td>${r.d}</td></tr>`).join("");
+  const rows = gs.board.map((r, i) => `<tr class="${r.id === lastId ? "me" : ""}"><td>${i + 1}</td><td>${esc(r.n)}</td><td>${+r.s || 0}</td><td>${esc(r.d)}</td></tr>`).join("");
   $("gBoard").innerHTML = `<thead><tr><th>#</th><th>Ник</th><th>Очки</th><th>Дата</th></tr></thead>` +
     `<tbody>${rows || `<tr><td colspan="4">Пока пусто — сыграй первым!</td></tr>`}</tbody>`;
 }
