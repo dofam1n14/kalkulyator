@@ -2597,8 +2597,8 @@ function drawKarn() {
   const litCount = groups.reduce((a, t) => a + kTerm(t, n, names, true).split("·").filter(x => x !== "1").length, 0);
   // Режим нулей: те же группы, записанные как ДНФ инверсии — ¬Y = сумма произведений (отрицания «наоборот», чем в МКНФ)
   const inv = sop ? "" : !ones.length ? "0" : all ? "1" : groups.map(t => kTerm(t, n, names, true)).join(" + ");
-  $("kOut").innerHTML = `<div class="kfx"><div class="big">Y = ${f}</div><button type="button" class="tool" id="kCopy">Скопировать</button></div>` +
-    (sop ? "" : `<div class="kinv">¬Y = ${inv}</div><p class="hint" style="margin:0 0 6px">Это те же группы нулей, записанные для инверсии ¬Y: каждая группа — произведение, переменная с 0 в группе идёт с ¬. Закон де Моргана превращает эту строку в МКНФ выше.</p>`) +
+  $("kOut").innerHTML = `<div class="kfx"><div class="big">Y = ${f}</div><button type="button" class="tool" data-copy="y">Скопировать</button></div>` +
+    (sop ? "" : `<div class="kfx"><div class="kinv">¬Y = ${inv}</div><button type="button" class="tool" data-copy="inv" aria-label="Скопировать ¬Y">Скопировать</button></div><p class="hint" style="margin:0 0 6px">Это те же группы нулей, записанные для инверсии ¬Y: каждая группа — произведение, переменная с 0 в группе идёт с ¬. Закон де Моргана превращает эту строку в МКНФ выше.</p>`) +
     row(sop ? "МДНФ — групп из единиц" : "МКНФ — групп из нулей", `${groups.length}, букв: ${all || !ones.length ? 0 : litCount}`) +
     groups.map((t, gi) => row(`<span class="kchip" style="border-color:${K_COLORS[gi % K_COLORS.length]}"></span>${2 ** (n - lits(t, n))} клет${["ка", "ки", "ки", "ок"][Math.min(3, Math.log2(2 ** (n - lits(t, n))))]}`, kTerm(t, n, names, sop))).join("") +
     row(sop ? "Клетки с 1 (минтермы)" : "Клетки с 0 (макстермы)", ones.join(", ") || "нет") + (dc.length ? row("Клетки с X", dc.join(", ")) : "") +
@@ -2607,7 +2607,7 @@ function drawKarn() {
       : "Каждая группа нулей — одна скобка: переменная, которая в группе равна 1, входит с отрицанием."} X можно включать в группы, если они от этого растут.</p>`;
   $("kN").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.n === n));
   $("kMode").querySelectorAll("button").forEach(b => b.setAttribute("aria-pressed", +b.dataset.m === mode));
-  kz.f = f;
+  kz.f = f; kz.inv = inv;
   try { localStorage.setItem("calc-karnaugh", JSON.stringify(kz)); } catch (e) {}
 }
 const lits = (t, n) => n - [...Array(n).keys()].filter(b => t.x >> b & 1).length;
@@ -2641,11 +2641,11 @@ function kFromExpr(src) {
   drawKarn(); return true;
 }
 $("kFromE").onclick = () => kFromExpr($("lgE").value);
-// Копировать формулу ответа (без «Y =»); если буфер обмена недоступен — выделяем текст, чтобы скопировать вручную
+// Копировать формулу ответа или строку ¬Y (без «Y =» / «¬Y =»); если буфер обмена недоступен — выделяем текст, чтобы скопировать вручную
 $("kOut").addEventListener("click", e => {
-  const btn = e.target.closest("#kCopy"); if (!btn) return;
-  const t = kz.f, done = () => { btn.textContent = "Скопировано ✓"; setTimeout(() => { if (btn.isConnected) btn.textContent = "Скопировать"; }, 1500); };
-  const manual = () => { const r = document.createRange(); r.selectNodeContents($("kOut").querySelector(".big")); getSelection().removeAllRanges(); getSelection().addRange(r); btn.textContent = "Нажми Ctrl+C"; };
+  const btn = e.target.closest("button[data-copy]"); if (!btn) return;
+  const t = btn.dataset.copy === "inv" ? kz.inv : kz.f, done = () => { btn.textContent = "Скопировано ✓"; setTimeout(() => { if (btn.isConnected) btn.textContent = "Скопировать"; }, 1500); };
+  const manual = () => { const r = document.createRange(); r.selectNodeContents(btn.previousElementSibling); getSelection().removeAllRanges(); getSelection().addRange(r); btn.textContent = "Нажми Ctrl+C"; };
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, manual); else manual();
 });
 $("lgToK").onclick = () => { setLgTab("k"); kFromExpr($("lgE").value); };
