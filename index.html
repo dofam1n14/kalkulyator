@@ -417,6 +417,8 @@ label.check input { width: auto; accent-color: var(--accent); }
 /* На телефоне ответ карты и длинные кнопки сужаются и переносятся, а не распирают страницу */
 #lgKarn .pincols > .stack { grid-template-columns: minmax(0, 1fr); }
 #lgKarn .tool { white-space: normal; text-align: left; }
+.kfx { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; }
+.kfx .big { margin-bottom: 0; }
 .ksvg .kbr { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
 .ksvg.zm .kc.v1 rect { fill: var(--panel); } .ksvg.zm .kc.v0 rect { fill: var(--accent-soft); }
 .ksvg.zm .kc.v1 text:not(.mi) { fill: var(--muted); font-weight: 500; } .ksvg.zm .kc.v0 text:not(.mi) { fill: var(--fg); font-weight: 700; }
@@ -2592,7 +2594,7 @@ function drawKarn() {
   const all = ones.length + dc.length === 2 ** n && ones.length > 0;
   const f = !ones.length ? (sop ? "0" : "1") : all ? (sop ? "1" : "0") : terms.join(sop ? " + " : " · ");
   const litCount = groups.reduce((a, t) => a + kTerm(t, n, names, true).split("·").filter(x => x !== "1").length, 0);
-  $("kOut").innerHTML = `<div class="big">Y = ${f}</div>` +
+  $("kOut").innerHTML = `<div class="kfx"><div class="big">Y = ${f}</div><button type="button" class="tool" id="kCopy">Скопировать</button></div>` +
     row(sop ? "МДНФ — групп из единиц" : "МКНФ — групп из нулей", `${groups.length}, букв: ${all || !ones.length ? 0 : litCount}`) +
     groups.map((t, gi) => row(`<span class="kchip" style="border-color:${K_COLORS[gi % K_COLORS.length]}"></span>${2 ** (n - lits(t, n))} клет${["ка", "ки", "ки", "ок"][Math.min(3, Math.log2(2 ** (n - lits(t, n))))]}`, kTerm(t, n, names, sop))).join("") +
     row(sop ? "Клетки с 1 (минтермы)" : "Клетки с 0 (макстермы)", ones.join(", ") || "нет") + (dc.length ? row("Клетки с X", dc.join(", ")) : "") +
@@ -2635,6 +2637,13 @@ function kFromExpr(src) {
   drawKarn(); return true;
 }
 $("kFromE").onclick = () => kFromExpr($("lgE").value);
+// Копировать формулу ответа; если буфер обмена недоступен — выделяем текст, чтобы скопировать вручную
+$("kOut").addEventListener("click", e => {
+  const btn = e.target.closest("#kCopy"); if (!btn) return;
+  const t = "Y = " + kz.f, done = () => { btn.textContent = "Скопировано ✓"; setTimeout(() => { if (btn.isConnected) btn.textContent = "Скопировать"; }, 1500); };
+  const manual = () => { const r = document.createRange(); r.selectNodeContents($("kOut").querySelector(".big")); getSelection().removeAllRanges(); getSelection().addRange(r); btn.textContent = "Нажми Ctrl+C"; };
+  if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, manual); else manual();
+});
 $("lgToK").onclick = () => { setLgTab("k"); kFromExpr($("lgE").value); };
 $("kToE").onclick = () => {
   if (kz.v.slice(0, 2 ** kz.n).includes(2)) { $("kOut").insertAdjacentHTML("beforeend", `<span class="warn">На карте есть X: в «Своём выражении» таблица может отличаться ровно в этих клетках — так и должно быть.</span>`); }
