@@ -557,6 +557,7 @@ label.check input { width: auto; accent-color: var(--accent); }
 .simw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 .smsvg { display: block; width: 100%; height: auto; aspect-ratio: 788 / 452; user-select: none; -webkit-user-select: none; touch-action: none; cursor: crosshair; }
 .smgd { fill: var(--line); }
+.smsvg #smGrid rect { stroke: none; }
 .smsvg line, .smsvg rect, .smsvg circle, .smsvg path, .smsvg polyline { stroke: var(--fg); stroke-width: 2; fill: none; stroke-linecap: round; }
 .smsvg .smw { stroke: var(--muted); stroke-width: 3; }
 .smsvg .smwv { stroke-width: 3; }
@@ -603,6 +604,12 @@ label.check input { width: auto; accent-color: var(--accent); }
 .gview .howb h4 { margin: 14px 0 4px; font: 600 15px var(--font-display); color: var(--fg); }
 .gview .howb ul { margin: 4px 0 0; padding-left: 20px; display: grid; gap: 4px; }
 .gnear { display: grid; gap: 8px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.smsvg .trarr { fill: var(--fg); stroke: none; }
+.smsvg .smletter { font: 700 13px var(--font-mono); fill: var(--fg); text-anchor: middle; pointer-events: none; }
+.smsvg .smmeter { font: 700 12px var(--font-mono); fill: var(--accent); pointer-events: none; }
+.smsvg .smbad { stroke: var(--warn); }
+.smsvg .lampg { fill: #ffd23e; }
+.smsvg .mdot { fill: var(--accent); stroke: none; pointer-events: none; }
 </style>
 
 <div class="wrap" role="main">
@@ -666,7 +673,7 @@ label.check input { width: auto; accent-color: var(--accent); }
       </div>
       <div class="qhead">
         <span>Очки<b id="qScore">0</b></span><span>Уровень<b id="qLvl">1</b></span><span>Жизни<b id="qLives" class="qlives">❤❤❤</b></span><span>Серия<b id="qStreak">0</b></span><span>Рекорд<b id="qBest">0</b></span>
-        <div class="qtime" id="qTimeBox"><span id="qTimeBar"></span></div><b id="qTime">15</b>
+        <div class="qtime" id="qTimeBox"><span id="qTimeBar"></span></div><b id="qTime">60</b>
       </div>
       <p class="qintro" id="qIntro"></p>
       <div class="stack" id="qStage" hidden>
@@ -1174,11 +1181,13 @@ label.check input { width: auto; accent-color: var(--accent); }
           <li>Детали соединяются только концами. Точка в середине провода соединится, если поставить туда вывод.</li>
           <li>Точки на проводах — ток (от плюса к минусу), цвет провода — напряжение: зелёный выше, серый около 0 В.</li>
           <li>Курсором деталь можно перетащить — провода потянутся за ней. Тащи пустое место, чтобы сдвинуть поле; колесо мыши или два пальца — приблизить и отдалить.</li>
+          <li>Транзистор: база слева. Без резистора в базе ток базы огромный — так нельзя. Нажми на транзистор — увидишь его режим: закрыт, усиливает или открыт полностью.</li>
+          <li>Амперметр ставь в разрыв провода, вольтметр — параллельно детали; показания видны прямо на схеме.</li>
           <li>Клавиши: R — повернуть, + и − — масштаб, Delete — удалить выбранное, Ctrl+Z — отменить.</li>
         </ul>
       </div>
       <details class="how"><summary>Как это работает</summary><div class="howb"><h3>Идея</h3><p>Симулятор схем вычисляет напряжения и токи в цепи так, как это делает физика, но по уравнениям. Основа метода — узловой анализ: для каждого узла составляется уравнение, и вся система решается сразу.</p>
-<h3>Формула</h3><p>Законы Кирхгофа. Первый: сумма токов, входящих в узел, равна сумме выходящих (заряд не накапливается). Второй: сумма напряжений вдоль любого замкнутого контура равна нулю. Для резисторов ток ветви I = (Ua − Ub) / R. Подстановка в первый закон даёт систему линейных уравнений вида G · V = I, где G матрица проводимостей, V вектор неизвестных узловых напряжений. Симулятор показывает напряжения в узлах и токи через элементы. Земля принимается за 0 В.</p>
+<h3>Формула</h3><p>Законы Кирхгофа. Первый: сумма токов, входящих в узел, равна сумме выходящих (заряд не накапливается). Второй: сумма напряжений вдоль любого замкнутого контура равна нулю. Для резисторов ток ветви I = (Ua − Ub) / R. Подстановка в первый закон даёт систему линейных уравнений вида G · V = I, где G матрица проводимостей, V вектор неизвестных узловых напряжений. Симулятор показывает напряжения в узлах и токи через элементы. Земля принимается за 0 В. Нелинейные детали (светодиод, диод, стабилитрон, транзистор) считаются итерациями метода Ньютона: ток диода I = Is · (e^(U / (n · Vt)) − 1), транзистор — модель Эберса — Молла из двух таких переходов, Iк ≈ β · Iб в активном режиме.</p>
 <h3>Пример</h3><p>Два резистора по 1 кОм последовательно от 10 В. В среднем узле токи сходятся: (10 − V)/1000 = V/1000, откуда V = 5 В, ток 5 мА.</p>
 <h3>Частая ошибка</h3><p>Считать результат точным отражением реальной платы. Модели упрощены: идеальные источники, провода без сопротивления и индуктивности, нет разброса номиналов, нагрева и шумов. Симулятор проверяет идею, а не заменяет макет.</p></div></details>
     </section>
@@ -2538,9 +2547,9 @@ drawKarn();
 let quizMode = "c";                 // c — цвета, o — закон Ома, s — SMD-коды
 const QUIZ_LIVES = 3, QUIZ_PER_LVL = 5;   // 3 жизни; каждые 5 верных ответов — новый уровень
 const QUIZ_INTRO = "3 жизни. Каждые 5 верных ответов — новый уровень: вопросы сложнее, времени меньше. Ошибка или вышло время — минус жизнь. Быстрые ответы и серия дают больше очков. Отвечать можно клавишами 1–4.";
-const quiz = { running: false, score: 0, streak: 0, right: 0, lives: QUIZ_LIVES, lvl: 1, qEnd: 0, qDur: 15000, timer: null, q: null, lock: false };
-// Время на вопрос: 15 с на 1-м уровне, дальше на 2 с меньше, но не меньше 4 с
-const qDur = L => Math.max(4, 17 - 2 * L) * 1000;
+const quiz = { running: false, score: 0, streak: 0, right: 0, lives: QUIZ_LIVES, lvl: 1, qEnd: 0, qDur: 60000, timer: null, q: null, lock: false };
+// Время на вопрос: 60 с на 1-м уровне, с каждым уровнем на 15 % меньше (60, 51, 43, 37, 31…), но не меньше 10 с
+const qDur = L => Math.max(10, Math.round(60 * 0.85 ** (L - 1))) * 1000;
 const pick = a => a[Math.floor(Math.random() * a.length)];
 const rnd = (a, b) => a + Math.floor(Math.random() * (b - a + 1));
 const shuffle = a => { for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
@@ -2774,8 +2783,8 @@ function quizAnswer(i) {
   let msg;
   if (right) {
     quiz.streak++; quiz.right++;
-    // Очки: 10 за уровень + бонус за скорость (секунды в запасе), × серия (до ×2)
-    const pts = Math.round((10 * quiz.lvl + left) * (1 + 0.1 * Math.min(quiz.streak - 1, 10)));
+    // Очки: 10 за уровень + бонус за скорость (до 15 — доля оставшегося времени), × серия (до ×2)
+    const pts = Math.round((10 * quiz.lvl + 15 * left / (quiz.qDur / 1000)) * (1 + 0.1 * Math.min(quiz.streak - 1, 10)));
     quiz.score += pts;
     msg = `Верно! +${pts}` + (quiz.streak >= 3 ? ` · серия ${quiz.streak} 🔥` : "") + " ";
     const L = 1 + Math.floor(quiz.right / QUIZ_PER_LVL);
@@ -3898,9 +3907,20 @@ const SM_TOOLS = [
   ["sel", "Курсор", "Выбрать деталь, переключить кнопку или вход"], ["w", "Провод", "Щёлкай по точкам сетки, Esc — закончить"],
   ["v", "Батарейка", "Источник напряжения, + сверху/слева"], ["r", "Резистор", ""], ["led", "Светодиод", "Анод сверху/слева"], ["c", "Конденсатор", ""],
   ["sw", "Выключатель", ""], ["gnd", "Земля", "0 В — точка отсчёта"], ["lin", "Лог. вход", "Даёт 0 или 5 В, нажми, чтобы переключить"],
-  ["lout", "Лог. пробник", "Горит, если на входе больше 2,5 В"], ["and", "И", ""], ["or", "ИЛИ", ""], ["not", "НЕ", ""], ["nand", "И-НЕ", ""], ["nor", "ИЛИ-НЕ", ""], ["xor", "XOR", ""], ["del", "Удалить", "Нажми на деталь или провод"],
+  ["lout", "Лог. пробник", "Горит, если на входе больше 2,5 В"], ["and", "И", ""], ["or", "ИЛИ", ""], ["not", "НЕ", ""], ["nand", "И-НЕ", ""], ["nor", "ИЛИ-НЕ", ""], ["xor", "XOR", ""],
+  ["d", "Диод", "Анод сверху/слева, ток идёт только от анода к катоду"], ["z", "Стабилитрон", "Ставь катодом к плюсу (кнопка «Развернуть») — держит напряжение стабилизации"],
+  ["npn", "NPN", "База слева, коллектор сверху, эмиттер снизу (к земле)"], ["pnp", "PNP", "База слева, эмиттер сверху (к плюсу), коллектор снизу"],
+  ["lamp", "Лампа", "Светит тем ярче, чем больше мощность"], ["mot", "Мотор", "Крутится тем быстрее, чем больше ток; направление — от полярности"],
+  ["btn", "Кнопка", "Замкнута, только пока держишь её курсором"], ["fuse", "Предохранитель", "Сгорает, если ток больше номинала; нажми на сгоревший — заменить"],
+  ["am", "Амперметр", "Включай в разрыв цепи (последовательно)"], ["vm", "Вольтметр", "Включай параллельно детали"],
+  ["del", "Удалить", "Нажми на деталь или провод"],
 ];
-const SM_DEF = { r: 1000, v: 5, c: 100e-6 };
+const SM_DEF = { r: 1000, v: 5, c: 100e-6, z: 5.1, lamp: 50, mot: 20, fuse: 0.2 };
+// Двухвыводные детали (их можно поворачивать и разворачивать) и единицы их номинала
+const SM_TWO = ["r", "v", "c", "led", "sw", "d", "z", "lamp", "mot", "btn", "fuse", "am", "vm"];
+const SM_UNIT = { r: "Ом", v: "В", c: "Ф", z: "В", lamp: "Ом", mot: "Ом", fuse: "А" };
+const SM_NAME = { r: "Резистор", v: "Батарейка", c: "Конденсатор", led: "Светодиод", sw: "Выключатель", w: "Провод", gnd: "Земля", lin: "Логический вход", lout: "Логический пробник",
+  d: "Диод", z: "Стабилитрон", npn: "Транзистор NPN", pnp: "Транзистор PNP", lamp: "Лампа", mot: "Мотор", btn: "Кнопка", fuse: "Предохранитель", am: "Амперметр", vm: "Вольтметр" };
 const SM_GATE = { and: [(a, b) => a & b, "&"], or: [(a, b) => a | b, "1"], nand: [(a, b) => 1 - (a & b), "&", 1], nor: [(a, b) => 1 - (a | b), "1", 1], xor: [(a, b) => a ^ b, "=1"], not: [a => 1 - a, "1", 1] };
 const SM_EX = {
   led: { n: "Светодиод", els: [{ t: "v", a: [4, 6], b: [4, 9], v: 5 }, { t: "w", a: [4, 6], b: [5, 6] }, { t: "sw", a: [5, 6], b: [8, 6], on: true }, { t: "r", a: [8, 6], b: [11, 6], v: 220 },
@@ -3912,16 +3932,32 @@ const SM_EX = {
     { t: "w", a: [20, 8], b: [16, 8] }, { t: "w", a: [20, 5], b: [24, 5] }, { t: "lout", a: [24, 5] }] }, // включи — пробник загорится примерно через 0,7 с; выключи — погаснет, когда C разрядится через 47 кОм
   logic: { n: "Логика И + светодиод", els: [{ t: "lin", a: [4, 6], on: 1 }, { t: "lin", a: [4, 8], on: 0 }, { t: "w", a: [4, 6], b: [9, 6] }, { t: "w", a: [4, 8], b: [9, 8] }, { t: "and", a: [9, 7] },
     { t: "w", a: [13, 7], b: [16, 7] }, { t: "r", a: [16, 7], b: [19, 7], v: 220 }, { t: "led", a: [19, 7], b: [19, 10] }, { t: "gnd", a: [19, 10] }, { t: "w", a: [16, 7], b: [16, 4] }, { t: "lout", a: [16, 4] }] },
+  // Держи кнопку — в базу течёт ~0,4 мА, транзистор открывается и пропускает ~13 мА через светодиод
+  key: { n: "Транзисторный ключ", els: [{ t: "v", a: [3, 6], b: [3, 9], v: 5 }, { t: "gnd", a: [3, 9] }, { t: "w", a: [3, 6], b: [3, 3] }, { t: "w", a: [3, 3], b: [14, 3] },
+    { t: "r", a: [14, 3], b: [14, 6], v: 220 }, { t: "led", a: [14, 6], b: [14, 9] }, { t: "npn", a: [12, 11] }, { t: "gnd", a: [14, 13] },
+    { t: "btn", a: [6, 3], b: [6, 6], on: false }, { t: "w", a: [6, 6], b: [6, 11] }, { t: "w", a: [6, 11], b: [9, 11] }, { t: "r", a: [9, 11], b: [12, 11], v: 10000 }] },
+  // 9 В через 470 Ом на стабилитрон 5,1 В: на нём держится ~5,1 В, лишнее падает на резисторе
+  zen: { n: "Стабилитрон", els: [{ t: "v", a: [3, 4], b: [3, 7], v: 9 }, { t: "w", a: [3, 4], b: [6, 4] }, { t: "r", a: [6, 4], b: [9, 4], v: 470 }, { t: "w", a: [9, 4], b: [11, 4] },
+    { t: "z", a: [11, 7], b: [11, 4], v: 5.1 }, { t: "w", a: [11, 7], b: [3, 7] }, { t: "gnd", a: [3, 7] }, { t: "w", a: [11, 4], b: [15, 4] }, { t: "vm", a: [15, 4], b: [15, 7] }, { t: "w", a: [15, 7], b: [11, 7] }] },
+  // Лампа берёт 0,1 А; нажми кнопку — она закоротит лампу, ток резко вырастет и предохранитель сгорит
+  fuse: { n: "Предохранитель", els: [{ t: "v", a: [3, 4], b: [3, 7], v: 5 }, { t: "w", a: [3, 4], b: [5, 4] }, { t: "fuse", a: [5, 4], b: [8, 4], v: 0.2 }, { t: "am", a: [8, 4], b: [11, 4] },
+    { t: "w", a: [11, 4], b: [12, 4] }, { t: "lamp", a: [12, 4], b: [12, 7], v: 50 }, { t: "w", a: [12, 7], b: [3, 7] }, { t: "gnd", a: [3, 7] },
+    { t: "w", a: [12, 4], b: [16, 4] }, { t: "btn", a: [16, 4], b: [16, 7], on: false }, { t: "w", a: [16, 7], b: [12, 7] }] },
+  // Мотор с защитным диодом: диод стоит наоборот и ток через него не идёт, пока мотор не выключат
+  mot: { n: "Мотор и диод", els: [{ t: "v", a: [3, 4], b: [3, 7], v: 6 }, { t: "w", a: [3, 4], b: [5, 4] }, { t: "sw", a: [5, 4], b: [8, 4], on: true }, { t: "w", a: [8, 4], b: [11, 4] },
+    { t: "mot", a: [11, 4], b: [11, 7], v: 20 }, { t: "w", a: [11, 7], b: [3, 7] }, { t: "gnd", a: [3, 7] }, { t: "w", a: [11, 4], b: [14, 4] }, { t: "d", a: [14, 7], b: [14, 4] }, { t: "w", a: [14, 7], b: [11, 7] }] },
 };
 let sim = { els: [], tool: "sel", rot: 0, sel: -1, wireFrom: null, hover: null, run: true, speed: 1, t: 0, showV: true };
 try { const v = JSON.parse(localStorage.getItem("calc-sim")); if (v && Array.isArray(v.els)) sim.els = v.els; } catch (e) {}
 if (!sim.els.length) sim.els = JSON.parse(JSON.stringify(SM_EX.led.els));
 const smHist = [];
 const smKey = p => p[0] + "," + p[1];
-const isGate = t => !!SM_GATE[t], isOne = t => t === "gnd" || t === "lin" || t === "lout";
+const isGate = t => !!SM_GATE[t], isOne = t => t === "gnd" || t === "lin" || t === "lout", isTr = t => t === "npn" || t === "pnp";
 // Выводы детали: у двухвыводных — a и b, у элементов — входы слева и выход справа
 function smPins(e) {
   if (isGate(e.t)) { const [x, y] = e.a; return e.t === "not" ? [[x, y], [x + 4, y]] : [[x, y - 1], [x, y + 1], [x + 4, y]]; }
+  // Транзистор: база, коллектор, эмиттер. У NPN коллектор сверху, у PNP сверху эмиттер (он идёт к плюсу)
+  if (isTr(e.t)) { const [x, y] = e.a, k = e.t === "npn" ? 1 : -1; return [[x, y], [x + 2, y - 2 * k], [x + 2, y + 2 * k]]; }
   return isOne(e.t) ? [e.a] : [e.a, e.b];
 }
 function smSave() { try { localStorage.setItem("calc-sim", JSON.stringify({ els: sim.els })); } catch (e) {} }
@@ -3959,6 +3995,37 @@ function smSolve(A, b) {
 }
 // Светодиод: I = Is·(e^(U/(n·Vt)) − 1). Подобрано так, чтобы красный давал ~2 В при 10 мА
 const LED_IS = 1.6e-19, LED_NVT = 0.0517;
+// Кремниевый диод (как 1N4148/1N4007): ~0,68 В при 10 мА. Стабилитрон — тот же диод + пробой при обратном напряжении Uст
+const DI = { led: [LED_IS, LED_NVT], d: [4e-9, 0.046], z: [4e-9, 0.046] }, Z_IS = 5e-3, Z_NVT = 0.025;
+function smDiode(t, v, vz) {
+  const [Is, nv] = DI[t], ef = Math.exp(Math.min((t === "led" ? Math.min(v, 3) : v) / nv, 90));
+  let i = Is * (ef - 1), g = Is / nv * ef + 1e-12;
+  if (t === "z") { const er = Math.exp(Math.min(-(v + vz) / Z_NVT, 90)); i -= Z_IS * er; g += Z_IS / Z_NVT * er; } // обратный ток пробоя
+  return [i, g];
+}
+// Ограничение шага Ньютона для p-n перехода (как в SPICE): иначе экспонента «улетает» и расчёт не сходится
+const pnjLim = (vn, vo, vt, vc) => {
+  if (vn > vc && Math.abs(vn - vo) > 2 * vt) { if (vo > 0) { const a = 1 + (vn - vo) / vt; vn = a > 0 ? vo + vt * Math.log(a) : vc; } else vn = vt * Math.log(vn / vt); }
+  return vn;
+};
+const D_VCRIT = 0.046 * Math.log(0.046 / (Math.SQRT2 * 4e-9)), Z_VCRIT = Z_NVT * Math.log(Z_NVT / (Math.SQRT2 * Z_IS));
+// Транзистор — модель Эберса — Молла: два p-n перехода (база — эмиттер и база — коллектор), β = 100
+const TR_IS = 1e-14, TR_VT = 0.02585, TR_BF = 100, TR_BR = 2, TR_VCRIT = TR_VT * Math.log(TR_VT / (Math.SQRT2 * TR_IS));
+function smTrI(x) {
+  const ef = Math.exp(Math.min(x.vbe / TR_VT, 90)), er = Math.exp(Math.min(x.vbc / TR_VT, 90));
+  const If = TR_IS * (ef - 1), Ir = TR_IS * (er - 1), gf = TR_IS / TR_VT * ef + 1e-12, gr = TR_IS / TR_VT * er + 1e-12;
+  return { Ic: If - Ir * (1 + 1 / TR_BR), Ib: If / TR_BF + Ir / TR_BR, gf, gr };
+}
+// Проводимость линейных двухвыводных деталей
+function smCond(e) {
+  const t = e.t;
+  if (t === "r" || t === "lamp" || t === "mot") return 1 / Math.max(e.v, 1e-3);
+  if (t === "sw" || t === "btn") return e.on ? 100 : 1e-12; // разомкнут — почти изолятор, слабее утечки узлов на землю
+  if (t === "fuse") return e.blown ? 1e-12 : 100;
+  if (t === "am") return 100;   // амперметр — почти провод (0,01 Ом)
+  if (t === "vm") return 1e-7;  // вольтметр — 10 МОм, ток почти не берёт
+  return 0;
+}
 let smNet = null; // нетлист: узлы, детали с номерами узлов, состояние конденсаторов, светодиодов и элементов
 function smBuild() {
   const parent = {}, find = k => (parent[k] === undefined ? (parent[k] = k) : parent[k] === k ? k : (parent[k] = find(parent[k])));
@@ -3976,7 +4043,8 @@ function smBuild() {
   const old = smNet;
   els.forEach((x, i) => { // переносим состояние (заряд, напряжение на диоде) с прошлого расчёта, если деталь та же
     const prev = old && old.els[i] && old.els[i].e === x.e ? old.els[i] : null;
-    x.vc = prev ? prev.vc : 0; x.vd = prev ? prev.vd : 1.8; x.out = prev ? prev.out : 0; x.I = 0;
+    x.vc = prev ? prev.vc : 0; x.vd = prev ? prev.vd : x.e.t === "led" ? 1.8 : 0; x.out = prev ? prev.out : 0; x.I = 0;
+    x.vbe = prev ? prev.vbe || 0 : 0; x.vbc = prev ? prev.vbc || 0 : 0; x.mph = prev ? prev.mph || 0 : 0;
   });
   smNet = { n, els, nVs: els.filter(x => x.e.t === "v").length, V: Array(n + 1).fill(0), find, idx, auto, gndNone: !gnd.length };
 }
@@ -3991,12 +4059,25 @@ function smStep(dt) {
     let vs = 0;
     smNet.els.forEach(x => {
       const { e, n: [p, q] } = x, t = e.t;
-      if (t === "r") g(p, q, 1 / Math.max(e.v, 1e-3));
-      else if (t === "sw") g(p, q, e.on ? 100 : 1e-12); // разомкнут — почти изолятор, слабее утечки узлов на землю
+      const G0 = smCond(e);
+      if (G0) g(p, q, G0);
       else if (t === "c") { const G = e.v / dt; g(p, q, G); inj(p, G * x.vc); inj(q, -G * x.vc); }
-      else if (t === "led") {
-        const ex = Math.exp(Math.min(x.vd, 3) / LED_NVT), id = LED_IS * (ex - 1), gd = LED_IS / LED_NVT * ex + 1e-12;
+      else if (DI[t]) {
+        const [id, gd] = smDiode(t, x.vd, e.v);
         g(p, q, gd); const Ieq = id - gd * x.vd; inj(p, -Ieq); inj(q, Ieq);
+      } else if (isTr(t)) {
+        // Линеаризуем токи выводов около текущих напряжений переходов: I ≈ I0 + J·(V − V0)
+        const sg = t === "npn" ? 1 : -1, T = smTrI(x);
+        const cF = T.gf, cR = -T.gr * (1 + 1 / TR_BR), bF = T.gf / TR_BF, bR = T.gr / TR_BR;
+        const dB = [bF + bR, -bR, -bF], dC = [cF + cR, -cR, -cF];          // производные по Uб, Uк, Uэ
+        const J = [dB, dC, dB.map((v, k) => -(v + dC[k]))];                // ток эмиттера = −(Iб + Iк)
+        const I0 = [sg * T.Ib, sg * T.Ic, -sg * (T.Ib + T.Ic)], V0 = [0, -sg * x.vbc, -sg * x.vbe];
+        x.n.forEach((ni, i) => {
+          if (!ni) return;
+          let r = I0[i];
+          x.n.forEach((nj, j) => { r -= J[i][j] * V0[j]; if (nj) A[ni - 1][nj - 1] += J[i][j]; });
+          b[ni - 1] -= r;
+        });
       } else if (t === "v") {
         const r = N + vs++; x.row = r;
         if (p) { A[p - 1][r] += 1; A[r][p - 1] += 1; } if (q) { A[q - 1][r] -= 1; A[r][q - 1] -= 1; }
@@ -4016,6 +4097,16 @@ function smStep(dt) {
         vn = Math.max(Math.min(vn, el.vd + 0.25), el.vd - 0.5); // ограничиваем шаг — иначе экспонента «улетит»
         if (Math.abs(vn - el.vd) > 1e-6) done = false;
         el.vd = vn;
+      } else if (t === "d" || t === "z") {
+        let vn = pnjLim(V(el.n[0]) - V(el.n[1]), el.vd, 0.046, D_VCRIT);
+        if (t === "z") { const vz = el.e.v; vn = -vz - pnjLim(-vn - vz, -el.vd - vz, Z_NVT, Z_VCRIT); } // пробой — тот же переход, «зеркально»
+        if (Math.abs(vn - el.vd) > 1e-6) done = false;
+        el.vd = vn;
+      } else if (isTr(t)) {
+        const sg = t === "npn" ? 1 : -1, [nb, nc, ne] = el.n;
+        const be = pnjLim(sg * (V(nb) - V(ne)), el.vbe, TR_VT, TR_VCRIT), bc = pnjLim(sg * (V(nb) - V(nc)), el.vbc, TR_VT, TR_VCRIT);
+        if (Math.abs(be - el.vbe) > 1e-6 || Math.abs(bc - el.vbc) > 1e-6) done = false;
+        el.vbe = be; el.vbc = bc;
       } else if (isGate(t)) {
         const ins = el.n.slice(0, -1).map(i => (V(i) > 2.5 ? 1 : 0)), o = SM_GATE[t][0](...ins);
         if (o !== el.out) { el.out = o; done = false; }
@@ -4027,13 +4118,21 @@ function smStep(dt) {
   smNet.V = [0, ...x.slice(0, N)];
   smNet.els.forEach(el => {
     const { e, n: [p, q] } = el, t = e.t, u = V(p) - (q === undefined ? 0 : V(q));
-    if (t === "r") el.I = u / Math.max(e.v, 1e-3);
-    else if (t === "sw") el.I = u * (e.on ? 100 : 1e-12);
+    const G0 = smCond(e);
+    if (G0) el.I = u * G0;
     else if (t === "c") { el.I = e.v / dt * (u - el.vc); el.vc = u; }
-    else if (t === "led") el.I = LED_IS * (Math.exp(Math.min(el.vd, 3) / LED_NVT) - 1);
+    else if (DI[t]) el.I = smDiode(t, el.vd, e.v)[0];
+    else if (isTr(t)) {
+      const sg = t === "npn" ? 1 : -1, T = smTrI(el);
+      el.Ib = sg * T.Ib; el.Ic = sg * T.Ic; el.Ie = -(el.Ib + el.Ic); el.I = el.Ic;
+      el.U = sg * (V(el.n[1]) - V(el.n[2])); // Uкэ (у PNP — Uэк)
+    }
     else if (t === "v") el.I = -x[el.row]; // ток через батарейку от a к b (отрицательный, когда она отдаёт ток)
     else if (t === "lin" || isGate(t)) { const o = isGate(t) ? el.n[el.n.length - 1] : p; el.I = (((t === "lin" ? e.on : el.out) ? 5 : 0) - V(o)) / 50; }
-    el.U = u;
+    if (!isTr(t)) el.U = u;
+    if (t === "mot") el.mph += el.I * 60 * dt; // угол ротора: скорость растёт с током
+    // Предохранитель: ток выше номинала — сгорает (перерисуем схему в цикле)
+    if (t === "fuse" && !e.blown && Math.abs(el.I) > e.v) { e.blown = true; smNet.blew = true; }
   });
   sim.t += dt;
 }
@@ -4044,6 +4143,7 @@ function smWireCurrents() {
   smNet.els.forEach(el => {
     const e = el.e, P = smPins(e);
     if (e.t === "w" || e.t === "gnd" || e.t === "lout") return;
+    if (isTr(e.t)) { add(P[0], el.Ib || 0); add(P[1], el.Ic || 0); add(P[2], el.Ie || 0); return; }
     if (e.t === "lin") add(P[0], -el.I);
     else if (isGate(e.t)) add(P[P.length - 1], -el.I);
     else { add(P[0], el.I); add(P[1], -el.I); }
@@ -4084,6 +4184,16 @@ function smSymbol(e, ghost) {
     s += inv ? `<circle class="gbox" cx="${x + 59}" cy="${y}" r="5"/><line x1="${x + 64}" y1="${y}" x2="${o[0]}" y2="${o[1]}"/>` : `<line x1="${x + 54}" y1="${y}" x2="${o[0]}" y2="${o[1]}"/>`;
     return s + "</g>";
   }
+  if (isTr(t)) {
+    // Круг, база слева, коллектор и эмиттер — наклонные линии; стрелка эмиттера: у NPN наружу, у PNP внутрь
+    const [x, y] = smPx(e.a), k = t === "npn" ? 1 : -1, yc = y - 48 * k, ye = y + 48 * k;
+    const ex = x + 48, ey = y + 22 * k, ux = 26 / 30, uy = 15 * k / 30;
+    const tip = t === "npn" ? [x + 44, y + 19.7 * k] : [x + 27, y + 10 * k], d = t === "npn" ? 1 : -1;
+    const tri = [tip, [tip[0] - d * (9 * ux) - 4.5 * uy, tip[1] - d * (9 * uy) + 4.5 * ux], [tip[0] - d * (9 * ux) + 4.5 * uy, tip[1] - d * (9 * uy) - 4.5 * ux]];
+    return `<g class="${cls}"><circle class="gbox" cx="${x + 34}" cy="${y}" r="25"/><line x1="${x}" y1="${y}" x2="${x + 22}" y2="${y}"/><line class="plate" x1="${x + 22}" y1="${y - 14}" x2="${x + 22}" y2="${y + 14}"/>
+      <polyline points="${x + 22},${y - 7 * k} ${x + 48},${y - 22 * k} ${x + 48},${yc}"/><polyline points="${x + 22},${y + 7 * k} ${ex},${ey} ${x + 48},${ye}"/>
+      <path class="trarr" d="M${tri.map(q => q.map(v => v.toFixed(1)).join(" ")).join(" L")} Z"/><text class="sml" x="${x + 54}" y="${y + 4}">${t.toUpperCase()}</text></g>`;
+  }
   const [ax, ay] = smPx(e.a), [bx, by] = smPx(e.b);
   if (t === "w") return `<line class="${ghost ? "smw ghost" : "smw"}" x1="${ax}" y1="${ay}" x2="${bx}" y2="${by}"/>`;
   const ang = Math.atan2(by - ay, bx - ax) * 180 / Math.PI, L = Math.hypot(bx - ax, by - ay);
@@ -4094,11 +4204,22 @@ function smSymbol(e, ghost) {
   else if (t === "led") b = `<line x1="0" y1="0" x2="20" y2="0"/><path class="diode" d="M20 -10 L20 10 L38 0 Z"/><line class="plate" x1="38" y1="-10" x2="38" y2="10"/><line x1="38" y1="0" x2="${L}" y2="0"/>
     <path class="arr" d="M30 -12 L38 -20 M34 -20 L38 -20 L38 -16 M24 -14 L32 -22 M28 -22 L32 -22 L32 -18"/>`;
   else if (t === "sw") b = `<line x1="0" y1="0" x2="15" y2="0"/><circle cx="15" cy="0" r="3"/><circle cx="${L - 15}" cy="0" r="3"/><line class="lever" x1="15" y1="0" x2="${e.on ? L - 15 : L - 19}" y2="${e.on ? 0 : -15}"/><line x1="${L - 15}" y1="0" x2="${L}" y2="0"/>`;
+  const c = L / 2;
+  if (t === "d" || t === "z") b = `<line x1="0" y1="0" x2="${c - 9}" y2="0"/><path class="diode" d="M${c - 9} -10 L${c - 9} 10 L${c + 9} 0 Z"/><path class="plate" d="${t === "z" ? `M${c + 4} -10 L${c + 9} -10 L${c + 9} 10` : `M${c + 9} -10 L${c + 9} 10`}"/><line x1="${c + 9}" y1="0" x2="${L}" y2="0"/>`;
+  else if (t === "lamp") b = `<line x1="0" y1="0" x2="${c - 12}" y2="0"/><circle class="gbox" cx="${c}" cy="0" r="12"/><path d="M${c - 8.5} -8.5 L${c + 8.5} 8.5 M${c - 8.5} 8.5 L${c + 8.5} -8.5"/><line x1="${c + 12}" y1="0" x2="${L}" y2="0"/>`;
+  else if (t === "mot" || t === "am" || t === "vm") b = `<line x1="0" y1="0" x2="${c - 13}" y2="0"/><circle class="gbox" cx="${c}" cy="0" r="13"/><line x1="${c + 13}" y1="0" x2="${L}" y2="0"/>`;
+  else if (t === "fuse") b = e.blown
+    ? `<line x1="0" y1="0" x2="${c - 16}" y2="0"/><rect class="gbox" x="${c - 16}" y="-6" width="32" height="12"/><path class="smbad" d="M${c - 16} 0 L${c - 5} 0 L${c - 2} -4 M${c + 16} 0 L${c + 5} 0 L${c + 2} 4"/><line x1="${c + 16}" y1="0" x2="${L}" y2="0"/>`
+    : `<rect class="gbox" x="${c - 16}" y="-6" width="32" height="12"/><line x1="0" y1="0" x2="${L}" y2="0"/>`;
+  else if (t === "btn") { const yb = e.on ? -4 : -12; b = `<line x1="0" y1="0" x2="15" y2="0"/><circle cx="15" cy="0" r="3"/><circle cx="${L - 15}" cy="0" r="3"/><line x1="${L - 15}" y1="0" x2="${L}" y2="0"/><line class="lever" x1="13" y1="${yb}" x2="${L - 13}" y2="${yb}"/><line x1="${c}" y1="${yb}" x2="${c}" y2="${yb - 9}"/><line x1="${c - 7}" y1="${yb - 9}" x2="${c + 7}" y2="${yb - 9}"/>`; }
   let s = `<g class="${cls} t-${t}" transform="translate(${ax} ${ay}) rotate(${ang})">${b}</g>`;
   // Подпись номинала — рядом с деталью, не повёрнутая
   const mx = (ax + bx) / 2, my = (ay + by) / 2, vert = ax === bx;
-  const label = t === "r" ? fmt(e.v, "Ом") : t === "v" ? fmt(e.v, "В") : t === "c" ? fmt(e.v, "Ф") : t === "sw" ? (e.on ? "вкл" : "выкл") : "";
-  if (label) s += `<text class="sml" x="${vert ? mx + 14 : mx}" y="${vert ? my + 4 : my - 14}" text-anchor="${vert ? "start" : "middle"}">${label}</text>`;
+  const label = SM_UNIT[t] ? fmt(e.v, SM_UNIT[t]) + (t === "fuse" && e.blown ? " сгорел" : "") : t === "sw" ? (e.on ? "вкл" : "выкл") : "";
+  // Буква в круге прибора — не поворачиваем вместе с деталью
+  if (t === "mot" || t === "am" || t === "vm") s += `<text class="smletter" x="${mx}" y="${my + 5}">${{ mot: "M", am: "A", vm: "V" }[t]}</text>`;
+  const off = t === "lamp" || t === "mot" ? 20 : 14;
+  if (label) s += `<text class="sml" x="${vert ? mx + off : mx}" y="${vert ? my + 4 : my - off}" text-anchor="${vert ? "start" : "middle"}">${label}</text>`;
   if (t === "v") s += `<text class="sml plus" x="${vert ? ax + 10 : ax + 8}" y="${vert ? ay + 14 : ay - 8}">+</text>`;
   return s;
 }
@@ -4138,10 +4259,16 @@ function smDrawDyn(dtReal = 0) {
       if (el.I > 0.035) s += `<text class="smwarn" x="${(ax + bx) / 2 + 14}" y="${(ay + by) / 2 + 22}">сгорит!</text>`;
     }
     if (e.t === "lout") { const [x, y] = smPx(e.a); if ((smNet.V[nodeOf(e.a)] || 0) > 2.5) s += `<circle class="probe on" cx="${x + 20}" cy="${y}" r="10"/>`; }
+    if (e.t === "lamp" || e.t === "mot" || e.t === "am" || e.t === "vm") {
+      const [ax, ay] = smPx(e.a), [bx, by] = smPx(e.b), mx = (ax + bx) / 2, my = (ay + by) / 2, vert = ax === bx;
+      if (e.t === "lamp") { const f = Math.min(1, Math.abs(el.U * el.I) / 0.5); if (f > 0.02) s += `<circle class="glow lampg" cx="${mx}" cy="${my}" r="${10 + 12 * f}" style="opacity:${0.25 + 0.65 * f}"/>`; }
+      if (e.t === "mot") { const a = el.mph; s += `<circle class="mdot" cx="${(mx + 13 * Math.cos(a)).toFixed(1)}" cy="${(my + 13 * Math.sin(a)).toFixed(1)}" r="3.2"/>`; }
+      if (e.t === "am" || e.t === "vm") s += `<text class="smmeter" x="${vert ? mx + 18 : mx}" y="${vert ? my + 4 : my - 18}" text-anchor="${vert ? "start" : "middle"}">${e.t === "am" ? smFmt(Math.abs(el.I), "А") : smFmt(el.U, "В")}</text>`;
+    }
   });
   // Точки-токи: бегут по проводам и деталям, скорость растёт с током (направление — от плюса к минусу)
   smNet.els.forEach(el => {
-    const e = el.e; if (isOne(e.t) || isGate(e.t) || !el.I || Math.abs(el.I) < 1e-6) return;
+    const e = el.e; if (isOne(e.t) || isGate(e.t) || isTr(e.t) || !el.I || Math.abs(el.I) < 1e-6) return;
     const [ax, ay] = smPx(e.a), [bx, by] = smPx(e.b), L = Math.hypot(bx - ax, by - ay); if (!L) return;
     const speed = 12 + 90 * Math.sqrt(Math.min(Math.abs(el.I), 0.05) / 0.05);
     let ph = (smPhase.get(e) || 0) + Math.sign(el.I) * speed * dtReal; ph = ((ph % 16) + 16) % 16; smPhase.set(e, ph);
@@ -4162,18 +4289,29 @@ function smInfo() {
   const warn = [];
   smNet.els.forEach(el => { if (el.e.t === "v" && Math.abs(el.I) > 5) warn.push(`Через батарейку ${fmt(el.e.v, "В")} течёт ${fmt(Math.abs(el.I), "А")} — это короткое замыкание!`); });
   smNet.els.forEach(el => { if (el.e.t === "led" && el.I > 0.035) warn.push(`Через светодиод ${fmt(el.I, "А")} — больше ~30 мА он сгорит. Поставь резистор побольше.`); });
+  smNet.els.forEach(el => { if (el.e.t === "fuse" && el.e.blown) warn.push(`Предохранитель ${fmt(el.e.v, "А")} сгорел — ток был больше номинала. Убери причину и нажми на него, чтобы заменить.`); });
+  smNet.els.forEach(el => { if (isTr(el.e.t) && Math.abs(el.Ic || 0) > 0.2) warn.push(`Через транзистор ${fmt(Math.abs(el.Ic), "А")} — маленький BC547 держит до 0,1 А. Нужен транзистор мощнее или нагрузка меньше.`); });
+  smNet.els.forEach(el => { if (isTr(el.e.t) && Math.abs(el.Ib || 0) > 0.02) warn.push(`Ток базы ${fmt(Math.abs(el.Ib), "А")} — слишком много, поставь резистор в базу (обычно 1–10 кОм).`); });
   if (smNet.auto) warn.push("Нет земли: за 0 В взят минус первой батарейки.");
   let html = "";
   const el = smNet.els[sim.sel];
   if (el) {
-    const e = el.e, name = { r: "Резистор", v: "Батарейка", c: "Конденсатор", led: "Светодиод", sw: "Выключатель", w: "Провод", gnd: "Земля", lin: "Логический вход", lout: "Логический пробник" }[e.t] || `Элемент ${SM_TOOLS.find(x => x[0] === e.t)[1]}`;
+    const e = el.e, name = SM_NAME[e.t] || `Элемент ${SM_TOOLS.find(x => x[0] === e.t)[1]}`;
     html += `<div class="big">${name}</div>`;
-    if (["r", "v", "c"].includes(e.t)) html += `<label>Номинал, ${{ r: "Ом", v: "В", c: "Ф" }[e.t]}<input id="smVal" value="${fmt(e.v, "").trim()}" autocomplete="off"></label>`;
-    if (!isOne(e.t) && !isGate(e.t) && e.t !== "w") html += row("Напряжение на детали", smFmt(Math.abs(el.U), "В")) + row("Ток", smFmt(Math.abs(el.I), "А")) + row("Мощность", smFmt(Math.abs(el.U * el.I), "Вт"));
+    if (SM_UNIT[e.t]) html += `<label>${{ z: "Напряжение стабилизации", fuse: "Ток срабатывания" }[e.t] || "Номинал"}, ${SM_UNIT[e.t]}<input id="smVal" value="${fmt(e.v, "").trim()}" autocomplete="off"></label>`;
+    if (e.t === "am") html += row("Показывает ток", smFmt(Math.abs(el.I), "А"));
+    if (e.t === "vm") html += row("Показывает напряжение", smFmt(el.U, "В"));
+    if (isTr(e.t)) {
+      const on = el.vbe > 0.55, sat = on && el.vbc > 0.45, mode = !on ? "закрыт (отсечка): ток коллектора почти ноль" : sat ? "насыщение — открыт полностью, работает как замкнутый ключ" : "активный режим — усиливает: Iк ≈ β · Iб";
+      html += row("Ток базы", smFmt(Math.abs(el.Ib || 0), "А")) + row("Ток коллектора", smFmt(Math.abs(el.Ic || 0), "А")) + row(e.t === "npn" ? "Uбэ" : "Uэб", smFmt(el.vbe, "В")) + row(e.t === "npn" ? "Uкэ" : "Uэк", smFmt(el.U || 0, "В"))
+        + (on && Math.abs(el.Ib) > 1e-9 ? row("Iк / Iб", (Math.abs(el.Ic) / Math.abs(el.Ib)).toFixed(0)) : "") + `<p class="hint" style="margin:6px 0 0">Режим: ${mode}. Здесь β = 100.</p>`;
+    }
+    if (e.t === "fuse" && e.blown) html += `<button type="button" class="tool" id="smFix">Заменить предохранитель</button>`;
+    if (!isOne(e.t) && !isGate(e.t) && !isTr(e.t) && e.t !== "w" && e.t !== "am" && e.t !== "vm") html += row("Напряжение на детали", smFmt(Math.abs(el.U), "В")) + row("Ток", smFmt(Math.abs(el.I), "А")) + row("Мощность", smFmt(Math.abs(el.U * el.I), "Вт"));
     if (e.t === "c") html += row("Заряд", smFmt(Math.abs(e.v * el.U), "Кл"));
     if (e.t === "w") html += row("Напряжение", smFmt(smNet.V[smNet.idx[smNet.find(smKey(e.a))]] || 0, "В")) + row("Ток", smFmt(Math.abs(el.I), "А"));
     if (e.t === "lout" || isGate(e.t)) { const o = smPins(e).pop(); html += row("Выход", (smNet.V[smNet.idx[smNet.find(smKey(o))]] || 0) > 2.5 ? "1" : "0"); }
-    html += `<div class="plinks">${["r", "v", "c", "led", "sw"].includes(e.t) ? `<button type="button" class="tool" id="smFlip">Развернуть</button>` : ""}<button type="button" class="tool danger" id="smDel">Удалить</button></div>`;
+    html += `<div class="plinks">${SM_TWO.includes(e.t) ? `<button type="button" class="tool" id="smFlip">Развернуть</button>` : ""}<button type="button" class="tool danger" id="smDel">Удалить</button></div>`;
   } else html += `<div class="big">${smNet.els.some(x => x.e.t === "c") ? `Время: ${fmt(sim.t, "с")}` : "Схема посчитана"}</div>` + row("Деталей", sim.els.filter(e => e.t !== "w").length) + row("Узлов", smNet.n + 1) + `<p class="hint" style="margin:6px 0 0">Нажми на деталь курсором — увидишь её напряжение и ток, сможешь поменять номинал.</p>`;
   html += warn.map(w => `<span class="warn">${w}</span>`).join("");
   $("smInfo").innerHTML = html;
@@ -4184,7 +4322,7 @@ function smTools() {
   $("smTools").innerHTML = SM_TOOLS.map(([k, n, h]) => `<button type="button" data-tool="${k}" title="${h}" aria-pressed="${sim.tool === k}">${n}</button>`).join("");
   $("smRot").setAttribute("aria-pressed", !!sim.rot);
   const tip = SM_TOOLS.find(x => x[0] === sim.tool);
-  $("smHint").textContent = sim.tool === "sel" ? "Курсор: нажми на деталь, чтобы выбрать, или перетащи её; нажми на выключатель или лог. вход, чтобы переключить; тащи пустое место, чтобы сдвинуть поле." : `${tip[1]}: ${tip[2] || "нажми на точку сетки, куда поставить."}${["r", "v", "c", "led", "sw"].includes(sim.tool) ? " «Повернуть» — вертикально/горизонтально." : ""}`;
+  $("smHint").textContent = sim.tool === "sel" ? "Курсор: нажми на деталь, чтобы выбрать, или перетащи её; нажми на выключатель или лог. вход, чтобы переключить, держи кнопку, чтобы замкнуть; тащи пустое место, чтобы сдвинуть поле." : `${tip[1]}: ${tip[2] || "нажми на точку сетки, куда поставить."}${SM_TWO.includes(sim.tool) ? " «Повернуть» — вертикально/горизонтально." : ""}`;
 }
 
 /* --- Мышь и клавиатура --- */
@@ -4199,6 +4337,7 @@ function smHit(x, y) {
   sim.els.forEach((e, i) => {
     let d;
     if (isGate(e.t)) { const [gx, gy] = smPx(e.a); d = x > gx + 10 && x < gx + 70 && y > gy - 32 && y < gy + 32 ? 0 : 99; }
+    else if (isTr(e.t)) { const [gx, gy] = smPx(e.a); d = Math.hypot(x - gx - 34, y - gy) < 27 ? 0 : 99; }
     else if (isOne(e.t)) { const [px, py] = smPx(e.a), cx = e.t === "lin" ? px - 23 : e.t === "lout" ? px + 20 : px, cy = e.t === "gnd" ? py + 12 : py; d = Math.hypot(x - cx, y - cy) - 6; }
     else {
       const [ax, ay] = smPx(e.a), [bx, by] = smPx(e.b), L2 = (bx - ax) ** 2 + (by - ay) ** 2;
@@ -4212,9 +4351,9 @@ function smHit(x, y) {
 function smNew(g) {
   const t = sim.tool, [x, y] = g;
   if (isOne(t)) return { t, a: g, ...(t === "lin" ? { on: 0 } : {}) };
-  if (isGate(t)) return { t, a: g };
+  if (isGate(t) || isTr(t)) return { t, a: g };
   const b = sim.rot ? [x, y + SM.LEN] : [x + SM.LEN, y];
-  return { t, a: g, b, ...(SM_DEF[t] ? { v: SM_DEF[t] } : {}), ...(t === "sw" ? { on: false } : {}) };
+  return { t, a: g, b, ...(SM_DEF[t] ? { v: SM_DEF[t] } : {}), ...(t === "sw" || t === "btn" ? { on: false } : {}) };
 }
 /* --- Масштаб и сдвиг поля: меняем viewBox, а не размер картинки --- */
 const smVB = { x: 0, y: 0, w: SM.VW, h: SM.VH };
@@ -4307,6 +4446,7 @@ $("smSvg").addEventListener("pointerdown", ev => {
     if (i < 0) { sim.sel = -1; smDrawStatic(); smDrag = { kind: "pan", sx: ev.clientX, sy: ev.clientY, vb: { ...smVB } }; return; }
     // Нажали на деталь: выбираем; дальше либо потащим, либо (без движения) переключим кнопку/вход
     sim.sel = i; smDrag = { kind: "el", i, g0: P.g, last: P.g, moved: false, snap: JSON.stringify(sim.els) };
+    if (sim.els[i].t === "btn") sim.els[i].on = true; // кнопка без фиксации: нажали — замкнулась
     smDrawStatic(); return;
   }
   smPush();
@@ -4358,9 +4498,12 @@ function smUp(ev) {
   if (d.kind === "pinch") { if (smPtr.size < 2) smDrag = null; return; }
   smDrag = null;
   if (d.kind !== "el") return;
+  const e0 = sim.els[d.i]; if (e0 && e0.t === "btn") e0.on = false; // отпустили — разомкнулась
   if (d.moved) { smHist.push(d.snap); if (smHist.length > 60) smHist.shift(); smTidy(); sim.sel = -1; smDrawStatic(); return; } // отпустили — выпрямляем, режем провода и сохраняем
   const e = sim.els[d.i]; // просто нажатие без движения — переключаем выключатель или логический вход
   if (e && (e.t === "sw" || e.t === "lin")) { smPush(); if (e.t === "sw") e.on = !e.on; else e.on = e.on ? 0 : 1; smDrawStatic(); }
+  else if (e && e.t === "fuse" && e.blown) { smPush(); e.blown = false; smDrawStatic(); }
+  else if (e && e.t === "btn") smDrawStatic();
 }
 $("smSvg").addEventListener("pointerup", smUp);
 $("smSvg").addEventListener("pointercancel", smUp);
@@ -4389,6 +4532,7 @@ $("smInfo").addEventListener("click", ev => {
   const el = sim.els[sim.sel]; if (!el) return;
   if (ev.target.closest("#smDel")) { smPush(); sim.els.splice(sim.sel, 1); sim.sel = -1; smDrawStatic(); }
   if (ev.target.closest("#smFlip")) { smPush(); [el.a, el.b] = [el.b, el.a]; smDrawStatic(); }
+  if (ev.target.closest("#smFix")) { smPush(); el.blown = false; smDrawStatic(); }
 });
 // Сетка — точками, через узор SVG
 $("smGrid").innerHTML = `<defs><pattern id="smDots" x="10" y="10" width="${SM.G}" height="${SM.G}" patternUnits="userSpaceOnUse"><circle cx="0" cy="0" r="1.3" class="smgd"/></pattern></defs><rect x="0" y="0" width="${SM.COLS * SM.G + 20}" height="${SM.ROWS * SM.G + 20}" fill="url(#smDots)"/>`;
@@ -4399,6 +4543,7 @@ function smLoop(ts) {
   if (!$("sim").hidden && sim.run && smNet) {
     const hasC = smNet.els.some(x => x.e.t === "c"), steps = hasC ? Math.max(1, Math.round(dtReal * 1000 * sim.speed)) : 1;
     for (let k = 0; k < Math.min(steps, 400); k++) smStep(1e-3);
+    if (smNet.blew) smDrawStatic();
     smWireCurrents(); smDrawDyn(dtReal);
     if (Math.round(ts / 250) !== Math.round((ts - dtReal * 1000) / 250)) smInfo(); // панель — 4 раза в секунду, чтобы поле номинала не дёргалось
   }
@@ -5418,7 +5563,10 @@ const GLOSS_ART = {
     sym: "" },
   "Мультиметр": {
     look: `<rect x="58" y="4" width="84" height="112" rx="12" fill="#f2b705"/><rect x="66" y="12" width="68" height="100" rx="6" fill="#2b2f33"/><rect x="72" y="18" width="56" height="26" rx="2" fill="#a9c5a0"/><text x="100" y="38" text-anchor="middle" font-family="monospace" font-size="16" fill="#1d2a1c">12.34</text><circle cx="100" cy="74" r="18" fill="#4b5259"/><path d="M100 74l10-12" stroke="#f2b705" stroke-width="4"/><circle cx="80" cy="104" r="4" fill="#d64545"/><circle cx="100" cy="104" r="4" fill="#111"/><circle cx="120" cy="104" r="4" fill="#d64545"/>`,
-    sym: `<circle class="sl" cx="80" cy="40" r="24"/><text class="st" x="80" y="46" text-anchor="middle" style="font-size:18px">V</text><path class="sl" d="M10 40h46M104 40h46"/>` },
+    // Отдельного значка «мультиметр» на схемах нет: рисуют прибор в нужном режиме — вольтметр, амперметр или омметр
+    sym: `<path class="sl" d="M2 32h11M41 32h25M94 32h25M147 32h11"/><circle class="sl" cx="27" cy="32" r="14"/><circle class="sl" cx="80" cy="32" r="14"/><circle class="sl" cx="133" cy="32" r="14"/>
+      <text class="st" x="27" y="37" text-anchor="middle" style="font-size:15px">V</text><text class="st" x="80" y="37" text-anchor="middle" style="font-size:15px">A</text><text class="st" x="133" y="37" text-anchor="middle" style="font-size:15px">Ω</text>
+      <text class="st" x="27" y="66" text-anchor="middle" style="font-size:8px;font-weight:500">вольтметр</text><text class="st" x="80" y="66" text-anchor="middle" style="font-size:8px;font-weight:500">амперметр</text><text class="st" x="133" y="66" text-anchor="middle" style="font-size:8px;font-weight:500">омметр</text>` },
   "Осциллограф": {
     look: `<rect x="20" y="16" width="160" height="92" rx="6" fill="#3a3f44"/><rect x="30" y="26" width="96" height="70" rx="3" fill="#0d1b12"/><path d="M30 61h96M78 26v70" stroke="#1d3a26"/><path d="M30 61c8-30 16-30 24 0s16 30 24 0 16-30 24 0 16 30 24 0" stroke="#4ce38a" stroke-width="2" fill="none"/>${[0, 1, 2].map(i => `<circle cx="${146}" cy="${38 + i * 22}" r="7" fill="#8b9196"/><circle cx="${166}" cy="${38 + i * 22}" r="5" fill="#8b9196"/>`).join("")}`,
     sym: "" },
@@ -5445,6 +5593,564 @@ function chipLook(n, name, body = "#23272b", text = "#c4c9ce") {
   for (let i = 0; i < half; i++) { const x = x0 + 12 + i * ((w - 24) / Math.max(1, half - 1)); s += `<rect x="${x - 3}" y="18" width="6" height="12" fill="${LEAD}"/><rect x="${x - 3}" y="86" width="6" height="12" fill="${LEAD}"/>`; }
   return s + `<text x="100" y="62" text-anchor="middle" font-size="${n > 8 ? 12 : 13}" font-weight="600" fill="${text}">${name}</text>`;
 }
+
+// Статьи и рисунки для остальных компонентов
+Object.assign(GLOSS_DETAIL, {
+  "DIP": `<h4>Что это</h4>
+<p>DIP (Dual In-line Package, «двухрядный корпус») — классический корпус микросхем с выводами, торчащими вниз в два ряда. Именно так выглядит «чёрный жучок» из учебников: ATmega328P, NE555, LM358, 74HC595. Для новичка это самый удобный корпус: его легко воткнуть в макетную плату и запаять обычным паяльником.</p>
+<h4>Как устроен и работает</h4>
+<p>Пластиковый прямоугольник с кристаллом внутри и рядами металлических ножек по обеим длинным сторонам. Шаг между ножками — 2,54 мм (0,1 дюйма), поэтому DIP идеально ложится на макетку и на универсальную плату. Ножки вставляются в отверстия платы и пропаиваются с обратной стороны (монтаж в отверстия, THT). Ключ — выемка-«полукруг» или точка на торце: от него нумерация идёт против часовой стрелки, если смотреть сверху.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Число выводов</b> — 8, 14, 16, 18, 20, 28, 40. Цифра пишется в названии: DIP-8, DIP-28.</li>
+<li><b>Шаг выводов</b> — 2,54 мм.</li>
+<li><b>Расстояние между рядами</b> — 7,62 мм (узкий корпус, до 24 выводов) или 15,24 мм (широкий, для 28 и 40 выводов).</li>
+<li><b>Рассеиваемая мощность</b> — обычно до 1 Вт, для мощных нужны другие корпуса.</li>
+</ul>
+<h4>Варианты исполнения</h4>
+<p>PDIP — пластиковый, самый частый; CDIP — керамический, для жёстких условий. Рядом живёт SDIP с шагом 1,778 мм (тесная версия). Если нужен тот же чип в миниатюре, ищут версию в корпусе SOIC, но паять её сложнее.</p>
+<h4>Как паять и ставить</h4>
+<ul>
+<li>Не паяйте микросхему в плату напрямую, если ей предстоит замена: поставьте DIP-панельку (сокет) и вставьте чип в неё.</li>
+<li>Выпрямите ножки: они из завода слегка расставлены наружу. Прижмите ряд к столу боком.</li>
+<li>Совместите ключ микросхемы с ключом панельки или шелкографии на плате.</li>
+<li>Припаяйте два крайних вывода по диагонали, проверьте, что корпус сел ровно, и допаяйте остальные.</li>
+<li>Извлекайте чип из панельки плоской отвёрткой, подцепляя поочерёдно с обеих сторон, иначе погнёте ножки.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Учебные стенды, макетные платы, Arduino Uno (ATmega328P-PU в DIP-28), любительские конструкции, прототипы, программаторы, где чип нужно часто менять. В серийной технике DIP почти вытеснен SMD-корпусами.</p>
+<h4>Совет новичку</h4>
+<p>Самая частая ошибка — вставить микросхему «задом наперёд». Всегда ищите выемку и вторую подсказку — точку у первой ножки. Питание на перевёрнутый чип обычно убивает его за секунды и заметно нагревает.</p>`,
+
+  "ESR": `<h4>Что это</h4>
+<p>ESR (Equivalent Series Resistance, эквивалентное последовательное сопротивление) — паразитное сопротивление, которое есть у любого реального конденсатора. Идеального конденсатора не существует: внутри обкладки, выводы и электролит всегда немного «сопротивляются» току. Модель простая: идеальная ёмкость плюс последовательно включённый резистор ESR.</p>
+<h4>Как устроен и работает</h4>
+<p>Когда через конденсатор течёт переменный ток (пульсации, импульсы), на ESR падает напряжение <code>U = I · ESR</code> и выделяется тепло <code>P = I² · ESR</code>. Поэтому конденсатор в блоке питания греется и «не вытягивает» пульсации. У электролитов ESR заметно выше, чем у керамики; с возрастом электролит высыхает, и ESR растёт в разы.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Типичные значения</b> — электролит 100 мкФ: 0,1–1 Ом; серии Low-ESR и полимеры: 0,01–0,05 Ом; керамика: единицы миллиом.</li>
+<li><b>Частота измерения</b> — обычно 100 кГц, в даташите ESR дают именно для неё.</li>
+<li><b>Зависимость от температуры</b> — на морозе ESR электролита растёт.</li>
+<li><b>Допустимый ток пульсаций (ripple current)</b> — связан с ESR: чем он ниже, тем больше ток можно пропустить без перегрева.</li>
+</ul>
+<h4>Где ESR вылезает</h4>
+<p>В выходных фильтрах импульсных источников: размах пульсаций почти равен <code>I_пульсаций · ESR</code>, а ёмкость играет вторую роль. Для некоторых линейных стабилизаторов (старый LM317, некоторые LDO) ESR выходного конденсатора должен лежать в заданных пределах, иначе схема возбуждается и «звенит».</p>
+<h4>Как измерить</h4>
+<ul>
+<li>Обычный мультиметр ESR не измеряет: нужен ESR-метр или LCR-метр, работающий на 100 кГц.</li>
+<li>Для проверки на плате берут ESR-метр со щупами-«крокодилами»: конденсатор перед этим лучше разрядить.</li>
+<li>Сравните результат с таблицей для вашей ёмкости и напряжения: 470 мкФ 16 В в хорошем состоянии показывает около 0,1 Ом, при 1 Ом и выше его пора менять.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Понятие нужно при подборе конденсаторов в импульсных блоках питания и DC-DC преобразователях, в платах с микроконтроллером (развязка питания), в ремонте: вздувшиеся и «высохшие» электролиты в компьютерных блоках и мониторах часто имеют нормальную ёмкость, но огромный ESR.</p>
+<h4>Совет новичку</h4>
+<p>Если импульсный источник греется, шумит или перезагружает ESP32 при нагрузке, замените входные и выходные электролиты на Low-ESR или добавьте рядом керамический конденсатор на 10–100 мкФ. Ёмкость в мкФ ещё не гарантирует хорошую работу — смотрите на ESR.</p>`,
+
+  "SOIC": `<h4>Что это</h4>
+<p>SOIC (Small Outline Integrated Circuit) — миниатюрный SMD-корпус микросхем с выводами в виде «крыльев чайки» по двум длинным сторонам. По сути, это уменьшенный DIP, который не втыкается в отверстия, а припаивается на поверхность платы.</p>
+<h4>Как устроен и работает</h4>
+<p>Пластиковое тело, по бокам отогнутые наружу и вниз выводы, лежащие на контактных площадках платы. Размеры вдвое-втрое меньше DIP: корпус SOIC-8 занимает примерно 5 × 6 мм вместе с выводами. Пайка идёт с лицевой стороны платы, отверстий сверлить не надо, поэтому плата получается компактнее и дешевле.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Шаг выводов</b> — 1,27 мм (в два раза меньше, чем у DIP).</li>
+<li><b>Ширина корпуса</b> — узкий (150 mil, около 3,9 мм) или широкий (300 mil, около 7,5 мм).</li>
+<li><b>Число выводов</b> — 8, 14, 16, 20, 24, 28: пишется в названии, например SOIC-8, SOIC-16W.</li>
+<li><b>Высота</b> — около 1,5–1,75 мм.</li>
+</ul>
+<h4>Варианты исполнения</h4>
+<p>Рядом стоят более мелкие SSOP и TSSOP (шаг 0,65 мм), MSOP, а также SOIC с теплоотводящей площадкой снизу (SOIC-8 EP). В SOIC выпускают те же микросхемы, что и в DIP: LM358, NE555, 24C02, MCP2515, TL431, драйверы моторов.</p>
+<h4>Как паять</h4>
+<ul>
+<li>Нанесите флюс на площадки, закрепите микросхему, придержав пинцетом, и припаяйте один крайний вывод.</li>
+<li>Убедитесь, что все ножки лежат на своих площадках, припаяйте противоположный угол.</li>
+<li>Пропаяйте остальные выводы тонким жалом с оловом диаметром 0,3–0,5 мм.</li>
+<li>Слиплись соседние выводы — нанесите флюс и протяните жало, излишек уберёт оплётка для выпайки.</li>
+<li>Для массовой работы удобны паяльная паста и фен на 250–300 °C.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Почти вся современная электроника: платы Arduino Nano, модули ESP, зарядные устройства, датчики. Для учёбы SOIC удобно брать на переходниках SOIC-to-DIP: микросхема уже припаяна, а вы втыкаете её в макетку.</p>
+<h4>Совет новичку</h4>
+<p>Первую SOIC-микросхему тренируйтесь паять на ненужной плате. Ставьте флюс щедро, он делает за вас половину работы и помогает олову растекаться по ножкам.</p>`,
+
+  "SOT-23": `<h4>Что это</h4>
+<p>SOT-23 — крошечный трёхвыводной SMD-корпус для транзисторов, диодов и маленьких микросхем. Размером он с рисовое зёрнышко: корпус около 2,9 × 1,3 мм. Транзистор BC847, MOSFET 2N7002, диод BAV99 — всё это SOT-23.</p>
+<h4>Как устроен и работает</h4>
+<p>Маленькое чёрное пластиковое тело и три «крыла чайки»: два вывода с одной стороны и один с противоположной. Монтаж — на поверхность платы. Тепло отводится в основном через выводы и медь платы, поэтому корпус рассчитан на небольшую мощность.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Размеры</b> — около 2,9 × 1,3 мм, высота 1 мм.</li>
+<li><b>Шаг выводов</b> — 0,95 мм.</li>
+<li><b>Рассеиваемая мощность</b> — порядка 0,2–0,35 Вт без радиатора.</li>
+<li><b>Маркировка</b> — 1–3 символа на корпусе, например 1AM или K72. Нужно искать по таблице кодов (SMD code), так как разные детали могут иметь похожие метки.</li>
+</ul>
+<h4>Варианты исполнения</h4>
+<p>SOT-23-3 (три вывода), SOT-23-5 и SOT-23-6 — для маленьких стабилизаторов, ОУ, преобразователей и датчиков. Более мощные собратья: SOT-89 и SOT-223 (например, стабилизатор AMS1117), у которых есть широкая теплоотводящая лапка.</p>
+<h4>Как определить выводы</h4>
+<ul>
+<li>Одиночный вывод сверху — часто коллектор (у биполярных) или сток (у MOSFET), но не всегда.</li>
+<li>У BC847 нумерация такая: 1 — база, 2 — эмиттер, 3 — коллектор; у 2N7002: 1 — затвор, 2 — исток, 3 — сток.</li>
+<li>Всегда сверяйтесь с даташитом конкретной детали и с кодом на корпусе: у других изготовителей порядок выводов может отличаться.</li>
+<li>Мультиметр в режиме проверки диодов поможет найти переходы, но надёжнее даташит.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Ключи для светодиодов и реле, согласование уровней 3,3 В и 5 В (2N7002), защита входов, регуляторы малой мощности. Встречается на всех современных платах: от модулей на ESP32 до зарядок.</p>
+<h4>Совет новичку</h4>
+<p>Паять SOT-23 удобно в три шага: залудить одну площадку, придержать деталь пинцетом и припаять её одну ножку, затем две оставшихся. Маркировка стирается и читается плохо, поэтому подписывайте пакетики с деталями.</p>`,
+
+  "TO-220": `<h4>Что это</h4>
+<p>TO-220 — популярный корпус для мощных деталей: линейных стабилизаторов (L7805), MOSFET (IRLZ44N, IRF540), симисторов (BT136), мощных транзисторов. Узнаётся сразу: чёрное тело с тремя выводами и металлической пластиной с отверстием, к которой крепят радиатор.</p>
+<h4>Как устроен и работает</h4>
+<p>Кристалл припаян к металлической пластине (tab). Она отводит тепло от кристалла наружу, на радиатор. Три вывода идут вниз с шагом 2,54 мм. Важный момент: пластина электрически соединена с одним из выводов, чаще всего со средним (у L7805 — с землёй, у MOSFET — со стоком).</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Число выводов</b> — 3 (бывают варианты на 2, 4 и 5).</li>
+<li><b>Шаг выводов</b> — 2,54 мм.</li>
+<li><b>Диаметр отверстия пластины</b> — около 3,7 мм, под винт M3.</li>
+<li><b>Тепловое сопротивление</b> — «кристалл — окружающая среда» около 50–60 °C/Вт без радиатора, то есть без охлаждения корпус безопасно рассеивает 1–2 Вт.</li>
+<li><b>Ток</b> — от 1 А до десятков ампер, в зависимости от детали.</li>
+</ul>
+<h4>Варианты исполнения</h4>
+<p>TO-220AB — основной, TO-220F («полная изоляция») — пластина закрыта пластиком, радиатор можно не изолировать. Более мощные: TO-247 и TO-3P. Монтаж в плату вертикально или с загнутыми выводами, прижатым к радиатору.</p>
+<h4>Как ставить на радиатор</h4>
+<ul>
+<li>Нанесите тонкий слой термопасты между пластиной и радиатором.</li>
+<li>Если пластина под напряжением, а радиатор общий, добавьте слюдяную или силиконовую прокладку и пластиковую втулку на винт.</li>
+<li>Проверьте мультиметром, что между радиатором и выводами нет замыкания.</li>
+<li>Затяните винт M3 умеренно: перетяжка гнёт корпус и ухудшает тепловой контакт.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Блоки питания, зарядные устройства, драйверы моторов, ключи на нагрузки 12–24 В, диммеры. Типичный пример: стабилизатор L7805 превращает 12 В в 5 В для платы на микроконтроллере.</p>
+<h4>Совет новичку</h4>
+<p>Посчитайте нагрев: L7805 с входом 12 В при токе 0,5 А рассеивает <code>(12 − 5) · 0,5 = 3,5 Вт</code>, а это уже горячо, нужен радиатор. Всегда смотрите, куда подключена пластина: коснуться её во включённой схеме бывает опасно.</p>`,
+
+  "Допуск": `<h4>Что это</h4>
+<p>Допуск — это насколько реальное значение детали может отличаться от номинала, написанного на ней. Резистор «100 Ом ±5 %» — это не ровно 100 Ом, а любое значение от 95 до 105 Ом. Производство не бывает идеальным, и допуск честно признаёт это.</p>
+<h4>Как устроен и работает</h4>
+<p>Допуск указывают в процентах от номинала. Деталь после производства измеряют и сортируют по группам: те, что попали в ±1 %, продают как «1 %», остальные — как «5 %». Чем уже допуск, тем дороже деталь. Это относится не только к резисторам, но и к конденсаторам, стабилитронам, источникам опорного напряжения и катушкам.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Резисторы</b> — ±5 % (ряд E24), ±1 % (E96), ±0,1 % (точные, прецизионные).</li>
+<li><b>Керамические конденсаторы</b> — ±5 %, ±10 %, ±20 %; у X7R и Y5V разброс ещё и от температуры и напряжения.</li>
+<li><b>Электролиты</b> — типично ±20 %, иногда −10…+50 %.</li>
+<li><b>Стабилитроны</b> — ±5 %, ±2 %. Реальное напряжение 5,1 В стабилитрона может оказаться 4,85…5,35 В.</li>
+<li><b>Буква-код на корпусе</b> — F = ±1 %, J = ±5 %, K = ±10 %, M = ±20 %.</li>
+</ul>
+<h4>Как посчитать влияние</h4>
+<p>Диапазон считают так: <code>R_мин = R · (1 − d)</code> и <code>R_макс = R · (1 + d)</code>. Для делителя из двух резисторов по ±5 % выходное напряжение может «плыть» примерно на ±5 %, а в худшем случае на ±10 %. Поэтому для точных цепей берут 1 % и лучше.</p>
+<h4>Как определить допуск</h4>
+<ul>
+<li>У выводных резисторов — по последней полосе: золотая = ±5 %, серебряная = ±10 %, коричневая = ±1 %, красная = ±2 %.</li>
+<li>У SMD — по буквенному коду в обозначении или в спецификации партии.</li>
+<li>Для проверки измерьте несколько резисторов одного номинала мультиметром: разброс покажет реальный допуск.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Делители для АЦП микроконтроллера, задание тока светодиода, обратная связь стабилизатора, частотозадающие цепи генераторов и фильтров. Для светодиода хватит 5 %, для опорного напряжения АЦП уже нужен 1 % или лучше.</p>
+<h4>Совет новичку</h4>
+<p>Не берите дорогой 0,1 % там, где достаточно 5 %, и не ставьте 20 %-ный конденсатор в фильтр, настроенный на конкретную частоту. Прикидывайте худший случай: если схема работает и при +5 %, и при −5 %, допуск выбран верно.</p>`,
+
+  "Номинальный ряд E24": `<h4>Что это</h4>
+<p>E24 — стандартный набор значений для резисторов (и многих конденсаторов), в котором на каждую декаду приходится 24 номинала. Поэтому в магазине вы не найдёте резистор 10,5 кОм «из коробки», зато 10 и 11 кОм будут всегда. Ряд подобран так, чтобы соседние значения отличались примерно на одинаковый процент.</p>
+<h4>Как устроен и работает</h4>
+<p>Значения идут по геометрической прогрессии: каждое следующее примерно в <code>10^(1/24) ≈ 1,1</code> раза больше предыдущего. Это значит, что шаг около 10 %, а допуск ±5 % делает так, что диапазоны соседних номиналов слегка перекрываются и «закрывают» весь диапазон без дыр. Умножив значения на 1, 10, 100, 1000 и так далее, получаем все номиналы от ом до мегаом.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Значения в декаде E24</b> — 10, 11, 12, 13, 15, 16, 18, 20, 22, 24, 27, 30, 33, 36, 39, 43, 47, 51, 56, 62, 68, 75, 82, 91.</li>
+<li><b>Допуск E24</b> — ±5 %.</li>
+<li><b>Ряд E12</b> — каждое второе значение E24 (10, 12, 15, 18, 22, 27, 33, 39, 47, 56, 68, 82), допуск ±10 %.</li>
+<li><b>Ряды E48, E96, E192</b> — более частые, допуск ±2 %, ±1 %, ±0,5 % и точнее.</li>
+</ul>
+<h4>Как пользоваться</h4>
+<p>Посчитали по формуле нужное сопротивление, например 330 Ом для светодиода, и ищем ближайшее значение из ряда. Для 4,7 кОм берём 4,7 кОм (именно такой номинал в E12 и E24 есть). Если нужной цифры нет, можно соединить два резистора последовательно или параллельно: например, 1,1 кОм ≈ 1 кОм + 100 Ом.</p>
+<h4>Как определить</h4>
+<ul>
+<li>Первые две цифры номинала всегда из таблицы ряда: 10, 11, 12 ... 91.</li>
+<li>Если на резисторе цифры «25» или «37», значит, это не E24 — либо ошибка при чтении полос, либо точный ряд E96.</li>
+<li>Для ряда E96 цифры другие: 100, 102, 105, 107 ... и допуск 1 %.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Любые покупки резисторов, расчёт делителей и токоограничивающих цепей, наборы резисторов для макетирования (в них лежат значения E12 и E24). Ряды E6 (10, 15, 22, 33, 47, 68) используют для электролитических конденсаторов: 10, 22, 47, 100 мкФ.</p>
+<h4>Совет новичку</h4>
+<p>Не пытайтесь подогнать расчёт под «круглое» число вроде 360 Ом: берите ближайшее из ряда (330 или 390). Разница в яркости светодиода будет незаметной, а деталь есть в любом магазине.</p>`,
+
+  "ТКС": `<h4>Что это</h4>
+<p>ТКС (температурный коэффициент сопротивления, по-английски TCR) показывает, насколько меняется сопротивление детали при нагреве на 1 °C. Измеряется в ppm/°C (миллионных долях на градус). Чем меньше ТКС, тем стабильнее деталь при изменениях температуры.</p>
+<h4>Как устроен и работает</h4>
+<p>Когда материал греется, носители заряда в нём рассеиваются сильнее или легче, и сопротивление меняется. У металлов оно растёт (у меди ТКС около +3900 ppm/°C), у полупроводников в NTC-термисторах падает. Для резистора ТКС — это паразитный эффект, а для термистора — основа работы.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Формула</b> — <code>ΔR = R · ТКС · ΔT / 1 000 000</code>.</li>
+<li><b>Углеродные резисторы</b> — сотни ppm/°C (до ±500).</li>
+<li><b>Металлоплёночные</b> — 50–100 ppm/°C, прецизионные — 5–25 ppm/°C.</li>
+<li><b>Манганин (шунты)</b> — около 10–20 ppm/°C.</li>
+<li><b>Конденсаторы C0G (NP0)</b> — ±30 ppm/°C; для X7R ТКС задают иначе — ±15 % во всём диапазоне температур.</li>
+</ul>
+<h4>Пример расчёта</h4>
+<p>Резистор 10 кОм с ТКС 100 ppm/°C нагрелся на 50 °C: <code>ΔR = 10 000 · 100 · 50 / 1 000 000 = 50 Ом</code>, то есть изменение на 0,5 %. Для светодиода это ерунда, а для делителя на АЦП, где требуется точность 0,1 %, уже заметно.</p>
+<h4>Как измерить</h4>
+<ul>
+<li>Измерьте сопротивление мультиметром при комнатной температуре и запишите.</li>
+<li>Аккуратно нагрейте резистор феном или паяльником сбоку до 60–80 °C и измерьте снова.</li>
+<li>Посчитайте ТКС: <code>(R2 − R1) / R1 / (T2 − T1) · 1 000 000</code>.</li>
+<li>У обычных резисторов изменение на мультиметре будет едва заметно, у термистора — огромным.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Прецизионные измерительные схемы, шунты тока, опорные источники, генераторы с точной частотой, термокомпенсация. В обычных схемах на Arduino и ESP32 ТКС важен редко.</p>
+<h4>Совет новичку</h4>
+<p>Для обычных цепей берите металлоплёночные резисторы вместо углеродных: они стоят почти столько же, но стабильнее. И запомните: ТКС в даташите указан на градус, а греться деталь может на десятки градусов, особенно в мощных цепях.</p>`,
+
+  "H-мост": `<h4>Что это</h4>
+<p>H-мост (H-bridge) — схема из четырёх ключей, которая позволяет подключить мотор к источнику питания в любой полярности. Меняя полярность, вы меняете направление вращения. Название пошло от формы схемы: четыре ключа по углам и мотор в центре образуют букву H.</p>
+<h4>Как устроен и работает</h4>
+<p>Верхние ключи (Q1, Q2) подключены к плюсу питания, нижние (Q3, Q4) — к земле, мотор включён между серединами левой и правой стоек. Включили Q1 и Q4 — ток идёт слева направо, мотор вращается «вперёд». Включили Q2 и Q3 — ток идёт справа налево, мотор вращается «назад». Если замкнуть оба нижних ключа (Q3 и Q4), обмотки замыкаются накоротко, и мотор быстро тормозит.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Напряжение питания</b> — от единиц до десятков вольт: L293D до 36 В, DRV8833 2,7–10,8 В.</li>
+<li><b>Ток на канал</b> — L293D 0,6 А, TB6612FNG 1,2 А, L298N 2 А, BTS7960 до 43 А.</li>
+<li><b>Падение на ключах</b> — у биполярных (L298N) около 2 В, у MOSFET-мостов (DRV8833) сотые доли вольта.</li>
+<li><b>Защита</b> — диоды-обратные, ограничение тока, перегрев.</li>
+</ul>
+<h4>Виды и режимы</h4>
+<p>Мост бывает собранным из дискретных MOSFET или в одной микросхеме. Режимы: вперёд, назад, свободный выбег (все ключи выключены), торможение. Для скорости на один из ключей подают ШИМ. Самое важное правило: <b>нельзя включать верхний и нижний ключ одной стойки одновременно</b> (Q1 и Q3 или Q2 и Q4) — это короткое замыкание питания, называемое сквозным током.</p>
+<h4>Как проверить</h4>
+<ul>
+<li>Подключите питание мотора и логики по даташиту, на входы подайте комбинации: IN1=1, IN2=0 — вращение вперёд; IN1=0, IN2=1 — назад; 0 и 0 — выбег; 1 и 1 — торможение (у большинства микросхем).</li>
+<li>Проверьте выходы вольтметром: между OUT1 и OUT2 должно появляться напряжение питания нужной полярности.</li>
+<li>Следите за нагревом микросхемы: сильный нагрев — признак слишком большого тока или перегруза.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Роботы на моторчиках, игрушечные машины, шаговые двигатели (по два моста на обмотки), приводы, зарядные устройства и преобразователи. На платах с Arduino обычно используют готовые модули на L298N или TB6612FNG.</p>
+<h4>Совет новичку</h4>
+<p>Не собирайте мост из случайных ключей: для верхних ключей из N-канальных MOSFET нужны специальные драйверы, а у самодельных мостов часто бывает сквозной ток. Начните с готовой микросхемы L293D или DRV8833 и добавьте конденсатор 100 мкФ по питанию мотора.</p>`,
+
+  "Варистор": `<h4>Что это</h4>
+<p>Варистор (MOV, Metal Oxide Varistor) — нелинейный резистор, который защищает схему от скачков напряжения. В нормальном режиме он практически не проводит ток, а при превышении порога резко открывается и «гасит» всплеск, как громоотвод.</p>
+<h4>Как устроен и работает</h4>
+<p>Диск из оксида цинка с зёрнами, между которыми образуются барьеры (по сути, множество встречных диодов). Пока напряжение ниже порога, сопротивление огромное (мегаомы). Когда напряжение превышает порог, барьеры пробиваются, сопротивление падает до долей ома, и ток шунтируется мимо защищаемой цепи. Работает в обе стороны, поэтому подходит для переменного тока.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Классификационное напряжение</b> — напряжение, при котором течёт 1 мА. У 10D471K — 470 В (расшифровка маркировки: 10 — диаметр диска в мм, D — диск, 471 — 47·10¹ = 470 В, K — допуск ±10 %).</li>
+<li><b>Рабочее напряжение</b> — для 10D471K до 300 В переменного (подходит для сети 220–230 В).</li>
+<li><b>Импульсный ток</b> — для диска 10 мм порядка 2,5 кА однократно (импульс 8/20 мкс).</li>
+<li><b>Энергия</b> — десятки–сотни джоулей. Чем больше диск, тем больше.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Дисковые выводные (диаметр 5, 7, 10, 14, 20 мм), SMD-варисторы 0603–1812 для низковольтных линий, блочные для промышленности. Бывают варисторы с термопредохранителем.</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Выпаяйте варистор или отключите один вывод.</li>
+<li>В режиме сопротивления (максимальный диапазон) исправный показывает бесконечность («OL») в обе стороны.</li>
+<li>Небольшое сопротивление (килоомы и меньше) означает деградацию или пробой: деталь нужно менять.</li>
+<li>Следы нагара, трещины или потемнение корпуса — тоже признак выхода из строя.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>На входе сетевых блоков питания, в удлинителях-фильтрах, в зарядках, возле реле и электродвигателей. Ставится параллельно нагрузке после предохранителя: варистор «замыкает» всплеск, предохранитель отключает цепь.</p>
+<h4>Совет новичку</h4>
+<p>Варистор не вечный: с каждым скачком он стареет, а сильный импульс может его закоротить. Всегда ставьте перед ним предохранитель, иначе при пробое варистор нагреется и загорится. Для 230 В берите модель с рабочим переменным напряжением не менее 275 В.</p>`,
+
+  "Диод Шоттки": `<h4>Что это</h4>
+<p>Диод Шоттки — диод с очень малым падением напряжения и высокой скоростью переключения. Вместо обычного p-n перехода у него контакт «металл — полупроводник». Благодаря этому он теряет меньше энергии и годится для быстрых схем.</p>
+<h4>Как устроен и работает</h4>
+<p>Ток течёт в одну сторону, как у обычного диода, но порог открытия ниже: примерно 0,15–0,45 В против 0,6–0,7 В у кремниевого. Кроме того, у него нет накопленного заряда неосновных носителей, поэтому он переключается практически мгновенно (наносекунды). Цена — больший обратный ток утечки, который растёт с температурой.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Прямое падение (Vf)</b> — 1N5819 при 1 А около 0,45 В; 1N4007 — около 1,1 В.</li>
+<li><b>Максимальное обратное напряжение</b> — 1N5819 — 40 В; 1N5822 — 40 В, 3 А; SB560 — 60 В, 5 А. Бывают до 100–200 В.</li>
+<li><b>Прямой ток</b> — от 0,2 А (BAT54) до десятков ампер.</li>
+<li><b>Ток утечки</b> — от микроампер до миллиампер при нагреве.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Выводные: 1N5817–1N5819 (DO-41), 1N5822 (DO-201). SMD: SS14 (SMA), SS34 (SMA), BAT54 (SOT-23), SS54 (SMC). Сдвоенные в корпусе TO-220 для мощных блоков питания.</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Переведите прибор в режим проверки диодов.</li>
+<li>Красный щуп — на анод, чёрный — на катод (полоска на корпусе): прибор покажет около 0,15–0,35 В.</li>
+<li>Поменяйте щупы: должна показаться бесконечность («OL»).</li>
+<li>Значение около 0,6 В — вероятно, это обычный кремниевый диод, не Шоттки. Ноль в обе стороны — пробой, бесконечность в обе — обрыв.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>В импульсных преобразователях (понижающих, повышающих), выпрямителях на малые напряжения, защите от переполюсовки, развязке двух источников питания (Arduino с USB и внешним питанием), в обратных диодах реле на высокой скорости.</p>
+<h4>Совет новичку</h4>
+<p>Диод Шоттки идеален на выходе 3,3–5 В: потери в десять раз меньше, чем у 1N4007. Но для высоких напряжений (сеть 230 В) и горячих мест берите обычные кремниевые: у Шоттки с ростом температуры растёт утечка, и он может войти в тепловой разгон.</p>`,
+
+  "Диодный мост": `<h4>Что это</h4>
+<p>Диодный мост (мостовой выпрямитель) — это четыре диода в одном корпусе, которые превращают переменное напряжение в пульсирующее постоянное. Это первое звено почти любого сетевого блока питания и зарядного устройства.</p>
+<h4>Как устроен и работает</h4>
+<p>Диоды соединены ромбом. На две вершины ромба подаётся переменное напряжение (выводы «~»), а с двух других снимается выпрямленное («+» и «−»). В положительный полупериод ток идёт через одну пару диодов, в отрицательный — через другую, и на выходе полярность остаётся одной. Частота пульсаций вдвое выше сетевой: 100 Гц при 50 Гц на входе.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Максимальный прямой ток</b> — KBP307: 3 А; KBU1010: 10 А; DB107: 1 А.</li>
+<li><b>Обратное напряжение</b> — KBP307: 700 В. Для сети 230 В (амплитуда 325 В) берите не менее 400–600 В.</li>
+<li><b>Падение напряжения</b> — на мосту теряется два диода, около 1,2–1,4 В. Выход: <code>U_пик ≈ U_вх · 1,414 − 1,4</code>.</li>
+<li><b>Ёмкость фильтра</b> — для сглаживания пульсаций ставят конденсатор: <code>C ≈ I / (2 · f · ΔU)</code>, где f = 50 Гц.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Готовые мосты в корпусах DB (круглые, малого тока), KBP/KBL/KBU (плоские с выводами), GBJ (с металлической подложкой для радиатора), SMD-варианты ABS и MB10S. Можно собрать мост из четырёх отдельных диодов 1N4007.</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Режим проверки диодов. Выводы: два «~», «+» и «−».</li>
+<li>Красный щуп на «−», чёрный на каждый «~» по очереди: прибор показывает около 0,5–0,6 В.</li>
+<li>Чёрный на «+», красный на каждый «~»: тоже около 0,5–0,6 В.</li>
+<li>Между двумя «~» и в обратных направлениях должна быть бесконечность. Короткое замыкание где-либо — мост пробит.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Сетевые адаптеры и блоки питания, зарядные устройства, питание от трансформатора (12 В AC превращается примерно в 15 В пульсирующего постоянного), выпрямление сигнала генератора, защита от неверной полярности питания.</p>
+<h4>Совет новичку</h4>
+<p>Для лабораторных опытов используйте низковольтный трансформатор, а не сеть напрямую. Не забывайте про конденсатор после моста: без него вместо постоянного напряжения получите пульсации, от которых микроконтроллер перезагрузится.</p>`,
+
+  "Драйвер мотора": `<h4>Что это</h4>
+<p>Драйвер мотора — микросхема или модуль, которая управляет мощным двигателем по слабым командам от микроконтроллера. Пин Arduino или ESP32 даёт максимум 20–40 мА, а мотору нужны сотни миллиампер и больше. Драйвер берёт на себя большой ток, а микроконтроллеру остаётся посылать управляющие сигналы.</p>
+<h4>Как устроен и работает</h4>
+<p>Внутри — один или два H-моста, схема управления, защита по току и перегреву. На входы IN1/IN2 вы подаёте логические уровни и ШИМ, на выходы OUT1/OUT2 подключаете мотор, отдельно подаёте питание мотора (VM) и логики. Земля у всех должна быть общей. ШИМ на вход EN или IN задаёт скорость, комбинация IN1/IN2 — направление.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Напряжение мотора</b> — L298N 5–46 В, L293D 4,5–36 В, DRV8833 2,7–10,8 В, TB6612FNG 4,5–13,5 В.</li>
+<li><b>Ток на канал</b> — L298N 2 А, L293D 0,6 А, TB6612FNG 1,2 А (до 3,2 А пик), DRV8833 1,5 А.</li>
+<li><b>Каналов</b> — обычно 2 (два коллекторных мотора или один шаговый).</li>
+<li><b>Падение напряжения</b> — биполярный L298N теряет около 2 В и сильно греется, MOSFET-драйверы DRV8833 и TB6612FNG — гораздо экономичнее.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Микросхемы: DIP-16 (L293D), Multiwatt-15 (L298N), SOIC, HTSSOP (DRV8833). Готовые модули с разъёмами: красный модуль L298N с радиатором, маленькие платы TB6612FNG и DRV8833. Для шаговых двигателей есть специализированные A4988, DRV8825, TMC2209.</p>
+<h4>Как проверить</h4>
+<ul>
+<li>Подайте питание мотора и логики, соедините земли.</li>
+<li>Подключите двигатель к OUT1/OUT2 и подайте IN1=1, IN2=0: двигатель должен вращаться, при IN1=0, IN2=1 — в обратную сторону.</li>
+<li>Подайте ШИМ на вход разрешения (EN): скорость плавно меняется.</li>
+<li>Следите за нагревом: если микросхема горячая, снизьте ток или поставьте радиатор.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Роботы-машинки, приводы шторок и замков, 3D-принтеры (шаговые драйверы), насосы, вентиляторы с регулировкой.</p>
+<h4>Совет новичку</h4>
+<p>Не питайте мотор от пина 5V платы Arduino: пик тока при старте просадит питание, и контроллер перезагрузится. Дайте мотору отдельный источник и добавьте конденсатор 100–470 мкФ рядом с драйвером. Для маленьких роботов на 3,3 В берите DRV8833 или TB6612FNG, а не L298N.</p>`,
+
+  "Керамический конденсатор": `<h4>Что это</h4>
+<p>Керамический конденсатор — самый распространённый тип конденсаторов в современной электронике. Диэлектриком служит керамика, обкладками — металл. Он маленький, дешёвый, не имеет полярности (можно ставить любой стороной) и хорошо работает на высоких частотах.</p>
+<h4>Как устроен и работает</h4>
+<p>В SMD-версии (MLCC, Multi-Layer Ceramic Capacitor) десятки или сотни тонких слоёв керамики и металла сложены стопкой, поэтому в крошечном корпусе получается большая ёмкость. Работает как любой конденсатор: накапливает заряд, сглаживает пульсации, пропускает переменный сигнал и блокирует постоянный. Ёмкость определяется формулой <code>C = ε · S / d</code>: больше площадь и тоньше слой — больше ёмкость.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Ёмкость</b> — от пикофарад до десятков микрофарад (например, 100 нФ = 104).</li>
+<li><b>Рабочее напряжение</b> — 6,3; 10; 16; 25; 50 В и выше.</li>
+<li><b>Диэлектрик (температурная характеристика)</b> — C0G (NP0): очень стабилен, ±30 ppm/°C, для генераторов и фильтров; X7R: изменение ±15 % от −55 до +125 °C, универсальный; X5R: примерно такой же, до +85 °C; Y5V: большая нестабильность, избегать.</li>
+<li><b>Эффект смещения</b> — у X5R/X7R ёмкость падает под постоянным напряжением: 10 мкФ 6,3 В на 5 В может дать только 3–4 мкФ.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Дисковые выводные (маркировка 104, 22, 103), SMD-чипы 0402, 0603, 0805 (например, Samsung CL21B104KBCNNNC — 100 нФ, 50 В, X7R), 1206. Многослойные монолитные выводные (синие/жёлтые).</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Если есть режим измерения ёмкости, выпаяйте деталь и измерьте: ёмкость должна быть в пределах допуска.</li>
+<li>В режиме сопротивления исправный показывает бесконечность (для маленьких ёмкостей), короткое замыкание — деталь пробита или треснула.</li>
+<li>Трещина в корпусе после изгиба платы часто даёт утечку или замыкание.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Развязка питания у каждой микросхемы (100 нФ на пин VCC, как можно ближе к ножке), фильтры, кварцевые генераторы (пара по 22 пФ), блокировка помех на кнопках, снижение шума двигателей.</p>
+<h4>Совет новичку</h4>
+<p>Поставьте 100 нФ рядом с питанием каждого чипа, и половина «непонятных» глюков исчезнет. Для точных частот берите C0G. Не изгибайте плату с SMD-конденсаторами: они хрупкие и трескаются.</p>`,
+
+  "Коллекторный двигатель": `<h4>Что это</h4>
+<p>Коллекторный двигатель постоянного тока — самый простой и дешёвый мотор. Подали напряжение — вал крутится, поменяли полярность — крутится в обратную сторону. Такие моторчики стоят в игрушках, фенах, дрелях, насосах и автомобильных стеклоподъёмниках.</p>
+<h4>Как устроен и работает</h4>
+<p>Внутри неподвижные магниты (статор) и вращающийся якорь с обмотками. На якоре сидит коллектор — набор медных пластин, а по ним скользят графитовые щётки, подводя ток. Ток в обмотке создаёт магнитное поле, оно отталкивается от магнитов, и якорь поворачивается. Коллектор переключает ток в обмотках так, чтобы вращение продолжалось. Скорость зависит от напряжения, момент — от тока.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Номинальное напряжение</b> — 1,5; 3; 6; 12; 24 В (RF-130 — 3–6 В, RF-370 — 6–12 В).</li>
+<li><b>Ток холостого хода</b> — единицы десятков миллиампер.</li>
+<li><b>Пусковой/стоповый ток</b> — в несколько раз больше номинального; на заклинившем моторе ток становится максимальным.</li>
+<li><b>Обороты</b> — 3000–20 000 об/мин без редуктора, обычно ставят редуктор.</li>
+<li><b>Сопротивление обмотки</b> — единицы–десятки ом.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Миниатюрные цилиндры 130 и 180, средние 370 и 380, мощные 550 и 775, моторы с редуктором (TT-мотор для роботов). Бывают с постоянными магнитами и с обмоткой возбуждения (универсальные сетевые двигатели).</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Измерьте сопротивление между выводами: от долей до нескольких десятков ом. Бесконечность — обрыв щёток или обмотки, ноль — замыкание.</li>
+<li>Медленно поворачивайте вал рукой и следите за показаниями: небольшие колебания — норма, резкие скачки до бесконечности — плохой контакт щёток.</li>
+<li>Подключите мультиметр в режим напряжения и покрутите вал: мотор работает как генератор и даёт напряжение.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Роботы-машинки, насосы для полива, вентиляторы, игрушки, электроинструмент. Управляется через драйвер мотора или MOSFET с ШИМ.</p>
+<h4>Совет новичку</h4>
+<p>Мотор создаёт помехи и скачки напряжения. Припаяйте керамический конденсатор 100 нФ прямо на его выводы, а при управлении ключом поставьте обратный диод (1N5819 или 1N4007) параллельно мотору. Иначе микроконтроллер будет перезагружаться.</p>`,
+
+  "Компаратор": `<h4>Что это</h4>
+<p>Компаратор — микросхема, которая сравнивает два напряжения и выдаёт «да» или «нет». Если напряжение на «плюсовом» входе больше, чем на «минусовом», выход переключается в одно состояние, иначе в другое. Это «аналоговый переводчик» в цифровой сигнал.</p>
+<h4>Как устроен и работает</h4>
+<p>Внутри — дифференциальный усилитель с очень большим коэффициентом усиления без обратной связи. Даже разница в милливольт заставляет выход перейти до напряжения питания или к земле. У LM393 выход с открытым коллектором: он умеет только «прижимать» линию к земле, а высокий уровень получается подтяжкой резистором (обычно 10 кОм) к питанию.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Напряжение питания</b> — LM393 от 2 до 36 В.</li>
+<li><b>Время срабатывания</b> — LM393 около 1,3 мкс, быстрые компараторы — единицы наносекунд.</li>
+<li><b>Тип выхода</b> — открытый коллектор (LM393, LM339) или push-pull (TLV3201).</li>
+<li><b>Гистерезис</b> — его нужно создавать внешним резистором для надёжного переключения при шумах.</li>
+<li><b>Число каналов</b> — LM393 содержит два компаратора, LM339 — четыре.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>LM393 — DIP-8 и SOIC-8; LM339 — DIP-14; встроенные компараторы есть внутри многих микроконтроллеров (ATmega328P, ESP32 в некоторых режимах). Отдельные быстрые компараторы — в SOT-23.</p>
+<h4>Как проверить</h4>
+<ul>
+<li>Подайте питание, на минусовой вход — опорное напряжение (например, 2,5 В с делителя).</li>
+<li>На плюсовой вход подайте напряжение через потенциометр.</li>
+<li>Измерьте выход мультиметром: при напряжении выше опорного — высокий уровень (через подтяжку), ниже — около 0 В.</li>
+<li>Если выход «дребезжит» около порога — добавьте гистерезис резистором обратной связи (например, 1 МОм).</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Детекторы перехода через ноль, порог по напряжению аккумулятора, датчики освещённости и температуры с порогом, ШИМ-генераторы, схема защиты от перегрузки, приём импульсов от датчиков.</p>
+<h4>Совет новичку</h4>
+<p>Не путайте компаратор с операционным усилителем: ОУ не предназначен для работы без обратной связи, он медленнее выходит из насыщения. А компаратор без гистерезиса при шумном сигнале будет «дрожать». Для чистого переключения делайте триггер Шмитта.</p>`,
+
+  "Симистор": `<h4>Что это</h4>
+<p>Симистор (triac) — управляемый полупроводниковый ключ для переменного тока. Он включается коротким импульсом на управляющем выводе и пропускает ток в обе стороны. Именно он стоит в диммерах ламп, регуляторах мощности паяльников и в твёрдотельных реле.</p>
+<h4>Как устроен и работает</h4>
+<p>Симистор можно представить как два тиристора, включённых встречно-параллельно. Выводы: T1 и T2 — силовые, G — управляющий. Подали импульс на G — ключ открылся и держится открытым, пока ток через него не упадёт почти до нуля (в синусоидальной сети это происходит дважды за период). Чтобы регулировать мощность, открывают симистор не с начала полуволны, а с задержкой: чем она больше, тем меньше мощность. Это называется фазовым регулированием.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Максимальный ток</b> — BT136: 4 А; BTA16: 16 А.</li>
+<li><b>Максимальное напряжение</b> — BT136-600 рассчитан на 600 В.</li>
+<li><b>Ток управления (IGT)</b> — BT136: 5–35 мА, у чувствительных типов меньше.</li>
+<li><b>Ток удержания</b> — минимальный ток нагрузки, при котором ключ остаётся открытым.</li>
+<li><b>dV/dt</b> — скорость роста напряжения, при превышении ложное включение; поэтому с индуктивной нагрузкой ставят RC-цепочку (снаббер).</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>TO-92 (маленькие, до 0,8 А), TO-220 (BT136, BTA16 — самые частые), с изолированной пластиной (BTA — «изолированный»), SMD. Оптосимисторы MOC3021 и MOC3041 используют для гальванической развязки от микроконтроллера.</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Режим проверки диодов или сопротивления.</li>
+<li>Между T1 и T2 исправный показывает бесконечность в обе стороны.</li>
+<li>Между G и T1 — небольшое сопротивление в обе стороны (десятки–сотни ом).</li>
+<li>Для полной проверки соберите схему с лампой и батареей: касание G через резистор должно включить нагрузку.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Диммеры освещения, регуляторы нагрева и оборотов универсальных двигателей, твёрдотельные реле, автоматика на сетевом напряжении.</p>
+<h4>Совет новичку</h4>
+<p>Сеть 230 В опасна для жизни. Любые опыты с симисторами делайте через развязывающий трансформатор или с оптосимистором, а не напрямую от розетки. И помните: для лампы-накаливания и нагревателя подойдёт фазовое регулирование, а для светодиодных ламп и импульсных блоков нужен специальный диммер.</p>`,
+
+  "Тиристор": `<h4>Что это</h4>
+<p>Тиристор (SCR, Silicon Controlled Rectifier) — управляемый диод. Он по умолчанию заперт, а после короткого импульса на управляющем выводе открывается и остаётся открытым, пока через него идёт ток. Выключить его сигналом управления нельзя.</p>
+<h4>Как устроен и работает</h4>
+<p>Структура из четырёх чередующихся слоёв (p-n-p-n) с тремя выводами: анод (A), катод (K) и управляющий электрод (G). Пока на G нет сигнала, ток через A–K не идёт при любом напряжении (до пробоя). После импульса на G тиристор «защёлкивается» и ведёт себя как обычный диод. Чтобы выключить его, нужно уменьшить ток ниже тока удержания или снять напряжение. В сети переменного тока это происходит само в конце каждой полуволны.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Прямой ток</b> — MCR100-6: 0,8 А; BT151: 12 А; мощные модули — сотни ампер.</li>
+<li><b>Напряжение</b> — MCR100-6: 400 В; MCR100-8: 600 В.</li>
+<li><b>Ток управления</b> — у чувствительных типов (MCR100) около 0,2 мА, у мощных до 20–30 мА.</li>
+<li><b>Ток удержания</b> — единицы миллиампер; ниже него тиристор закрывается.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Маленькие в TO-92 (MCR100, 2N5060), средние в TO-220 (BT151, TYN612), штыревые и таблеточные для промышленной силовой электроники. Родственники: симистор (двунаправленный), динистор (без управляющего вывода), GTO-тиристор (выключается по затвору).</p>
+<h4>Как проверить</h4>
+<ul>
+<li>Мультиметром: сопротивление A–K в обе стороны бесконечное; между G и K небольшое сопротивление (в одном направлении, как у слабого диода).</li>
+<li>Практическая проверка: подключите 9 В через лампочку к A и K, затем через резистор 1 кОм на мгновение соедините G с анодом. Лампа загорится и останется гореть.</li>
+<li>Чтобы выключить, на секунду разорвите цепь питания.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Управляемые выпрямители, зарядные устройства, регуляторы мощности, защита «Crowbar» от повышенного напряжения (тиристор замыкает питание и сжигает предохранитель), сварочные аппараты, зажигание в автомобилях.</p>
+<h4>Совет новичку</h4>
+<p>Главное отличие от транзистора: тиристор «запоминает» включение. В цепи постоянного тока он останется включённым, пока вы не отключите питание. Поэтому его чаще всего применяют с переменным током, где он сам выключается при переходе через ноль.</p>`,
+
+  "Шунт": `<h4>Что это</h4>
+<p>Шунт — прецизионный резистор очень малого сопротивления, через который пропускают измеряемый ток. Напряжение на нём пропорционально току, а напряжение мерить просто. Так мультиметры, ваттметры и контроллеры заряда узнают, сколько ампер течёт в цепи.</p>
+<h4>Как устроен и работает</h4>
+<p>Закон Ома: <code>U = I · R</code>. Ток 10 А через шунт 0,01 Ом даёт 100 мВ, а мощность <code>P = I² · R = 100 · 0,01 = 1 Вт</code>. Шунт делают из манганина или константана: у этих сплавов очень малый температурный коэффициент (ТКС), и сопротивление почти не уходит при нагреве. Напряжение на шунте измеряют отдельной парой выводов (четырёхпроводная схема Кельвина), чтобы не влиять на результат падением на контактах.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Сопротивление</b> — от долей миллиома до 0,1–1 Ом.</li>
+<li><b>Номинальный ток и падение</b> — например, 50 А / 75 мВ (сопротивление 1,5 мОм).</li>
+<li><b>Мощность</b> — по формуле <code>I² · R</code>; для SMD 2512 около 1–3 Вт.</li>
+<li><b>Точность и ТКС</b> — 0,5–1 %, ТКС 20–50 ppm/°C.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Измерительные шунты на пластине с двумя силовыми болтами и двумя клеммами для измерения; SMD-чипы 1206, 2512 (например, 0,1 Ом, 1 %); выводные проволочные шунты. Рядом по назначению — датчики Холла вроде ACS712, которые измеряют ток без разрыва цепи.</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Обычный мультиметр на малых сопротивлениях даёт ошибку из-за щупов (0,1–0,5 Ом): для миллиомных шунтов нужен четырёхпроводный омметр.</li>
+<li>Практичнее проверить так: пропустите известный ток (например, 1 А от блока питания с ограничением) и измерьте падение напряжения: <code>R = U / I</code>.</li>
+<li>Бесконечное сопротивление — обрыв, заметно более высокое номинала — перегрев и деградация.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Измерение тока батареи и нагрузки, ограничение тока в блоках питания, модули INA219 (шунт 0,1 Ом, до 3,2 А), BMS, ваттметры. Модуль INA219 читают из Arduino по I²C.</p>
+<h4>Совет новичку</h4>
+<p>Чем больше сопротивление шунта, тем точнее измерение, но тем больше потерь и просадка напряжения нагрузки. Подбирайте шунт так, чтобы при максимальном токе падение было 50–100 мВ, и проверяйте нагрев по мощности.</p>`,
+
+  "Энкодер": `<h4>Что это</h4>
+<p>Энкодер — датчик вращения. Он превращает поворот вала в электрические импульсы, по которым микроконтроллер считает, насколько и в какую сторону повернули ручку. Знакомый пример: ручка громкости в магнитоле или меню в 3D-принтере.</p>
+<h4>Как устроен и работает</h4>
+<p>В простом механическом энкодере EC11 внутри вращается диск с контактными дорожками. Два контакта A и B замыкаются на общий контакт C со сдвигом фазы 90°. При вращении получаются два меандра, похожих друг на друга, но сдвинутых. Если сначала меняется A, а потом B — вращение по часовой стрелке, если наоборот — против. Подсчёт переходов даёт угол поворота. Такой выход называется квадратурным.</p>
+<h4>Главные параметры</h4>
+<ul>
+<li><b>Число импульсов на оборот (PPR)</b> — у EC11 обычно 20 импульсов (щелчков), у оптических — сотни и тысячи.</li>
+<li><b>Тип</b> — инкрементальный (считает относительное смещение) или абсолютный (знает положение сразу, например, магнитный AS5600).</li>
+<li><b>Кнопка</b> — у многих энкодеров (EC11) вал нажимается как кнопка.</li>
+<li><b>Дребезг контактов</b> — у механических сильный, нужен фильтр.</li>
+</ul>
+<h4>Виды и корпуса</h4>
+<p>Механические с щелчками (EC11), оптические с диском и светодиодом, магнитные с датчиком Холла, высокоточные промышленные. Для ввода данных вручную используют EC11, для моторов и роботов — оптические или магнитные.</p>
+<h4>Как проверить мультиметром</h4>
+<ul>
+<li>Режим прозвонки. Три вывода в ряд: A, C (общий, посередине), B; два отдельно — кнопка.</li>
+<li>Между C и A поворачивайте ручку: цепь должна поочерёдно замыкаться и размыкаться. То же между C и B.</li>
+<li>Кнопка: при нажатии замыкается пара выводов сбоку.</li>
+<li>Постоянное замыкание или обрыв во всех положениях — износ контактов.</li>
+</ul>
+<h4>Где применяется</h4>
+<p>Меню устройств, регулировка громкости, ручная подстройка параметров в самодельных приборах, считывание оборотов моторов в роботах. Подключение к Arduino и ESP32: выводы A и B на входы с подтяжкой к питанию, C на землю, подсчёт через прерывания или готовую библиотеку Encoder.</p>
+<h4>Совет новичку</h4>
+<p>Дребезг даёт ложные отсчёты и «скачущие» значения. Поставьте конденсатор 10 нФ между каждым выводом A, B и землёй, добавьте подтяжки 10 кОм к питанию или включите внутренние подтяжки (INPUT_PULLUP). Для надёжности применяйте проверенную библиотеку, а не свой код с delay.</p>`
+});
+Object.assign(GLOSS_ART, {
+  "DIP": {
+    look: chipLook(14, "DIP-14") },
+  "ESR": {
+    look: `<path d="M10 60H40M100 60H118M130 60H190" stroke="${LEAD}" stroke-width="4"/><rect x="40" y="46" width="60" height="28" rx="6" fill="#e3c08c"/><text x="70" y="65" text-anchor="middle" font-size="14" font-weight="700" fill="#3a2410">ESR</text><path d="M118 36v48M130 36v48" stroke="#4a78d6" stroke-width="6"/><text x="124" y="106" text-anchor="middle" font-size="12" fill="#8b9196">C</text>`,
+    sym: `<path class="sl" d="M10 40H36M76 40H96M108 40H150"/><rect class="sl" x="36" y="32" width="40" height="16"/><path class="sl" d="M96 22v36M108 22v36" style="stroke-width:3"/><text class="st" x="40" y="26">ESR</text><text class="st" x="98" y="74">C</text>` },
+  "SOIC": {
+    look: `<rect x="62" y="34" width="76" height="52" rx="3" fill="#23272b"/><circle cx="74" cy="76" r="3" fill="#8b9196"/><text x="100" y="64" text-anchor="middle" font-size="12" font-weight="600" fill="#c4c9ce">SOIC-8</text>${[0, 1, 2, 3].map(i => `<rect x="48" y="${40 + i * 13}" width="16" height="6" fill="${LEAD}"/><rect x="136" y="${40 + i * 13}" width="16" height="6" fill="${LEAD}"/>`).join("")}` },
+  "SOT-23": {
+    look: `<rect x="64" y="42" width="72" height="34" rx="3" fill="#23272b"/><rect x="78" y="76" width="10" height="22" fill="${LEAD}"/><rect x="112" y="76" width="10" height="22" fill="${LEAD}"/><rect x="95" y="22" width="10" height="20" fill="${LEAD}"/><text x="100" y="64" text-anchor="middle" font-size="12" fill="#c4c9ce">SOT-23</text><circle cx="72" cy="50" r="2" fill="#8b9196"/>` },
+  "TO-220": {
+    look: `<rect x="70" y="6" width="60" height="30" rx="2" fill="#c4c9ce"/><circle cx="100" cy="20" r="7" fill="#fff"/><rect x="70" y="34" width="60" height="44" fill="#1f2326"/><text x="100" y="60" text-anchor="middle" font-size="12" fill="#c4c9ce">TO-220</text><path d="M84 78v40M100 78v40M116 78v40" stroke="${LEAD}" stroke-width="4"/>` },
+  "Допуск": {
+    look: `<text x="100" y="26" text-anchor="middle" font-size="16" font-weight="700" fill="#c4c9ce">100 Ом ±5 %</text><rect x="20" y="48" width="160" height="22" rx="3" fill="#3a3f44"/><rect x="76" y="48" width="48" height="22" fill="#3fa66b"/><path d="M100 40v38" stroke="#f2b705" stroke-width="2"/><text x="76" y="94" text-anchor="middle" font-size="12" fill="#8b9196">95</text><text x="100" y="108" text-anchor="middle" font-size="12" fill="#f2b705">100</text><text x="124" y="94" text-anchor="middle" font-size="12" fill="#8b9196">105</text>` },
+  "Номинальный ряд E24": {
+    look: `${["10", "11", "12", "13", "15", "16", "18", "20", "22", "24", "27", "30", "33", "36", "39", "43", "47", "51", "56", "62", "68", "75", "82", "91"].map((v, i) => `<rect x="${10 + (i % 6) * 31}" y="${8 + Math.floor(i / 6) * 28}" width="28" height="22" rx="3" fill="#3a3f44"/><text x="${24 + (i % 6) * 31}" y="${24 + Math.floor(i / 6) * 28}" text-anchor="middle" font-size="12" fill="#c4c9ce">${v}</text>`).join("")}` },
+  "ТКС": {
+    look: `<path d="M30 100H182M30 100V14" stroke="#8b9196" stroke-width="2" fill="none"/><path d="M34 86L176 34" stroke="#e0542c" stroke-width="3"/><path d="M34 60H176" stroke="#8b9196" stroke-width="1" stroke-dasharray="4 3"/><text x="180" y="114" text-anchor="end" font-size="12" fill="#8b9196">T, °C</text><text x="36" y="14" font-size="12" fill="#8b9196">R</text><text x="120" y="52" font-size="11" fill="#e0542c">ТКС</text>` },
+  "H-мост": {
+    look: chipLook(16, "L293D"),
+    sym: `<path class="sl" d="M40 10H120M40 70H120M40 10V16M40 30V50M40 64V70M120 10V16M120 30V50M120 64V70M40 40H70M90 40H120"/><rect class="sl" x="34" y="16" width="12" height="14"/><rect class="sl" x="34" y="50" width="12" height="14"/><rect class="sl" x="114" y="16" width="12" height="14"/><rect class="sl" x="114" y="50" width="12" height="14"/><circle class="sl" cx="80" cy="40" r="10"/><text class="st" x="80" y="44" text-anchor="middle">M</text>` },
+  "Варистор": {
+    look: `<path d="M88 84v32M112 84v32" stroke="${LEAD}" stroke-width="4"/><circle cx="100" cy="46" r="40" fill="#2f6db5"/><circle cx="100" cy="46" r="40" fill="none" stroke="#1f4d85" stroke-width="2"/><ellipse cx="84" cy="30" rx="10" ry="16" fill="#fff" opacity=".25"/><text x="100" y="50" text-anchor="middle" font-size="13" font-weight="700" fill="#fff">10D471K</text>`,
+    sym: `${sLeads(50, 110)}<rect class="sl" x="50" y="30" width="60" height="20"/><path class="sl" d="M40 66h14l52-52"/><text class="st" x="114" y="16">U</text>` },
+  "Диод Шоттки": {
+    look: `<path d="M10 60H64M136 60H190" stroke="${LEAD}" stroke-width="4"/><rect x="64" y="44" width="72" height="32" rx="6" fill="#1f2326"/><rect x="118" y="44" width="10" height="32" fill="#c4c9ce"/><text x="90" y="64" text-anchor="middle" font-size="11" fill="#c4c9ce">1N5819</text>`,
+    sym: `${sLeads(62, 98)}<path class="sl" d="M62 24v32l34-16z"/><path class="sl" d="M92 28v-6h6v36h6v-6"/>` },
+  "Диодный мост": {
+    look: `<rect x="56" y="20" width="88" height="62" rx="4" fill="#23272b"/><rect x="56" y="20" width="88" height="8" rx="3" fill="#33383d"/><text x="100" y="58" text-anchor="middle" font-size="14" font-weight="600" fill="#c4c9ce">KBP307</text><path d="M68 82v32M88 82v32M112 82v32M132 82v32" stroke="${LEAD}" stroke-width="4"/><text x="68" y="76" text-anchor="middle" font-size="11" fill="#8b9196">~</text><text x="88" y="76" text-anchor="middle" font-size="11" fill="#8b9196">+</text><text x="112" y="76" text-anchor="middle" font-size="11" fill="#8b9196">~</text><text x="132" y="76" text-anchor="middle" font-size="11" fill="#8b9196">−</text>`,
+    sym: `<path class="sl" d="M80 12L120 40L80 68L40 40z"/><path class="sl" d="M10 40H40M120 40H150M80 12V4M80 68V76"/><path class="sl" d="M72 52h16l-8-18zM72 32h16"/><text class="st" x="22" y="34">~</text><text class="st" x="132" y="34">~</text><text class="st" x="88" y="12">+</text><text class="st" x="88" y="76">−</text>` },
+  "Драйвер мотора": {
+    look: `<rect x="22" y="14" width="156" height="92" rx="4" fill="#b3262e"/><rect x="62" y="22" width="76" height="38" fill="#23272b"/>${[0, 1, 2, 3, 4, 5, 6].map(i => `<path d="M${68 + i * 10} 22v38" stroke="#4b5259" stroke-width="2"/>`).join("")}<text x="100" y="46" text-anchor="middle" font-size="13" font-weight="700" fill="#e9ecef">L298N</text><rect x="28" y="76" width="40" height="22" rx="2" fill="#2b62c4"/><rect x="132" y="76" width="40" height="22" rx="2" fill="#2b62c4"/><rect x="84" y="76" width="32" height="10" fill="#23272b"/>${[0, 1, 2, 3].map(i => `<circle cx="${34 + i * 10}" cy="87" r="3" fill="#c4c9ce"/><circle cx="${138 + i * 10}" cy="87" r="3" fill="#c4c9ce"/>`).join("")}` ,
+    sym: `<rect class="sl" x="44" y="6" width="72" height="68"/><path class="sl" d="M24 18h20M24 40h20M24 62h20M116 28h20M116 52h20"/><text class="st" x="26" y="14">IN1</text><text class="st" x="26" y="36">IN2</text><text class="st" x="26" y="58">EN</text><text class="st" x="112" y="26" text-anchor="end">OUT1</text><text class="st" x="112" y="50" text-anchor="end">OUT2</text>` },
+  "Керамический конденсатор": {
+    look: `<rect x="60" y="40" width="80" height="40" rx="2" fill="#c9a66b"/><rect x="60" y="40" width="18" height="40" fill="#c4c9ce"/><rect x="122" y="40" width="18" height="40" fill="#c4c9ce"/><rect x="62" y="44" width="76" height="6" fill="#fff" opacity=".25"/><text x="100" y="104" text-anchor="middle" font-size="12" fill="#8b9196">CL21 0805 · 100 нФ</text>`,
+    sym: `${sLeads(74, 86)}<path class="sl" d="M74 22v36M86 22v36" style="stroke-width:3"/>` },
+  "Коллекторный двигатель": {
+    look: `<rect x="40" y="32" width="12" height="56" rx="2" fill="#4b5259"/><rect x="52" y="30" width="86" height="60" rx="8" fill="#b9bec4"/><rect x="52" y="30" width="86" height="12" rx="6" fill="#dfe3e7"/><rect x="138" y="52" width="46" height="16" rx="3" fill="#8b9196"/><rect x="138" y="52" width="46" height="5" fill="#c4c9ce"/><path d="M40 44h-18M40 76h-18" stroke="#d64545" stroke-width="3"/><path d="M22 76h-8" stroke="#222" stroke-width="3"/><text x="95" y="70" text-anchor="middle" font-size="12" font-weight="600" fill="#333">RF-370</text>`,
+    sym: `<circle class="sl" cx="80" cy="40" r="24"/><text class="st" x="80" y="38" text-anchor="middle" style="font-size:18px">M</text><path class="sl" d="M10 40h46M104 40h46M70 52h20"/>` },
+  "Компаратор": {
+    look: chipLook(8, "LM393"),
+    sym: `<rect class="sl" x="50" y="8" width="60" height="64"/><path class="sl" d="M20 26H50M20 54H50M110 40H140M92 34l10 6-10 6"/><text class="st" x="54" y="30">+</text><text class="st" x="54" y="58">−</text>` },
+  "Симистор": {
+    look: `<rect x="70" y="6" width="60" height="30" rx="2" fill="#c4c9ce"/><circle cx="100" cy="20" r="7" fill="#fff"/><rect x="70" y="34" width="60" height="44" fill="#1f2326"/><text x="100" y="60" text-anchor="middle" font-size="12" fill="#c4c9ce">BT136</text><path d="M84 78v40M100 78v40M116 78v40" stroke="${LEAD}" stroke-width="4"/>`,
+    sym: `<path class="sl" d="M80 4V18M80 62V76M58 18H102M58 62H102"/><path class="sl" d="M58 60L69 22L80 60zM80 20L91 58L102 20z"/><path class="sl" d="M102 56L112 66H150"/><text class="st" x="86" y="12">T2</text><text class="st" x="86" y="76">T1</text><text class="st" x="136" y="60">G</text>` },
+  "Тиристор": {
+    look: `<path d="M74 52h52v20a26 26 0 0 1-52 0z" fill="#1f2326"/><rect x="74" y="20" width="52" height="34" fill="#1f2326"/><text x="100" y="42" text-anchor="middle" font-size="9" fill="#c4c9ce">MCR100-6</text><path d="M86 96v22M100 98v20M114 96v22" stroke="${LEAD}" stroke-width="4"/><text x="86" y="16" font-size="10" fill="#8b9196" text-anchor="middle">К</text><text x="100" y="16" font-size="10" fill="#8b9196" text-anchor="middle">У</text><text x="114" y="16" font-size="10" fill="#8b9196" text-anchor="middle">А</text>`,
+    sym: `${sLeads(62, 98)}<path class="sl" d="M62 24v32l34-16z"/><path class="sl" d="M98 22v36"/><path class="sl" d="M84 46l6 22h60"/><text class="st" x="136" y="62">G</text>` },
+  "Шунт": {
+    look: `<rect x="14" y="36" width="48" height="52" rx="3" fill="#c87533"/><rect x="138" y="36" width="48" height="52" rx="3" fill="#c87533"/><rect x="62" y="46" width="76" height="32" fill="#8b7355"/><circle cx="38" cy="62" r="8" fill="#6b4a24"/><circle cx="162" cy="62" r="8" fill="#6b4a24"/><rect x="70" y="26" width="8" height="20" fill="${LEAD}"/><rect x="122" y="26" width="8" height="20" fill="${LEAD}"/><text x="100" y="108" text-anchor="middle" font-size="11" fill="#8b9196">50 А · 75 мВ</text>`,
+    sym: `${sLeads(50, 110)}<rect class="sl" x="50" y="30" width="60" height="20"/><path class="sl" d="M62 30V12M98 30V12"/><text class="st" x="40" y="10" text-anchor="end">U</text>` },
+  "Энкодер": {
+    look: `<rect x="62" y="34" width="76" height="52" rx="3" fill="#b9bec4"/><rect x="62" y="34" width="76" height="8" fill="#dfe3e7"/><rect x="92" y="6" width="16" height="30" fill="#8b9196"/><rect x="92" y="6" width="5" height="30" fill="#c4c9ce"/><path d="M76 86v28M100 86v28M124 86v28" stroke="${LEAD}" stroke-width="4"/><text x="100" y="66" text-anchor="middle" font-size="12" font-weight="600" fill="#333">EC11</text>`,
+    sym: `<rect class="sl" x="50" y="8" width="60" height="64"/><path class="sl" d="M20 20H50M20 40H50M20 60H50"/><text class="st" x="80" y="46" text-anchor="middle">BQ</text><text class="st" x="22" y="16">A</text><text class="st" x="22" y="36">C</text><text class="st" x="22" y="56">B</text>` },
+});
 
 // Общий словарь: старые и новые термины, по алфавиту (латиница вперёд)
 GLOSS.push(...GLOSS_MORE);
