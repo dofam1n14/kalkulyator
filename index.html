@@ -2641,10 +2641,10 @@ function kFromExpr(src) {
   drawKarn(); return true;
 }
 $("kFromE").onclick = () => kFromExpr($("lgE").value);
-// Копировать формулу ответа; если буфер обмена недоступен — выделяем текст, чтобы скопировать вручную
+// Копировать формулу ответа (без «Y =»); если буфер обмена недоступен — выделяем текст, чтобы скопировать вручную
 $("kOut").addEventListener("click", e => {
   const btn = e.target.closest("#kCopy"); if (!btn) return;
-  const t = "Y = " + kz.f, done = () => { btn.textContent = "Скопировано ✓"; setTimeout(() => { if (btn.isConnected) btn.textContent = "Скопировать"; }, 1500); };
+  const t = kz.f, done = () => { btn.textContent = "Скопировано ✓"; setTimeout(() => { if (btn.isConnected) btn.textContent = "Скопировать"; }, 1500); };
   const manual = () => { const r = document.createRange(); r.selectNodeContents($("kOut").querySelector(".big")); getSelection().removeAllRanges(); getSelection().addRange(r); btn.textContent = "Нажми Ctrl+C"; };
   if (navigator.clipboard) navigator.clipboard.writeText(t).then(done, manual); else manual();
 });
