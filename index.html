@@ -2,7 +2,7 @@
 <html lang="ru">
 <head>
 <meta charset="utf-8">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src https://jhoqjypixkilfnshonmk.supabase.co; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'unsafe-inline'; style-src 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://jhoqjypixkilfnshonmk.supabase.co; base-uri 'none'; form-action 'none'">
 <meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="Бесплатные онлайн-калькуляторы электронщика: маркировка резисторов и SMD, закон Ома, резистор для LED, NE555, LM317, распиновки ESP32-CAM и Arduino.">
@@ -552,9 +552,10 @@ label.check input { width: auto; accent-color: var(--accent); }
 .gterm a { color: var(--accent); font-weight: 600; }
 .gterm mark { background: var(--accent-soft); color: inherit; border-radius: 3px; }
 /* Симулятор */
-.simw { overflow: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); touch-action: manipulation; }
+.simw { overflow: hidden; border: 1px solid var(--line); border-radius: 10px; background: var(--bg); }
+.smzoom { font: 500 13px var(--font-mono); color: var(--muted); align-self: center; min-width: 48px; }
 .simw:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
-.smsvg { display: block; width: 100%; min-width: 720px; height: auto; user-select: none; -webkit-user-select: none; }
+.smsvg { display: block; width: 100%; height: auto; aspect-ratio: 788 / 452; user-select: none; -webkit-user-select: none; touch-action: none; cursor: crosshair; }
 .smgd { fill: var(--line); }
 .smsvg line, .smsvg rect, .smsvg circle, .smsvg path, .smsvg polyline { stroke: var(--fg); stroke-width: 2; fill: none; stroke-linecap: round; }
 .smsvg .smw { stroke: var(--muted); stroke-width: 3; }
@@ -1129,6 +1130,7 @@ label.check input { width: auto; accent-color: var(--accent); }
       <p class="hint" style="margin:0" id="smHint"></p>
       <div class="plist small" role="group" aria-label="Инструменты" id="smTools"></div>
       <div class="kbar">
+        <div class="seg" role="group" aria-label="Масштаб"><button type="button" id="smZout" aria-label="Отдалить">−</button><button type="button" id="smZfit">Вся схема</button><button type="button" id="smZin" aria-label="Приблизить">+</button></div><span class="smzoom" id="smZoom">100 %</span>
         <button type="button" class="tool" id="smRot" aria-pressed="false">Повернуть</button>
         <button type="button" class="tool" id="smUndo">Отменить</button>
         <button type="button" class="tool" id="smRun">Пауза</button>
@@ -1148,7 +1150,8 @@ label.check input { width: auto; accent-color: var(--accent); }
           <li>Выбери деталь сверху и нажми на точку сетки. Провод: щёлкай по точкам по очереди, Esc или правая кнопка — закончить.</li>
           <li>Детали соединяются только концами. Точка в середине провода соединится, если поставить туда вывод.</li>
           <li>Точки на проводах — ток (от плюса к минусу), цвет провода — напряжение: зелёный выше, серый около 0 В.</li>
-          <li>Клавиши: R — повернуть, Delete — удалить выбранное, Ctrl+Z — отменить.</li>
+          <li>Курсором деталь можно перетащить — провода потянутся за ней. Тащи пустое место, чтобы сдвинуть поле; колесо мыши или два пальца — приблизить и отдалить.</li>
+          <li>Клавиши: R — повернуть, + и − — масштаб, Delete — удалить выбранное, Ctrl+Z — отменить.</li>
         </ul>
       </div>
       <details class="how"><summary>Как это работает</summary><div class="howb"><h3>Идея</h3><p>Симулятор схем вычисляет напряжения и токи в цепи так, как это делает физика, но по уравнениям. Основа метода — узловой анализ: для каждого узла составляется уравнение, и вся система решается сразу.</p>
@@ -2893,10 +2896,17 @@ if (typeof gs.secret !== "string" || gs.secret.length < 20) {
 
 // Онлайн-таблица рекордов (Supabase). Ключ публичный — доступ ограничен правилами в базе
 const SB_URL = "https://jhoqjypixkilfnshonmk.supabase.co/rest/v1", SB_KEY = "sb_publishable_UtLoaxB21zedKXUD0wberQ_ozjqaE1D";
+// На нашем сайте сначала идём через посредника /sb/ (тот же домен — его не режут провайдеры и блокировщики),
+// если он не ответил — напрямую в Supabase. На других адресах (старый github.io) — сразу напрямую
+const SB_PROXY = location.hostname.endsWith("pages.dev") ? "/sb/" : null;
+let sbVia = SB_PROXY ? "proxy" : "direct";
 async function sb(path, body) {
-  const r = await fetch(SB_URL + path, { method: body ? "POST" : "GET", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined });
-  if (!r.ok) throw new Error("HTTP " + r.status);
-  return r.json();
+  const opt = { method: body ? "POST" : "GET", headers: { apikey: SB_KEY, "Content-Type": "application/json" }, body: body ? JSON.stringify(body) : undefined };
+  const tryUrl = async url => { const r = await fetch(url, opt); if (!r.ok) throw new Error("HTTP " + r.status); return r.json(); };
+  const p = path.replace(/^\//, "");
+  if (sbVia === "proxy") { try { return await tryUrl(SB_PROXY + p); } catch (e) { sbVia = "direct"; } }
+  try { return await tryUrl(SB_URL + "/" + p); }
+  catch (e) { if (SB_PROXY && sbVia === "direct") sbVia = "proxy"; throw e; } // в следующий раз снова попробуем посредника
 }
 let online = undefined, boardTab = "on", nickState = "";   // online: undefined — грузится, null — ошибка
 async function loadOnline() {
@@ -3858,7 +3868,7 @@ drawSeg7();
 // Схема — список деталей на сетке (координаты в клетках). Расчёт — метод узловых потенциалов (MNA):
 // для каждого узла пишем закон Кирхгофа для токов, для каждой батарейки — уравнение напряжения, решаем систему.
 // Светодиод нелинейный — решаем итерациями Ньютона; конденсатор — шагами по времени (неявный метод Эйлера).
-const SM = { G: 24, COLS: 32, ROWS: 18, LEN: 3 };
+const SM = { G: 24, COLS: 64, ROWS: 40, LEN: 3, VW: 788, VH: 452 };
 const SM_TOOLS = [
   ["sel", "Курсор", "Выбрать деталь, переключить кнопку или вход"], ["w", "Провод", "Щёлкай по точкам сетки, Esc — закончить"],
   ["v", "Батарейка", "Источник напряжения, + сверху/слева"], ["r", "Резистор", ""], ["led", "Светодиод", "Анод сверху/слева"], ["c", "Конденсатор", ""],
@@ -3957,7 +3967,7 @@ function smStep(dt) {
     smNet.els.forEach(x => {
       const { e, n: [p, q] } = x, t = e.t;
       if (t === "r") g(p, q, 1 / Math.max(e.v, 1e-3));
-      else if (t === "sw") g(p, q, e.on ? 100 : 1e-9);
+      else if (t === "sw") g(p, q, e.on ? 100 : 1e-12); // разомкнут — почти изолятор, слабее утечки узлов на землю
       else if (t === "c") { const G = e.v / dt; g(p, q, G); inj(p, G * x.vc); inj(q, -G * x.vc); }
       else if (t === "led") {
         const ex = Math.exp(Math.min(x.vd, 3) / LED_NVT), id = LED_IS * (ex - 1), gd = LED_IS / LED_NVT * ex + 1e-12;
@@ -3993,7 +4003,7 @@ function smStep(dt) {
   smNet.els.forEach(el => {
     const { e, n: [p, q] } = el, t = e.t, u = V(p) - (q === undefined ? 0 : V(q));
     if (t === "r") el.I = u / Math.max(e.v, 1e-3);
-    else if (t === "sw") el.I = u * (e.on ? 100 : 1e-9);
+    else if (t === "sw") el.I = u * (e.on ? 100 : 1e-12);
     else if (t === "c") { el.I = e.v / dt * (u - el.vc); el.vc = u; }
     else if (t === "led") el.I = LED_IS * (Math.exp(Math.min(el.vd, 3) / LED_NVT) - 1);
     else if (t === "v") el.I = -x[el.row]; // ток через батарейку от a к b (отрицательный, когда она отдаёт ток)
@@ -4067,8 +4077,9 @@ function smSymbol(e, ghost) {
   if (t === "v") s += `<text class="sml plus" x="${vert ? ax + 10 : ax + 8}" y="${vert ? ay + 14 : ay - 8}">+</text>`;
   return s;
 }
-function smDrawStatic() {
-  smSplit(); smBuild();
+function smDrawStatic(dragging) {
+  if (!dragging) smSplit(); // во время перетаскивания провода не режем — деталь просто проезжает над ними
+  smBuild();
   let s = "";
   sim.els.forEach((e, i) => { s += `<g data-k="${i}" class="${i === sim.sel ? "smsel" : ""}">${smSymbol(e)}</g>`; });
   // Точки соединения: где сходятся три и больше концов
@@ -4148,7 +4159,7 @@ function smTools() {
   $("smTools").innerHTML = SM_TOOLS.map(([k, n, h]) => `<button type="button" data-tool="${k}" title="${h}" aria-pressed="${sim.tool === k}">${n}</button>`).join("");
   $("smRot").setAttribute("aria-pressed", !!sim.rot);
   const tip = SM_TOOLS.find(x => x[0] === sim.tool);
-  $("smHint").textContent = sim.tool === "sel" ? "Курсор: нажми на деталь, чтобы выбрать; на выключатель или лог. вход — чтобы переключить." : `${tip[1]}: ${tip[2] || "нажми на точку сетки, куда поставить."}${["r", "v", "c", "led", "sw"].includes(sim.tool) ? " «Повернуть» — вертикально/горизонтально." : ""}`;
+  $("smHint").textContent = sim.tool === "sel" ? "Курсор: нажми на деталь, чтобы выбрать, или перетащи её; нажми на выключатель или лог. вход, чтобы переключить; тащи пустое место, чтобы сдвинуть поле." : `${tip[1]}: ${tip[2] || "нажми на точку сетки, куда поставить."}${["r", "v", "c", "led", "sw"].includes(sim.tool) ? " «Повернуть» — вертикально/горизонтально." : ""}`;
 }
 
 /* --- Мышь и клавиатура --- */
@@ -4180,14 +4191,98 @@ function smNew(g) {
   const b = sim.rot ? [x, y + SM.LEN] : [x + SM.LEN, y];
   return { t, a: g, b, ...(SM_DEF[t] ? { v: SM_DEF[t] } : {}), ...(t === "sw" ? { on: false } : {}) };
 }
+/* --- Масштаб и сдвиг поля: меняем viewBox, а не размер картинки --- */
+const smVB = { x: 0, y: 0, w: SM.VW, h: SM.VH };
+function smApplyVB() {
+  // Не даём уехать за край поля
+  const W = SM.COLS * SM.G + 20, H = SM.ROWS * SM.G + 20;
+  smVB.x = Math.max(-smVB.w * 0.5, Math.min(W - smVB.w * 0.5, smVB.x));
+  smVB.y = Math.max(-smVB.h * 0.5, Math.min(H - smVB.h * 0.5, smVB.y));
+  $("smSvg").setAttribute("viewBox", `${smVB.x.toFixed(1)} ${smVB.y.toFixed(1)} ${smVB.w.toFixed(1)} ${smVB.h.toFixed(1)}`);
+  $("smZoom").textContent = Math.round(SM.VW / smVB.w * 100) + " %";
+}
+// Масштаб вокруг точки (cx, cy) в координатах схемы: она остаётся под курсором
+function smZoom(k, cx = smVB.x + smVB.w / 2, cy = smVB.y + smVB.h / 2) {
+  const w = Math.max(SM.VW / 3, Math.min(SM.VW * 2.5, smVB.w * k)), f = w / smVB.w;
+  smVB.x = cx - (cx - smVB.x) * f; smVB.y = cy - (cy - smVB.y) * f; smVB.w = w; smVB.h = w * SM.VH / SM.VW;
+  smApplyVB();
+}
+// «Вся схема»: рамка вокруг всех деталей с запасом
+function smFit() {
+  const pts = sim.els.flatMap(e => smPins(e).map(smPx));
+  if (!pts.length) { Object.assign(smVB, { x: 0, y: 0, w: SM.VW, h: SM.VH }); smApplyVB(); return; }
+  const xs = pts.map(p => p[0]), ys = pts.map(p => p[1]), pad = 70;
+  const x0 = Math.min(...xs) - pad, x1 = Math.max(...xs) + pad, y0 = Math.min(...ys) - pad, y1 = Math.max(...ys) + pad;
+  const w = Math.max(SM.VW / 3, Math.min(SM.VW * 2.5, Math.max(x1 - x0, (y1 - y0) * SM.VW / SM.VH)));
+  Object.assign(smVB, { w, h: w * SM.VH / SM.VW });
+  smVB.x = (x0 + x1) / 2 - smVB.w / 2; smVB.y = (y0 + y1) / 2 - smVB.h / 2;
+  smApplyVB();
+}
+$("smZin").onclick = () => smZoom(1 / 1.25);
+$("smZout").onclick = () => smZoom(1.25);
+$("smZfit").onclick = smFit;
+$("smSvg").addEventListener("wheel", ev => {
+  ev.preventDefault();
+  const P = smPoint(ev); smZoom(Math.exp(ev.deltaY * 0.0015), P.x, P.y);
+}, { passive: false });
+
+/* --- Мышь и пальцы: рисование, перетаскивание деталей, сдвиг поля, щипок --- */
+const smPtr = new Map(); // активные касания: id → последняя точка на экране
+let smDrag = null;       // что сейчас тащим: { kind: "el"|"pan"|"pinch", … }
+const smSame = (a, b) => a[0] === b[0] && a[1] === b[1];
+// Сдвинуть деталь на (dx, dy) клеток; концы проводов, приходившие в её выводы, едут вместе с ней
+function smMoveEl(i, dx, dy) {
+  const e = sim.els[i], old = smPins(e).map(q => [...q]);
+  const sh = q => [q[0] + dx, q[1] + dy];
+  e.a = sh(e.a); if (e.b) e.b = sh(e.b);
+  sim.els.forEach((w, k) => {
+    if (k === i || w.t !== "w") return;
+    if (smSame(w.a, w.b)) { if (old.some(q => smSame(q, w.b))) w.b = sh(w.b); return; } // «резинка» — тянется только один конец
+    if (old.some(q => smSame(q, w.a))) w.a = sh(w.a);
+    if (old.some(q => smSame(q, w.b))) w.b = sh(w.b);
+  });
+}
+// Перед перетаскиванием: где деталь касается другой детали напрямую, кладём провод нулевой длины —
+// он растянется и сохранит соединение
+function smTether(i) {
+  const e = sim.els[i]; if (e.t === "w") return;
+  smPins(e).forEach(q => {
+    if (sim.els.some((o, k) => k !== i && o.t !== "w" && smPins(o).some(p => smSame(p, q)))) sim.els.push({ t: "w", a: [...q], b: [...q] });
+  });
+}
+// После перетаскивания: косые провода превращаем в «уголок», пустые убираем
+function smTidy() {
+  const out = [];
+  sim.els.forEach(w => {
+    if (w.t !== "w") { out.push(w); return; }
+    const [ax, ay] = w.a, [bx, by] = w.b;
+    if (ax === bx && ay === by) return;
+    if (ax === bx || ay === by) { out.push(w); return; }
+    out.push({ t: "w", a: [ax, ay], b: [bx, ay] }, { t: "w", a: [bx, ay], b: [bx, by] });
+  });
+  sim.els = out;
+}
 $("smSvg").addEventListener("pointerdown", ev => {
-  if (ev.button > 0) { sim.wireFrom = null; $("smGhost").innerHTML = ""; return; }
+  const sv = $("smSvg"); try { sv.setPointerCapture(ev.pointerId); } catch (e) {} // захват — чтобы тащить и за пределами поля
+  smPtr.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  // Второй палец — щипок: масштаб и сдвиг двумя пальцами
+  if (smPtr.size === 2) {
+    const [a, b] = [...smPtr.values()];
+    smDrag = { kind: "pinch", d: Math.hypot(a.x - b.x, a.y - b.y), mid: { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 } };
+    $("smGhost").innerHTML = ""; return;
+  }
+  if (ev.button === 1 || ev.button === 2) { // средняя или правая кнопка: сдвиг поля и конец провода
+    sim.wireFrom = null; $("smGhost").innerHTML = "";
+    smDrag = { kind: "pan", sx: ev.clientX, sy: ev.clientY, vb: { ...smVB } }; return;
+  }
   const P = smPoint(ev), t = sim.tool;
   if (t === "sel" || t === "del") {
     const i = smHit(P.x, P.y);
     if (t === "del") { if (i >= 0) { smPush(); sim.els.splice(i, 1); sim.sel = -1; smDrawStatic(); } return; }
-    if (i >= 0 && (sim.els[i].t === "sw" || sim.els[i].t === "lin")) { smPush(); const e = sim.els[i]; if (e.t === "sw") e.on = !e.on; else e.on = e.on ? 0 : 1; }
-    sim.sel = i; smDrawStatic(); return;
+    if (i < 0) { sim.sel = -1; smDrawStatic(); smDrag = { kind: "pan", sx: ev.clientX, sy: ev.clientY, vb: { ...smVB } }; return; }
+    // Нажали на деталь: выбираем; дальше либо потащим, либо (без движения) переключим кнопку/вход
+    sim.sel = i; smDrag = { kind: "el", i, g0: P.g, last: P.g, moved: false, snap: JSON.stringify(sim.els) };
+    smDrawStatic(); return;
   }
   smPush();
   if (t === "w") {
@@ -4202,7 +4297,29 @@ $("smSvg").addEventListener("pointerdown", ev => {
   sim.els.push(smNew(P.g)); sim.sel = sim.els.length - 1; smDrawStatic();
 });
 $("smSvg").addEventListener("pointermove", ev => {
-  const P = smPoint(ev), t = sim.tool, [x, y] = smPx(P.g);
+  if (smPtr.has(ev.pointerId)) smPtr.set(ev.pointerId, { x: ev.clientX, y: ev.clientY });
+  const sv = $("smSvg"), k = smVB.w / sv.getBoundingClientRect().width; // сколько единиц схемы в одном пикселе экрана
+  if (smDrag && smDrag.kind === "pinch" && smPtr.size >= 2) {
+    const [a, b] = [...smPtr.values()], d = Math.hypot(a.x - b.x, a.y - b.y), mid = { x: (a.x + b.x) / 2, y: (a.y + b.y) / 2 };
+    smVB.x -= (mid.x - smDrag.mid.x) * k; smVB.y -= (mid.y - smDrag.mid.y) * k;
+    const c = smPoint({ clientX: mid.x, clientY: mid.y });
+    smZoom(smDrag.d / Math.max(d, 1), c.x, c.y);
+    smDrag.d = d; smDrag.mid = mid; return;
+  }
+  if (smDrag && smDrag.kind === "pan") {
+    smVB.x = smDrag.vb.x - (ev.clientX - smDrag.sx) * k; smVB.y = smDrag.vb.y - (ev.clientY - smDrag.sy) * k;
+    smApplyVB(); return;
+  }
+  const P = smPoint(ev);
+  if (smDrag && smDrag.kind === "el") {
+    const dx = P.g[0] - smDrag.last[0], dy = P.g[1] - smDrag.last[1];
+    if (dx || dy) {
+      if (!smDrag.moved) smTether(smDrag.i); // первое движение — привязываем «резинки»
+      smMoveEl(smDrag.i, dx, dy); smDrag.last = P.g; smDrag.moved = true; smDrawStatic(true);
+    }
+    return;
+  }
+  const t = sim.tool, [x, y] = smPx(P.g);
   let s = `<circle class="smcur" cx="${x}" cy="${y}" r="5"/>`;
   if (t === "w" && sim.wireFrom) {
     const [ax, ay] = smPx(sim.wireFrom);
@@ -4210,12 +4327,26 @@ $("smSvg").addEventListener("pointermove", ev => {
   } else if (t !== "sel" && t !== "del" && t !== "w") s += smSymbol(smNew(P.g), true);
   $("smGhost").innerHTML = s;
 });
-$("smSvg").addEventListener("pointerleave", () => { $("smGhost").innerHTML = ""; });
+function smUp(ev) {
+  smPtr.delete(ev.pointerId);
+  const d = smDrag; if (!d) return;
+  if (d.kind === "pinch") { if (smPtr.size < 2) smDrag = null; return; }
+  smDrag = null;
+  if (d.kind !== "el") return;
+  if (d.moved) { smHist.push(d.snap); if (smHist.length > 60) smHist.shift(); smTidy(); sim.sel = -1; smDrawStatic(); return; } // отпустили — выпрямляем, режем провода и сохраняем
+  const e = sim.els[d.i]; // просто нажатие без движения — переключаем выключатель или логический вход
+  if (e && (e.t === "sw" || e.t === "lin")) { smPush(); if (e.t === "sw") e.on = !e.on; else e.on = e.on ? 0 : 1; smDrawStatic(); }
+}
+$("smSvg").addEventListener("pointerup", smUp);
+$("smSvg").addEventListener("pointercancel", smUp);
+$("smSvg").addEventListener("pointerleave", () => { if (!smDrag) $("smGhost").innerHTML = ""; });
 $("smSvg").addEventListener("contextmenu", ev => { ev.preventDefault(); sim.wireFrom = null; $("smGhost").innerHTML = ""; });
 document.addEventListener("keydown", ev => {
   if ($("sim").hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (ev.key === "Escape") { sim.wireFrom = null; $("smGhost").innerHTML = ""; }
   else if (ev.key === "r" || ev.key === "к") { sim.rot = sim.rot ? 0 : 1; smTools(); }
+  else if (ev.key === "+" || ev.key === "=") smZoom(1 / 1.25);
+  else if (ev.key === "-") smZoom(1.25);
   else if ((ev.key === "Delete" || ev.key === "Backspace") && sim.sel >= 0) { smPush(); sim.els.splice(sim.sel, 1); sim.sel = -1; smDrawStatic(); }
   else if ((ev.ctrlKey || ev.metaKey) && (ev.key === "z" || ev.key === "я")) { ev.preventDefault(); smUndo(); }
 });
@@ -4228,7 +4359,7 @@ $("smRun").onclick = () => { sim.run = !sim.run; $("smRun").textContent = sim.ru
 $("smVbtn").onclick = () => { sim.showV = !sim.showV; $("smVbtn").setAttribute("aria-pressed", sim.showV); smDrawDyn(); };
 $("smSpeed").addEventListener("click", ev => { const b = ev.target.closest("button[data-s]"); if (!b) return; sim.speed = +b.dataset.s; $("smSpeed").querySelectorAll("button").forEach(x => x.setAttribute("aria-pressed", x === b)); });
 $("smEx").innerHTML = Object.entries(SM_EX).map(([k, x]) => `<button type="button" data-ex="${k}">${x.n}</button>`).join("");
-$("smEx").addEventListener("click", ev => { const b = ev.target.closest("button[data-ex]"); if (!b) return; smPush(); sim.els = JSON.parse(JSON.stringify(SM_EX[b.dataset.ex].els)); sim.sel = -1; sim.t = 0; smNet = null; smDrawStatic(); });
+$("smEx").addEventListener("click", ev => { const b = ev.target.closest("button[data-ex]"); if (!b) return; smPush(); sim.els = JSON.parse(JSON.stringify(SM_EX[b.dataset.ex].els)); sim.sel = -1; sim.t = 0; smNet = null; smDrawStatic(); smFit(); });
 $("smInfo").addEventListener("click", ev => {
   const el = sim.els[sim.sel]; if (!el) return;
   if (ev.target.closest("#smDel")) { smPush(); sim.els.splice(sim.sel, 1); sim.sel = -1; smDrawStatic(); }
@@ -4248,7 +4379,7 @@ function smLoop(ts) {
   }
   requestAnimationFrame(smLoop);
 }
-smTools(); smDrawStatic(); requestAnimationFrame(smLoop);
+smTools(); smDrawStatic(); smFit(); requestAnimationFrame(smLoop);
 
 const GLOSS = [
   ["CAN", "Помехоустойчивая двухпроводная шина (Controller Area Network), изначально для автомобилей. Устройства обмениваются кадрами по дифференциальной паре, приоритет задаёт идентификатор сообщения.", "интерфейсы", ""],
