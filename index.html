@@ -610,6 +610,9 @@ label.check input { width: auto; accent-color: var(--accent); }
 .smsvg .smbad { stroke: var(--warn); }
 .smsvg .lampg { fill: #ffd23e; }
 .smsvg .mdot { fill: var(--accent); stroke: none; pointer-events: none; }
+.csfrom { align-items: end; }
+.csfrom label { flex: 1 1 260px; }
+.cs-go { white-space: normal; text-align: left; } /* длинная подпись кнопки переносится, а не распирает страницу на телефоне */
 </style>
 
 <div class="wrap" role="main">
@@ -1046,13 +1049,15 @@ label.check input { width: auto; accent-color: var(--accent); }
         <div class="fields"><label>Выражение (переменные A, B, C, D, E, F)<input id="lgE" value="A & !B | C" autocomplete="off" spellcheck="false"></label></div>
         <p class="hint" style="margin:0">НЕ: <code>!</code> или <code>¬</code> · И: <code>&</code> или <code>*</code> · ИЛИ: <code>|</code> или <code>+</code> · Исключающее ИЛИ: <code>^</code> · скобки <code>( )</code>. Сначала НЕ, потом И, потом ^, потом ИЛИ — как умножение раньше сложения.</p>
         <div class="out" id="lgEOut"></div>
-        <div class="plinks"><button type="button" class="tool" id="lgToK">Упростить на карте Карно</button></div>
+        <div class="plinks"><button type="button" class="tool" id="lgToK">Упростить на карте Карно</button><button type="button" class="tool" id="lgToC">Собрать схему (каскад)</button></div>
         <table class="board lgtt" id="lgETT"></table>
       </div>
       <!-- Каскад: выход одного элемента подаётся на вход другого -->
       <div class="stack" id="lgCasc" hidden>
         <p class="hint" style="margin:0">Собери схему из нескольких элементов: выход одного подаётся на вход следующего. Начни с примера или добавь элементы сам. Нажми на букву входа на схеме, чтобы переключить его. Лишний вход элемента можно посадить на константу: 1 — питание, 0 — земля.</p>
         <div class="seg" role="group" aria-label="Готовые схемы" id="csPre"></div>
+        <div class="kbar csfrom"><label>Собрать по своему выражению<input id="csE" placeholder="например: (A & B) | !C" autocomplete="off" spellcheck="false"></label><button type="button" class="tool" id="csBuild">Собрать</button></div>
+        <p class="hint" id="csEMsg" role="status" style="margin:0">Те же знаки, что во вкладке «Своё выражение»: ! — НЕ, & — И, | — ИЛИ, ^ — исключающее ИЛИ, скобки.</p>
         <div class="cscols">
           <div class="stack">
             <div class="seg" role="group" aria-label="Число входов" id="csN"><button type="button" data-n="2">2 вх</button><button type="button" data-n="3">3 вх</button><button type="button" data-n="4">4 вх</button><button type="button" data-n="5">5 вх</button><button type="button" data-n="6">6 вх</button></div>
@@ -2134,6 +2139,9 @@ $("lgTabC").onclick = () => setLgTab("c");
 $("lgTabK").onclick = () => setLgTab("k");
 
 // Разбор выражения без eval: рекурсивный спуск. Приоритет: НЕ > И > ^ > ИЛИ
+// Результат — дерево: { t: "v" | "c", n } для буквы и константы, { t: "not" | "and" | "or" | "xor", a: [...] } для операций
+const lgCalc = (nd, e) => nd.t === "v" ? e[nd.n] : nd.t === "c" ? +nd.n : nd.t === "not" ? 1 - lgCalc(nd.a[0], e)
+  : nd.t === "and" ? lgCalc(nd.a[0], e) & lgCalc(nd.a[1], e) : nd.t === "or" ? lgCalc(nd.a[0], e) | lgCalc(nd.a[1], e) : lgCalc(nd.a[0], e) ^ lgCalc(nd.a[1], e);
 function parseLogic(src) {
   const map = { "А": "A", "В": "B", "С": "C", "Д": "D", "Е": "E", "¬": "!", "~": "!", "*": "&", "·": "&", "∧": "&", "+": "|", "∨": "|", "⊕": "^" };
   const t = [...src.toUpperCase().replace(/\s+/g, "")].map(ch => map[ch] || ch);
@@ -2141,19 +2149,47 @@ function parseLogic(src) {
   const err = m => { throw new Error(m); };
   const prim = () => {
     const ch = t[i];
-    if (ch === "!") { i++; const a = prim(); return e => 1 - a(e); }
+    if (ch === "!") { i++; return { t: "not", a: [prim()] }; }
     if (ch === "(") { i++; const a = or(); if (t[i] !== ")") err("Не хватает закрывающей скобки )"); i++; return a; }
-    if (/[A-F]/.test(ch)) { i++; vars.add(ch); return e => e[ch]; }
-    if (ch === "0" || ch === "1") { i++; return () => +ch; }
+    if (/[A-F]/.test(ch)) { i++; vars.add(ch); return { t: "v", n: ch }; }
+    if (ch === "0" || ch === "1") { i++; return { t: "c", n: ch }; }
     err(ch === undefined ? "Выражение обрывается — после знака нужна переменная" : `Непонятный символ «${ch}»`);
   };
-  const bin = (op, next, f) => () => { let a = next(); while (t[i] === op) { i++; const l = a, r = next(); a = e => f(l(e), r(e)); } return a; };
-  const and = bin("&", prim, (x, y) => x & y), xor = bin("^", and, (x, y) => x ^ y), or = bin("|", xor, (x, y) => x | y);
+  const bin = (op, next, name) => () => { let a = next(); while (t[i] === op) { i++; a = { t: name, a: [a, next()] }; } return a; };
+  const and = bin("&", prim, "and"), xor = bin("^", and, "xor"), or = bin("|", xor, "or");
   const vars = new Set();
   if (!t.length) err("Введи выражение, например A & !B");
-  const f = or();
+  const tree = or();
   if (i < t.length) err(`Лишний символ «${t[i]}»`);
-  return { f, vars: [...vars].sort() };
+  return { f: e => lgCalc(tree, e), tree, vars: [...vars].sort() };
+}
+// Дерево выражения → элементы каскада. Цепочки одной операции сливаются в один многовходовый элемент (до 6 входов),
+// ¬(…·…) → И-НЕ, ¬(…+…) → ИЛИ-НЕ, ¬¬X → X, одинаковые куски выражения считаются одним элементом
+function exprToCasc(tree) {
+  const g = [], memo = {};
+  const flat = (nd, op) => (nd.t === op ? nd.a.flatMap(x => flat(x, op)) : [nd]);
+  const emit = (type, ins) => {
+    const key = type + ":" + ins.join(",");
+    if (!memo[key]) { g.push(type === "not" ? ["not", ins[0], ins[0]] : [type, ...ins]); memo[key] = "G" + g.length; }
+    return memo[key];
+  };
+  const gate = (type, args) => {
+    const ins = args.map(build), base = { nand: "and", nor: "or" }[type] || type;
+    while (ins.length > 6) ins.unshift(emit(base, ins.splice(0, 6))); // больше 6 входов — сначала собираем по 6
+    return emit(type, ins);
+  };
+  const build = nd => {
+    if (nd.t === "v" || nd.t === "c") return nd.n;
+    if (nd.t === "not") {
+      const x = nd.a[0];
+      if (x.t === "not") return build(x.a[0]);
+      if (x.t === "and" || x.t === "or") return gate(x.t === "and" ? "nand" : "nor", flat(x, x.t));
+      return emit("not", [build(x)]);
+    }
+    return gate(nd.t, flat(nd, nd.t));
+  };
+  const out = build(tree);
+  return { g, out };
 }
 function updateLogicExpr() {
   let p;
@@ -2184,7 +2220,7 @@ const CS_PRE = {
   mj: { n: "2 из 3", k: 3, g: [["and", "A", "B"], ["and", "B", "C"], ["and", "A", "C"], ["or", "G1", "G2"], ["or", "G4", "G3"]], why: "Мажоритарная схема: выход 1, когда единиц хотя бы две из трёх. Так «голосуют» три дублирующих датчика, и один сломанный не портит результат." },
   dm: { n: "Де Морган", k: 2, g: [["not", "A", "A"], ["not", "B", "B"], ["or", "G1", "G2"], ["nand", "A", "B"]], why: "Сравни G3 и G4: ¬A + ¬B всегда равно ¬(A · B). Это закон де Моргана — таблица докажет его лучше любых слов." },
 };
-const CS_MAX = 8;
+const CS_MAX = 12;
 // Сколько элементов в одной микросхеме: НЕ — 6 штук, остальные — 4 двухвходовых
 const CS_CHIP = { and: ["74HC08", 4], or: ["74HC32", 4], not: ["74HC04", 6], nand: ["74HC00", 4], nor: ["74HC02", 4], xor: ["74HC86", 4] };
 let cs = { k: 2, g: CS_PRE.ha.g.map(r => [...r]), ins: [0, 0, 0, 0, 0, 0], p: "ha" };
@@ -2392,6 +2428,31 @@ const csToggle = i => { cs.ins[i] ^= 1; drawCasc(); };
 $("csIns").addEventListener("click", e => { const b = e.target.closest("button[data-i]"); if (b) csToggle(+b.dataset.i); });
 $("csSchem").addEventListener("click", e => { const g = e.target.closest(".inp"); if (g) csToggle(+g.dataset.i); });
 $("csTT").addEventListener("click", e => { const r = e.target.closest("tr[data-in]"); if (r) { [...r.dataset.in].forEach((x, j) => { cs.ins[j] = +x; }); drawCasc(); } });
+// Собрать каскад из выражения и проверить: таблица схемы должна совпасть с таблицей выражения
+function csFromExpr(src) {
+  let p;
+  try { p = parseLogic(src); } catch (e) { $("csEMsg").innerHTML = `<span class="warn">${esc(e.message)}</span>`; return false; }
+  const { g, out } = exprToCasc(p.tree);
+  if (!g.length) { $("csEMsg").innerHTML = `<span class="warn">Это просто вход ${esc(out)} — элементы не нужны. Добавь операцию, например ${esc(out)} & B.</span>`; return false; }
+  if (g.length > CS_MAX) { $("csEMsg").innerHTML = `<span class="warn">Получилось ${g.length} элементов, а в каскаде помещается ${CS_MAX}. Упрости выражение — например, на карте Карно.</span>`; return false; }
+  const k = Math.max(2, ...p.vars.map(v => LG_NAMES.indexOf(v) + 1));
+  cs = { k, g, ins: [0, 0, 0, 0, 0, 0], p: null };
+  csAll();
+  const n = k, same = Array.from({ length: 2 ** n }, (_, m) => {
+    const ins = Array.from({ length: n }, (_, j) => (m >> (n - 1 - j)) & 1), env = {};
+    ins.forEach((x, j) => { env[LG_NAMES[j]] = x; });
+    return csEval(ins)[out] === p.f(env);
+  }).every(Boolean);
+  $("csEMsg").innerHTML = `Собрано: ${g.length} ${g.length === 1 ? "элемент" : g.length < 5 ? "элемента" : "элементов"}, выход схемы — ${out}. ` +
+    (same ? "Таблица истинности совпадает с выражением ✓" : `<span class="warn">Таблица не совпала с выражением — напиши мне, это ошибка.</span>`);
+  return true;
+}
+$("csBuild").addEventListener("click", () => csFromExpr($("csE").value));
+$("csE").addEventListener("keydown", e => { if (e.key === "Enter") csFromExpr($("csE").value); });
+$("lgToC").addEventListener("click", () => {
+  $("csE").value = $("lgE").value; setLgTab("c");
+  if (!csFromExpr($("csE").value)) $("csE").focus();
+});
 $("csOut").addEventListener("click", e => {
   if (!e.target.closest("#csGo")) return;
   const s = csSinks();
