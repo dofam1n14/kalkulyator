@@ -1198,7 +1198,7 @@ label.check input { width: auto; accent-color: var(--accent); }
           <li>Курсором деталь можно перетащить — провода потянутся за ней. Тащи пустое место, чтобы сдвинуть поле; колесо мыши или два пальца — приблизить и отдалить.</li>
           <li>Транзистор: база слева. Без резистора в базе ток базы огромный — так нельзя. Нажми на транзистор — увидишь его режим: закрыт, усиливает или открыт полностью.</li>
           <li>Амперметр ставь в разрыв провода, вольтметр — параллельно детали; показания видны прямо на схеме.</li>
-          <li>Клавиши: R — повернуть, + и − — масштаб, Delete — удалить выбранное, Ctrl+Z — отменить.</li>
+          <li>Клавиши: R — повернуть выбранную деталь (или следующую, если ничего не выбрано), + и − — масштаб, Delete — удалить выбранное, Ctrl+Z — отменить.</li>
         </ul>
       </div>
       <details class="how"><summary>Как это работает</summary><div class="howb"><h3>Идея</h3><p>Симулятор схем вычисляет напряжения и токи в цепи так, как это делает физика, но по уравнениям. Основа метода — узловой анализ: для каждого узла составляется уравнение, и вся система решается сразу.</p>
@@ -4256,10 +4256,13 @@ const smHist = [];
 const smKey = p => p[0] + "," + p[1];
 const isGate = t => !!SM_GATE[t], isOne = t => t === "gnd" || t === "lin" || t === "lout", isTr = t => t === "npn" || t === "pnp";
 // Выводы детали: у двухвыводных — a и b, у элементов — входы слева и выход справа
+// Поворот смещения (dx, dy) на r × 90° по часовой (ось y на экране смотрит вниз)
+const smTurn = (dx, dy, r) => { for (let k = 0; k < ((r % 4) + 4) % 4; k++) [dx, dy] = [-dy, dx]; return [dx, dy]; };
 function smPins(e) {
-  if (isGate(e.t)) { const [x, y] = e.a; return e.t === "not" ? [[x, y], [x + 4, y]] : [[x, y - 1], [x, y + 1], [x + 4, y]]; }
+  const [x, y] = e.a, at = offs => offs.map(([dx, dy]) => { const [u, v] = smTurn(dx, dy, e.r || 0); return [x + u, y + v]; });
+  if (isGate(e.t)) return at(e.t === "not" ? [[0, 0], [4, 0]] : [[0, -1], [0, 1], [4, 0]]);
   // Транзистор: база, коллектор, эмиттер. У NPN коллектор сверху, у PNP сверху эмиттер (он идёт к плюсу)
-  if (isTr(e.t)) { const [x, y] = e.a, k = e.t === "npn" ? 1 : -1; return [[x, y], [x + 2, y - 2 * k], [x + 2, y + 2 * k]]; }
+  if (isTr(e.t)) { const k = e.t === "npn" ? 1 : -1; return at([[0, 0], [2, -2 * k], [2, 2 * k]]); }
   return isOne(e.t) ? [e.a] : [e.a, e.b];
 }
 function smSave() { try { localStorage.setItem("calc-sim", JSON.stringify({ els: sim.els })); } catch (e) {} }
@@ -4472,6 +4475,15 @@ function smWireCurrents() {
 const smPx = p => [p[0] * SM.G + 10, p[1] * SM.G + 10];
 const smFmt = (v, u) => fmt(v, u, 3);
 function smSymbol(e, ghost) {
+  const s = smSymbol0(e, ghost), r = ((e.r || 0) % 4 + 4) % 4;
+  if (!r || !(isOne(e.t) || isGate(e.t) || isTr(e.t))) return s;
+  const [ax, ay] = smPx(e.a), d = r * 90;
+  return `<g transform="rotate(${d} ${ax} ${ay})">` +
+    s.replace(/<text([^>]*?) x="([^"]+)" y="([^"]+)"/g, (m, pre, tx, ty) => `<text${pre} x="${tx}" y="${ty}" transform="rotate(${-d} ${tx} ${ty})"`) + "</g>";
+}
+// Точка (ox, oy) возле детали в пикселях с учётом её поворота
+const smAt = (e, ox, oy) => { const [ax, ay] = smPx(e.a), [u, v] = smTurn(ox, oy, e.r || 0); return [ax + u, ay + v]; };
+function smSymbol0(e, ghost) {
   const t = e.t, cls = ghost ? "smel ghost" : "smel";
   if (isOne(t)) {
     const [x, y] = smPx(e.a);
@@ -4480,7 +4492,7 @@ function smSymbol(e, ghost) {
     return `<g class="${cls}"><line x1="${x}" y1="${y}" x2="${x + 10}" y2="${y}"/><circle class="probe" cx="${x + 20}" cy="${y}" r="10"/></g>`;
   }
   if (isGate(t)) {
-    const [x, y] = smPx(e.a), [, sym, inv] = SM_GATE[t], P = smPins(e).map(smPx), o = P[P.length - 1];
+    const [x, y] = smPx(e.a), [, sym, inv] = SM_GATE[t], P = smPins({ ...e, r: 0 }).map(smPx), o = P[P.length - 1]; // рисуем неповёрнутым, поворот — снаружи
     let s = `<g class="${cls}"><rect class="gbox" x="${x + 14}" y="${y - 30}" width="40" height="60" rx="3"/><text class="gsym" x="${x + 34}" y="${y - 10}">${sym}</text>`;
     P.slice(0, -1).forEach(([px, py]) => { s += `<line x1="${px}" y1="${py}" x2="${x + 14}" y2="${py}"/>`; });
     s += inv ? `<circle class="gbox" cx="${x + 59}" cy="${y}" r="5"/><line x1="${x + 64}" y1="${y}" x2="${o[0]}" y2="${o[1]}"/>` : `<line x1="${x + 54}" y1="${y}" x2="${o[0]}" y2="${o[1]}"/>`;
@@ -4560,7 +4572,7 @@ function smDrawDyn(dtReal = 0) {
       if (f > 0.02) s += `<circle class="glow" cx="${ax + (bx - ax) * 0.48}" cy="${ay + (by - ay) * 0.48}" r="${10 + 10 * f}" style="opacity:${0.25 + 0.6 * f}"/>`;
       if (el.I > 0.035) s += `<text class="smwarn" x="${(ax + bx) / 2 + 14}" y="${(ay + by) / 2 + 22}">сгорит!</text>`;
     }
-    if (e.t === "lout") { const [x, y] = smPx(e.a); if ((smNet.V[nodeOf(e.a)] || 0) > 2.5) s += `<circle class="probe on" cx="${x + 20}" cy="${y}" r="10"/>`; }
+    if (e.t === "lout") { const [x, y] = smAt(e, 20, 0); if ((smNet.V[nodeOf(e.a)] || 0) > 2.5) s += `<circle class="probe on" cx="${x}" cy="${y}" r="10"/>`; }
     if (e.t === "lamp" || e.t === "mot" || e.t === "am" || e.t === "vm") {
       const [ax, ay] = smPx(e.a), [bx, by] = smPx(e.b), mx = (ax + bx) / 2, my = (ay + by) / 2, vert = ax === bx;
       if (e.t === "lamp") { const f = Math.min(1, Math.abs(el.U * el.I) / 0.5); if (f > 0.02) s += `<circle class="glow lampg" cx="${mx}" cy="${my}" r="${10 + 12 * f}" style="opacity:${0.25 + 0.65 * f}"/>`; }
@@ -4595,12 +4607,14 @@ function smInfo() {
   smNet.els.forEach(el => { if (isTr(el.e.t) && Math.abs(el.Ic || 0) > 0.2) warn.push(`Через транзистор ${fmt(Math.abs(el.Ic), "А")} — маленький BC547 держит до 0,1 А. Нужен транзистор мощнее или нагрузка меньше.`); });
   smNet.els.forEach(el => { if (isTr(el.e.t) && Math.abs(el.Ib || 0) > 0.02) warn.push(`Ток базы ${fmt(Math.abs(el.Ib), "А")} — слишком много, поставь резистор в базу (обычно 1–10 кОм).`); });
   if (smNet.auto) warn.push("Нет земли: за 0 В взят минус первой батарейки.");
-  let html = "";
+  // Панель из трёх частей: шапка (имя и поле номинала) и кнопки пересоздаются только при смене выбранной детали,
+  // а цифры — 4 раза в секунду. Иначе кнопка исчезала бы прямо под пальцем и нажатие на телефоне терялось
+  let head = "", html = "", acts = "";
   const el = smNet.els[sim.sel];
   if (el) {
     const e = el.e, name = SM_NAME[e.t] || `Элемент ${SM_TOOLS.find(x => x[0] === e.t)[1]}`;
-    html += `<div class="big">${name}</div>`;
-    if (SM_UNIT[e.t]) html += `<label>${{ z: "Напряжение стабилизации", fuse: "Ток срабатывания" }[e.t] || "Номинал"}, ${SM_UNIT[e.t]}<input id="smVal" value="${fmt(e.v, "").trim()}" autocomplete="off"></label>`;
+    head += `<div class="big">${name}</div>`;
+    if (SM_UNIT[e.t]) head += `<label>${{ z: "Напряжение стабилизации", fuse: "Ток срабатывания" }[e.t] || "Номинал"}, ${SM_UNIT[e.t]}<input id="smVal" value="${fmt(e.v, "").trim()}" autocomplete="off"></label>`;
     if (e.t === "am") html += row("Показывает ток", smFmt(Math.abs(el.I), "А"));
     if (e.t === "vm") html += row("Показывает напряжение", smFmt(el.U, "В"));
     if (isTr(e.t)) {
@@ -4608,23 +4622,28 @@ function smInfo() {
       html += row("Ток базы", smFmt(Math.abs(el.Ib || 0), "А")) + row("Ток коллектора", smFmt(Math.abs(el.Ic || 0), "А")) + row(e.t === "npn" ? "Uбэ" : "Uэб", smFmt(el.vbe, "В")) + row(e.t === "npn" ? "Uкэ" : "Uэк", smFmt(el.U || 0, "В"))
         + (on && Math.abs(el.Ib) > 1e-9 ? row("Iк / Iб", (Math.abs(el.Ic) / Math.abs(el.Ib)).toFixed(0)) : "") + `<p class="hint" style="margin:6px 0 0">Режим: ${mode}. Здесь β = 100.</p>`;
     }
-    if (e.t === "fuse" && e.blown) html += `<button type="button" class="tool" id="smFix">Заменить предохранитель</button>`;
+
     if (!isOne(e.t) && !isGate(e.t) && !isTr(e.t) && e.t !== "w" && e.t !== "am" && e.t !== "vm") html += row("Напряжение на детали", smFmt(Math.abs(el.U), "В")) + row("Ток", smFmt(Math.abs(el.I), "А")) + row("Мощность", smFmt(Math.abs(el.U * el.I), "Вт"));
     if (e.t === "c") html += row("Заряд", smFmt(Math.abs(e.v * el.U), "Кл"));
     if (e.t === "w") html += row("Напряжение", smFmt(smNet.V[smNet.idx[smNet.find(smKey(e.a))]] || 0, "В")) + row("Ток", smFmt(Math.abs(el.I), "А"));
     if (e.t === "lout" || isGate(e.t)) { const o = smPins(e).pop(); html += row("Выход", (smNet.V[smNet.idx[smNet.find(smKey(o))]] || 0) > 2.5 ? "1" : "0"); }
-    html += `<div class="plinks">${SM_TWO.includes(e.t) ? `<button type="button" class="tool" id="smFlip">Развернуть</button>` : ""}<button type="button" class="tool danger" id="smDel">Удалить</button></div>`;
+    acts = `${e.t === "fuse" && e.blown ? `<button type="button" class="tool" id="smFix">Заменить предохранитель</button>` : ""}${e.t !== "w" ? `<button type="button" class="tool" id="smTurn">Повернуть ↻</button>` : ""}${SM_TWO.includes(e.t) ? `<button type="button" class="tool" id="smFlip">Развернуть</button>` : ""}<button type="button" class="tool danger" id="smDel">Удалить</button>`;
   } else html += `<div class="big">${smNet.els.some(x => x.e.t === "c") ? `Время: ${fmt(sim.t, "с")}` : "Схема посчитана"}</div>` + row("Деталей", sim.els.filter(e => e.t !== "w").length) + row("Узлов", smNet.n + 1) + `<p class="hint" style="margin:6px 0 0">Нажми на деталь курсором — увидишь её напряжение и ток, сможешь поменять номинал.</p>`;
   html += warn.map(w => `<span class="warn">${w}</span>`).join("");
-  $("smInfo").innerHTML = html;
-  const inp = $("smVal");
-  if (inp) inp.addEventListener("change", () => { const v = parse(inp.value); if (v > 0) { smPush(); smNet.els[sim.sel].e.v = v; smDrawStatic(); } });
+  const box = $("smInfo"), key = head + "|" + acts;
+  if (box.dataset.key !== key || !$("smBody")) {
+    box.dataset.key = key;
+    box.innerHTML = `<div id="smHead">${head}</div><div id="smBody">${html}</div>${acts ? `<div class="plinks" id="smActs">${acts}</div>` : ""}`;
+    const inp = $("smVal");
+    if (inp) inp.addEventListener("change", () => { const v = parse(inp.value); if (v > 0) { smPush(); smNet.els[sim.sel].e.v = v; smDrawStatic(); } });
+  } else $("smBody").innerHTML = html;
 }
 function smTools() {
   $("smTools").innerHTML = SM_TOOLS.map(([k, n, h]) => `<button type="button" data-tool="${k}" title="${h}" aria-pressed="${sim.tool === k}">${n}</button>`).join("");
   $("smRot").setAttribute("aria-pressed", !!sim.rot);
+  $("smRot").textContent = sim.tool === "sel" ? "Повернуть ↻" : `Повернуть ↻ ${(sim.rot || 0) * 90}°`;
   const tip = SM_TOOLS.find(x => x[0] === sim.tool);
-  $("smHint").textContent = sim.tool === "sel" ? "Курсор: нажми на деталь, чтобы выбрать, или перетащи её; нажми на выключатель или лог. вход, чтобы переключить, держи кнопку, чтобы замкнуть; тащи пустое место, чтобы сдвинуть поле." : `${tip[1]}: ${tip[2] || "нажми на точку сетки, куда поставить."}${SM_TWO.includes(sim.tool) ? " «Повернуть» — вертикально/горизонтально." : ""}`;
+  $("smHint").textContent = sim.tool === "sel" ? "Курсор: нажми на деталь, чтобы выбрать, или перетащи её; выбранную «Повернуть» крутит на 90°; нажми на выключатель или лог. вход, чтобы переключить, держи кнопку, чтобы замкнуть; тащи пустое место, чтобы сдвинуть поле." : `${tip[1]}: ${tip[2] || "нажми на точку сетки, куда поставить."}${sim.tool !== "w" && sim.tool !== "del" ? " «Повернуть» (или R) — на 90°." : ""}`;
 }
 
 /* --- Мышь и клавиатура --- */
@@ -4638,9 +4657,10 @@ function smHit(x, y) {
   let best = -1, bd = 12;
   sim.els.forEach((e, i) => {
     let d;
-    if (isGate(e.t)) { const [gx, gy] = smPx(e.a); d = x > gx + 10 && x < gx + 70 && y > gy - 32 && y < gy + 32 ? 0 : 99; }
-    else if (isTr(e.t)) { const [gx, gy] = smPx(e.a); d = Math.hypot(x - gx - 34, y - gy) < 27 ? 0 : 99; }
-    else if (isOne(e.t)) { const [px, py] = smPx(e.a), cx = e.t === "lin" ? px - 23 : e.t === "lout" ? px + 20 : px, cy = e.t === "gnd" ? py + 12 : py; d = Math.hypot(x - cx, y - cy) - 6; }
+    const [gx, gy] = smPx(e.a), [lx, ly] = smTurn(x - gx, y - gy, -(e.r || 0)); // курсор в «неповёрнутых» координатах детали
+    if (isGate(e.t)) d = lx > 10 && lx < 70 && ly > -32 && ly < 32 ? 0 : 99;
+    else if (isTr(e.t)) d = Math.hypot(lx - 34, ly) < 27 ? 0 : 99;
+    else if (isOne(e.t)) { const cx = e.t === "lin" ? -23 : e.t === "lout" ? 20 : 0, cy = e.t === "gnd" ? 12 : 0; d = Math.hypot(lx - cx, ly - cy) - 6; }
     else {
       const [ax, ay] = smPx(e.a), [bx, by] = smPx(e.b), L2 = (bx - ax) ** 2 + (by - ay) ** 2;
       const k = L2 ? Math.max(0, Math.min(1, ((x - ax) * (bx - ax) + (y - ay) * (by - ay)) / L2)) : 0;
@@ -4652,9 +4672,10 @@ function smHit(x, y) {
 }
 function smNew(g) {
   const t = sim.tool, [x, y] = g;
-  if (isOne(t)) return { t, a: g, ...(t === "lin" ? { on: 0 } : {}) };
-  if (isGate(t) || isTr(t)) return { t, a: g };
-  const b = sim.rot ? [x, y + SM.LEN] : [x + SM.LEN, y];
+  const r = sim.rot || 0;
+  if (isOne(t)) return { t, a: g, r, ...(t === "lin" ? { on: 0 } : {}) };
+  if (isGate(t) || isTr(t)) return { t, a: g, r };
+  const [u, v] = smTurn(SM.LEN, 0, r), b = [x + u, y + v];
   return { t, a: g, b, ...(SM_DEF[t] ? { v: SM_DEF[t] } : {}), ...(t === "sw" || t === "btn" ? { on: false } : {}) };
 }
 /* --- Масштаб и сдвиг поля: меняем viewBox, а не размер картинки --- */
@@ -4703,9 +4724,9 @@ function smMoveEl(i, dx, dy) {
   e.a = sh(e.a); if (e.b) e.b = sh(e.b);
   sim.els.forEach((w, k) => {
     if (k === i || w.t !== "w") return;
-    if (smSame(w.a, w.b)) { if (old.some(q => smSame(q, w.b))) w.b = sh(w.b); return; } // «резинка» — тянется только один конец
-    if (old.some(q => smSame(q, w.a))) w.a = sh(w.a);
-    if (old.some(q => smSame(q, w.b))) w.b = sh(w.b);
+    if (smSame(w.a, w.b)) { if (old.some(q => smSame(q, w.b))) { w.b = sh(w.b); smMovedW.add(w); } return; } // «резинка» — тянется только один конец
+    if (old.some(q => smSame(q, w.a))) { w.a = sh(w.a); smMovedW.add(w); }
+    if (old.some(q => smSame(q, w.b))) { w.b = sh(w.b); smMovedW.add(w); }
   });
 }
 // Перед перетаскиванием: где деталь касается другой детали напрямую, кладём провод нулевой длины —
@@ -4716,16 +4737,95 @@ function smTether(i) {
     if (sim.els.some((o, k) => k !== i && o.t !== "w" && smPins(o).some(p => smSame(p, q)))) sim.els.push({ t: "w", a: [...q], b: [...q] });
   });
 }
-// После перетаскивания: косые провода превращаем в «уголок», пустые убираем
-function smTidy() {
-  const out = [];
-  sim.els.forEach(w => {
-    if (w.t !== "w") { out.push(w); return; }
-    const [ax, ay] = w.a, [bx, by] = w.b;
-    if (ax === bx && ay === by) return;
-    if (ax === bx || ay === by) { out.push(w); return; }
-    out.push({ t: "w", a: [ax, ay], b: [bx, ay] }, { t: "w", a: [bx, ay], b: [bx, by] });
+// Повернуть деталь на 90° по часовой вокруг постоянной точки её корпуса — после 4 поворотов она там же, где была.
+// Если новый вывод лёг бы на чужой провод или вывод (лишнее соединение) — пробуем другую точку, а нет — не крутим
+function smRotEl(i) {
+  const e = sim.els[i]; if (!e || e.t === "w") return false;
+  const spin = (q, c) => { const [u, v] = smTurn(q[0] - c[0], q[1] - c[1], 1); return [c[0] + u, c[1] + v]; };
+  const cands = [];
+  if (e.b) {
+    const dx = Math.sign(e.b[0] - e.a[0]), dy = Math.sign(e.b[1] - e.a[1]), L = Math.abs(e.b[0] - e.a[0]) + Math.abs(e.b[1] - e.a[1]);
+    [...new Set([Math.floor(L / 2), Math.ceil(L / 2)])].forEach(k => { const c = [e.a[0] + dx * k, e.a[1] + dy * k]; cands.push({ a: spin(e.a, c), b: spin(e.b, c) }); });
+  } else if (isGate(e.t) || isTr(e.t)) {
+    // Середина корпуса: у элемента — 2 клетки от входов, у транзистора — 1 клетка от базы (с учётом текущего поворота)
+    const [u, v] = smTurn(isGate(e.t) ? 2 : 1, 0, e.r || 0), c = [e.a[0] + u, e.a[1] + v];
+    cands.push({ a: spin(e.a, c), r: ((e.r || 0) + 1) % 4 });
+  } else cands.push({ r: ((e.r || 0) + 1) % 4 });
+  const old = smPins(e).map(q => [...q]), isOld = q => old.some(o => smSame(o, q));
+  // Чем заняты точки вокруг: выводы других деталей и провода (кроме концов, приходящих в выводы этой детали)
+  const busy = new Set();
+  sim.els.forEach((o, k) => {
+    if (k === i) return;
+    if (o.t !== "w") { smPins(o).forEach(q => busy.add(smKey(q))); return; }
+    const dx = Math.sign(o.b[0] - o.a[0]), dy = Math.sign(o.b[1] - o.a[1]);
+    if (dx && dy) { [o.a, o.b].forEach(q => { if (!isOld(q)) busy.add(smKey(q)); }); return; } // у косого провода заняты только концы
+    const n = Math.abs(o.b[0] - o.a[0]) + Math.abs(o.b[1] - o.a[1]);
+    for (let m = 0; m <= n; m++) { const q = [o.a[0] + dx * m, o.a[1] + dy * m]; if (!((m === 0 || m === n) && isOld(q))) busy.add(smKey(q)); }
   });
+  const ok = cands.find(c => smPins({ ...e, ...c }).every(q => !busy.has(smKey(q))));
+  if (!ok) { $("smHint").textContent = "Тут тесно: после поворота вывод лёг бы на соседний провод или деталь. Отодвинь деталь и поверни снова."; return false; }
+  smPush(); smTether(i);
+  Object.assign(e, ok);
+  const now = smPins(e);
+  sim.els.forEach((w, k) => {
+    if (k === i || w.t !== "w") return;
+    const ja = old.findIndex(q => smSame(q, w.a)), jb = old.findIndex(q => smSame(q, w.b));
+    if (smSame(w.a, w.b)) { if (jb >= 0) { w.b = [...now[jb]]; smMovedW.add(w); } return; } // «резинка» — тянется только один конец
+    if (ja >= 0) { w.a = [...now[ja]]; smMovedW.add(w); }
+    if (jb >= 0) { w.b = [...now[jb]]; smMovedW.add(w); }
+  });
+  smTidy(); smDrawStatic();
+  return true;
+}
+// Кнопка «Повернуть»: выбрана деталь — крутим её; нет — меняем поворот следующей детали
+function smRotate() {
+  if (sim.tool === "sel" && sim.sel >= 0 && sim.els[sim.sel] && sim.els[sim.sel].t !== "w") { smRotEl(sim.sel); return; }
+  sim.rot = ((sim.rot || 0) + 1) % 4; smTools(); $("smGhost").innerHTML = "";
+}
+// После перетаскивания: косые провода превращаем в «уголок», пустые убираем
+// Провода, которые сдвинулись при перетаскивании или повороте детали: только их и перекладываем
+const smMovedW = new Set();
+function smTidy() {
+  sim.els = sim.els.filter(w => w.t !== "w" || !smSame(w.a, w.b));
+  // Занятые точки сетки: выводы деталей, корпуса двухвыводных и все точки прямых проводов
+  const occ = new Set(), line = (P, Q) => {
+    const dx = Math.sign(Q[0] - P[0]), dy = Math.sign(Q[1] - P[1]), n = Math.max(Math.abs(Q[0] - P[0]), Math.abs(Q[1] - P[1]));
+    return dx && dy ? [] : Array.from({ length: n + 1 }, (_, k) => [P[0] + dx * k, P[1] + dy * k]);
+  };
+  const mark = (P, Q, inner) => {
+    const pts = line(P, Q); if (!pts.length && !inner) { occ.add(smKey(P)); occ.add(smKey(Q)); return; } // косой провод — заняты концы
+    (inner ? pts.slice(1, -1) : pts).forEach(q => occ.add(smKey(q)));
+  };
+  sim.els.forEach(e => {
+    if (e.t === "w") { if (!smMovedW.has(e)) mark(e.a, e.b, false); }
+    else { smPins(e).forEach(q => occ.add(smKey(q))); if (e.b) mark(e.a, e.b, true); }
+  });
+  // Путь по точкам A → … → B чистый, если между концами не задевает ни одной занятой точки (иначе появилось бы лишнее соединение)
+  const clean = path => {
+    const pts = new Set(); for (let k = 0; k + 1 < path.length; k++) line(path[k], path[k + 1]).forEach(q => pts.add(smKey(q)));
+    pts.delete(smKey(path[0])); pts.delete(smKey(path[path.length - 1]));
+    return [...pts].every(k => !occ.has(k));
+  };
+  const out = [], put = path => { for (let k = 0; k + 1 < path.length; k++) { out.push({ t: "w", a: path[k], b: path[k + 1] }); mark(path[k], path[k + 1], false); } };
+  sim.els.forEach(w => {
+    if (w.t !== "w" || !smMovedW.has(w)) { out.push(w); return; }
+    const A = w.a, B = w.b, straight = A[0] === B[0] || A[1] === B[1];
+    if (straight && clean([A, B])) { put([A, B]); return; }
+    // Косой — пробуем оба уголка; прямой, но задевает чужое — обходим скобкой «П» на 1–2 клетки в сторону
+    const opts = straight
+      ? [1, -1, 2, -2].map(d => { const n = A[0] === B[0] ? [d, 0] : [0, d]; return [A, [A[0] + n[0], A[1] + n[1]], [B[0] + n[0], B[1] + n[1]], B]; })
+      : [[A, [B[0], A[1]], B], [A, [A[0], B[1]], B]];
+    const best = opts.find(clean);
+    if (best) { put(best); return; }
+    // Обойти негде — косой провод: он ни с чем не соединяется по пути
+    if (!straight) { out.push(w); mark(A, B, false); return; }
+    // «Галочка» из двух косых через свободную точку сбоку (косые ни с чем не соединяются по пути)
+    const vert = A[0] === B[0], mid = vert ? Math.round((A[1] + B[1]) / 2) : Math.round((A[0] + B[0]) / 2), Ms = [];
+    [1, -1, 2, -2, 3, -3].forEach(o => [0, 1, -1].forEach(t => Ms.push(vert ? [A[0] + o, mid + t] : [mid + t, A[1] + o])));
+    const M = Ms.find(m => !occ.has(smKey(m)) && m[0] !== A[0] && m[1] !== A[1] && m[0] !== B[0] && m[1] !== B[1]) || Ms[0];
+    out.push({ t: "w", a: A, b: M }, { t: "w", a: M, b: B }); mark(A, M, false); mark(M, B, false);
+  });
+  smMovedW.clear();
   sim.els = out;
 }
 $("smSvg").addEventListener("pointerdown", ev => {
@@ -4814,7 +4914,7 @@ $("smSvg").addEventListener("contextmenu", ev => { ev.preventDefault(); sim.wire
 document.addEventListener("keydown", ev => {
   if ($("sim").hidden || /INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) return;
   if (ev.key === "Escape") { sim.wireFrom = null; $("smGhost").innerHTML = ""; }
-  else if (ev.key === "r" || ev.key === "к") { sim.rot = sim.rot ? 0 : 1; smTools(); }
+  else if (ev.key === "r" || ev.key === "к") smRotate();
   else if (ev.key === "+" || ev.key === "=") smZoom(1 / 1.25);
   else if (ev.key === "-") smZoom(1.25);
   else if ((ev.key === "Delete" || ev.key === "Backspace") && sim.sel >= 0) { smPush(); sim.els.splice(sim.sel, 1); sim.sel = -1; smDrawStatic(); }
@@ -4822,7 +4922,7 @@ document.addEventListener("keydown", ev => {
 });
 function smUndo() { const h = smHist.pop(); if (h) { sim.els = JSON.parse(h); sim.sel = -1; sim.wireFrom = null; smDrawStatic(); } }
 $("smTools").addEventListener("click", ev => { const b = ev.target.closest("button[data-tool]"); if (b) { sim.tool = b.dataset.tool; sim.wireFrom = null; $("smGhost").innerHTML = ""; smTools(); } });
-$("smRot").onclick = () => { sim.rot = sim.rot ? 0 : 1; smTools(); };
+$("smRot").onclick = smRotate;
 $("smUndo").onclick = smUndo;
 $("smClr").onclick = () => { smPush(); sim.els = []; sim.sel = -1; sim.t = 0; smDrawStatic(); };
 $("smRun").onclick = () => { sim.run = !sim.run; $("smRun").textContent = sim.run ? "Пауза" : "Пуск"; };
@@ -4834,6 +4934,7 @@ $("smInfo").addEventListener("click", ev => {
   const el = sim.els[sim.sel]; if (!el) return;
   if (ev.target.closest("#smDel")) { smPush(); sim.els.splice(sim.sel, 1); sim.sel = -1; smDrawStatic(); }
   if (ev.target.closest("#smFlip")) { smPush(); [el.a, el.b] = [el.b, el.a]; smDrawStatic(); }
+  if (ev.target.closest("#smTurn")) smRotEl(sim.sel);
   if (ev.target.closest("#smFix")) { smPush(); el.blown = false; smDrawStatic(); }
 });
 // Сетка — точками, через узор SVG
