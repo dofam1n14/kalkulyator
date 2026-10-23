@@ -717,7 +717,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" class="qstart" id="gStart">Играть</button>
         <span class="gbal">Электроны<b id="gCoins">0</b></span>
       </div>
-      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 125, 375, 750, 1250… очков — каждый быстрее и злее: с уровнем чаще идут группы из 2–3 деталей, которые надо перепрыгнуть одним прыжком; появляются светодиоды и реле.</p>
+      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 125, 375, 750, 1250… очков — каждый быстрее и злее: с уровнем чаще идут группы из 2–3 деталей, которые надо перепрыгнуть одним прыжком; появляются светодиоды и реле. На 5, 10, 15… уровне — <b>босс</b>: перепрыгивай капли припоя, пробегай под разрядами и собирай жёлтые заряды ⚡ — каждый бьёт босса молнией. Каждый следующий босс сильнее.</p>
       <p class="qfeed" id="gMsg"></p>
       <div class="cols">
         <div class="stack"><h3 class="gh">Магазин бафов</h3><div class="shop" id="gShop"></div></div>
@@ -3113,7 +3113,7 @@ const hit = (a, b) => a.x < b.x + b.w && a.x + a.w > b.x && a.y < b.y + b.h && a
 
 function startRun() {
   Object.assign(run, { on: true, over: false, paused: false, t: 0, speed: baseSpeed(), score: 0, coins: 0, y: 0, vy: 0, jumps: 0,
-    obs: [], cn: [], nextObs: 520, shield: gs.shield, inv: 0, scroll: 0, lvl: 1, banner: 0 });
+    obs: [], cn: [], nextObs: 520, shield: gs.shield, inv: 0, scroll: 0, lvl: 1, banner: 0, boss: null, bossLvl: 0, kills: 0, fx: [], bossBanner: 0, bossWin: null });
   gs.shield = 0; // предохранители уходят в забег, неистраченные вернутся
   $("gStart").disabled = true;
   saveGame();
@@ -3186,11 +3186,69 @@ function spawnObs(gap) {
   else if (Math.random() < 0.7) coinRow(x0 + total + run.speed * 0.45, x0 + gap - run.speed * 0.35);
   return total;
 }
+/* --- Боссы: на 5, 10, 15… уровне. Каждый следующий сильнее: больше здоровья, атаки чаще и хитрее --- */
+const BOSSES = [
+  { n: "Злой паяльник", d: "капает припоем" },
+  { n: "Взбесившийся трансформатор", d: "бьёт разрядами" },
+  { n: "Сгоревший ESP32", d: "всё сразу" },
+];
+function startBoss(L) {
+  const b = L / 5, look = (b - 1) % 3, mk = Math.floor((b - 1) / 3);
+  run.boss = { b, look, name: BOSSES[look].n + (mk ? ` Mk.${mk + 1}` : ""), hp: 4 + 2 * b, max: 4 + 2 * b,
+    x: G.W + 140, tx: G.W - 120, y: 112, t: 0, cd: 0, flash: 0, dead: 0 };
+  run.bossLvl = L; run.banner = 0; run.bossBanner = 3;
+}
+// Атака: капля припоя (перепрыгнуть), разряд на высоте прыжка (пробежать под ним) или две капли подряд.
+// Промежуток между атаками — не меньше времени прыжка с запасом, как у обычных деталей, поэтому всё проходимо
+function bossUpdate(dt) {
+  const B = run.boss, b = B.b;
+  B.t += dt; B.flash = Math.max(0, B.flash - dt);
+  B.x += (B.tx - B.x) * Math.min(1, dt * 2.5);
+  B.y = 112 + Math.sin(B.t * 2.2) * 8; // ниже счёта в углу
+  if (B.dead) { B.dead -= dt; if (B.dead <= 0) { run.boss = null; run.nextObs = run.speed * 1.2; } return; }
+  if (B.t < 2.2) return; // въезжает и пугает
+  B.cd -= dt; if (B.cd > 0) return;
+  const air = airTime(), spd = run.speed, x0 = B.x - 30;
+  B.cd = air + Math.max(0.12, 0.45 - 0.05 * b) + Math.random() * Math.max(0.1, 0.55 - 0.06 * b);
+  const zapP = [0.15, 0.45, 0.3][B.look] + 0.05 * b;
+  if (Math.random() < Math.min(0.55, zapP)) {
+    run.obs.push({ k: "zap", x: x0, w: 38, h: 18, y: G.GROUND - rnd(78, 110) });
+    if (Math.random() < 0.55) run.cn.push({ x: x0 + 19, y: G.GROUND - 28, ch: 1 }); // заряд прямо под разрядом
+    return;
+  }
+  // Капли падают из босса вертикально (в мире платы) и дальше едут вместе с полом
+  const two = b >= 2 && Math.random() < Math.min(0.6, 0.15 * b), y0 = B.y + 24;
+  [0, two ? 26 : -1].filter(o => o >= 0).forEach(o => run.obs.push({ k: "blob", x: x0 + o, w: 20, h: 16, y: y0, vy: 0 }));
+  const ow = two ? 46 : 20;
+  if (Math.random() < 0.6) {
+    // Заряд: высоко над каплей (только идеальным прыжком) или низко — там, где приземлишься
+    if (Math.random() < Math.min(0.7, 0.2 + 0.1 * b)) run.cn.push({ x: x0 + ow / 2, y: G.GROUND - 30 - jumpV() ** 2 / (2 * G.GRAV), ch: 1 });
+    else run.cn.push({ x: x0 + ow + spd * (air * 0.5 + 0.1), y: G.GROUND - 28, ch: 1 });
+  }
+}
+// Собрал заряд — молния в босса
+function bossHit(c) {
+  const B = run.boss;
+  if (!B || B.dead) { run.coins += 3; return; }
+  B.hp--; B.flash = 0.25;
+  run.fx.push({ t: 0.3, x1: c.x, y1: c.y });
+  if (B.hp <= 0) {
+    B.dead = 1.6; run.kills++;
+    const bonusE = 15 * B.b, bonusS = 60 * B.b;
+    run.coins += bonusE; run.score += bonusS;
+    run.bossWin = { t: 2.5, e: bonusE, s: bonusS };
+    run.obs = run.obs.filter(o => o.k !== "blob" || o.y + o.h >= G.GROUND - 1); // летящие капли исчезают
+  }
+}
 function update(dt) {
   run.t += dt;
   const L = level();
   if (L > run.lvl) { run.lvl = L; run.banner = 1.8; } // надпись «Уровень N»
+  if (!run.boss && L % 5 === 0 && L > run.bossLvl) startBoss(L);
   if (run.banner > 0) run.banner -= dt;
+  if (run.bossBanner > 0) run.bossBanner -= dt;
+  if (run.bossWin && (run.bossWin.t -= dt) <= 0) run.bossWin = null;
+  run.fx.forEach(f => { f.t -= dt; }); run.fx = run.fx.filter(f => f.t > 0);
   run.speed = Math.min(950 + 35 * (L - 1), 1250, baseSpeed() + 8 * run.t);
   const dx = run.speed * dt;
   run.scroll += dx;
@@ -3199,8 +3257,8 @@ function update(dt) {
   run.vy += G.GRAV * dt;
   run.y += run.vy * dt;
   if (run.y > 0) { run.y = 0; run.vy = 0; run.jumps = 0; }
-  run.nextObs -= dx;
-  if (run.nextObs <= 0) {
+  if (run.boss) bossUpdate(dt); else run.nextObs -= dx;
+  if (!run.boss && run.nextObs <= 0) {
     // Минимальный промежуток = время прыжка + запас на реакцию; с уровнем убираются только «лёгкие» длинные промежутки
     const spread = Math.max(0.15, 0.9 - 0.1 * (L - 1));
     run.nextObs = run.speed * (airTime() + 0.15 + Math.random() * spread);
@@ -3212,10 +3270,10 @@ function update(dt) {
     c.x -= dx;
     const ddx = pcx - c.x, ddy = pcy - c.y, d = Math.hypot(ddx, ddy);
     if (R && d < R) { c.x += (ddx / d) * 700 * dt; c.y += (ddy / d) * 700 * dt; }
-    if (d < 26) { c.dead = true; run.coins++; }
+    if (d < (c.ch ? 40 : 26)) { c.dead = true; if (c.ch) bossHit(c); else run.coins++; }
   });
   run.cn = run.cn.filter(c => !c.dead && c.x > -20);
-  run.obs.forEach(o => { o.x -= dx; });
+  run.obs.forEach(o => { o.x -= dx; if (o.vy !== undefined && o.y < G.GROUND - o.h) { o.vy += G.GRAV * dt; o.y = Math.min(G.GROUND - o.h, o.y + o.vy * dt); } });
   run.obs = run.obs.filter(o => o.x + o.w > -20);
   if (run.inv > 0) { run.inv -= dt; return; }
   for (const o of run.obs) {
@@ -3265,6 +3323,12 @@ function rr(x, y, w, h, r) { ctx.beginPath(); if (ctx.roundRect) ctx.roundRect(x
 // Тёмный корпус + светлая обводка — видно и на тёмной теме
 function darkBody() { ctx.fillStyle = "#2b2b2b"; ctx.fill(); ctx.strokeStyle = C.muted; ctx.lineWidth = 1.5; ctx.stroke(); }
 function drawCoin(c) {
+  if (c.ch) { // заряд для удара по боссу
+    ctx.save(); ctx.shadowColor = "#ffd23e"; ctx.shadowBlur = 16 + 6 * Math.sin(run.t * 10); ctx.fillStyle = "#ffd23e";
+    ctx.beginPath(); ctx.arc(c.x, c.y, 11, 0, Math.PI * 2); ctx.fill(); ctx.restore();
+    ctx.fillStyle = "#3a2a00"; ctx.beginPath(); [[2, -8], [-5, 1], [0, 1], [-2, 8], [5, -1], [0, -1]].forEach(([px, py], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, c.x + px, c.y + py)); ctx.closePath(); ctx.fill();
+    return;
+  }
   ctx.save();
   ctx.shadowColor = C.blue; ctx.shadowBlur = 12; ctx.fillStyle = C.blue;
   ctx.beginPath(); ctx.arc(c.x, c.y, 8, 0, Math.PI * 2); ctx.fill();
@@ -3294,6 +3358,11 @@ function drawObs(o) {
     rr(x, y + 6, w, h - 6, 3); darkBody();
     ctx.fillStyle = "#d9822b"; ctx.fillRect(x, y + 6, w, (h - 6) * 0.45);
     ctx.fillStyle = "#fff"; ctx.font = "bold 14px 'IBM Plex Mono', monospace"; ctx.textAlign = "center"; ctx.fillText("+", x + w / 2, y + 22);
+  } else if (o.k === "blob") {    // капля припоя: блестящая серебряная лужица
+    const g = ctx.createRadialGradient(x + w * 0.35, y + h * 0.3, 1, x + w / 2, y + h / 2, w * 0.7);
+    g.addColorStop(0, "#ffffff"); g.addColorStop(0.35, "#c9ced4"); g.addColorStop(1, "#6d747b");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(x + w / 2, y + h * 0.6, w / 2, h * 0.45, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.ellipse(x + w / 2, y + h * 0.4, w * 0.3, h * 0.4, 0, 0, Math.PI * 2); ctx.fill();
   } else if (o.k === "led") {     // светодиод: красный купол на двух ножках
     ctx.strokeStyle = "#b9bdc2"; ctx.lineWidth = 2;
     [4, 12].forEach(lx => { ctx.beginPath(); ctx.moveTo(x + lx, y + h - 10); ctx.lineTo(x + lx, y + h); ctx.stroke(); });
@@ -3313,6 +3382,57 @@ function drawObs(o) {
     ctx.beginPath(); [[0, 9], [15, 0], [13, 6], [38, 3], [21, 18], [23, 11], [0, 14]].forEach(([px, py], i) => (i ? ctx.lineTo : ctx.moveTo).call(ctx, x + px, y + py));
     ctx.closePath(); ctx.fill(); ctx.restore();
   }
+}
+// Босс: три вида, у каждого злые глаза; мигает белым от удара, при победе трясётся и взрывается
+function drawBoss(B) {
+  ctx.save();
+  let { x, y } = B;
+  if (B.dead) { x += (Math.random() - 0.5) * 10; y += (Math.random() - 0.5) * 10 + (1.6 - B.dead) * 40; ctx.globalAlpha = Math.max(0, B.dead / 1.6); }
+  const eyes = (ex, ey) => {
+    ctx.fillStyle = "#fff"; [[-11, 0], [11, 0]].forEach(([dx]) => { ctx.beginPath(); ctx.arc(ex + dx, ey, 7, 0, Math.PI * 2); ctx.fill(); });
+    ctx.fillStyle = "#d32f2f"; [[-9, 1], [9, 1]].forEach(([dx, dy]) => { ctx.beginPath(); ctx.arc(ex + dx, ey + dy, 3.5, 0, Math.PI * 2); ctx.fill(); });
+    ctx.strokeStyle = "#111"; ctx.lineWidth = 3; ctx.lineCap = "round";
+    ctx.beginPath(); ctx.moveTo(ex - 19, ey - 11); ctx.lineTo(ex - 5, ey - 6); ctx.moveTo(ex + 19, ey - 11); ctx.lineTo(ex + 5, ey - 6); ctx.stroke(); // злые брови
+  };
+  if (B.look === 0) {        // паяльник: ручка, металлический стержень, раскалённое жало вниз-влево
+    ctx.save(); ctx.translate(x, y); ctx.rotate(-0.5);
+    ctx.fillStyle = "#b9bec4"; ctx.fillRect(-70, -5, 40, 10);
+    const tip = ctx.createLinearGradient(-92, 0, -70, 0); tip.addColorStop(0, "#ffde59"); tip.addColorStop(0.4, "#ff6a2b"); tip.addColorStop(1, "#8a8f94");
+    ctx.fillStyle = tip; ctx.beginPath(); ctx.moveTo(-70, -5); ctx.lineTo(-94, 0); ctx.lineTo(-70, 5); ctx.closePath(); ctx.fill();
+    ctx.fillStyle = "#1f4f8f"; rr(-30, -16, 96, 32, 14); ctx.fill(); ctx.fillStyle = "#16365f"; ctx.fillRect(-14, -16, 6, 32); ctx.fillRect(2, -16, 6, 32);
+    ctx.restore(); eyes(x + 20, y - 12);
+    ctx.save(); ctx.shadowColor = "#ff6a2b"; ctx.shadowBlur = 18; ctx.fillStyle = "#ffb347"; ctx.beginPath(); ctx.arc(x - 80, y + 40, 4 + 2 * Math.sin(B.t * 9), 0, Math.PI * 2); ctx.fill(); ctx.restore();
+  } else if (B.look === 1) { // трансформатор: сердечник и две медные катушки, разряд сверху
+    ctx.fillStyle = "#5c6268"; rr(x - 55, y - 34, 110, 68, 6); ctx.fill();
+    ctx.fillStyle = "#3b4045"; ctx.fillRect(x - 55, y - 6, 110, 12);
+    [-30, 30].forEach(cx => { ctx.fillStyle = "#c87533"; rr(x + cx - 18, y - 28, 36, 56, 6); ctx.fill(); ctx.strokeStyle = "#8a4f1e"; ctx.lineWidth = 2;
+      for (let k = -22; k <= 22; k += 6) { ctx.beginPath(); ctx.moveTo(x + cx - 18, y + k); ctx.lineTo(x + cx + 18, y + k); ctx.stroke(); } });
+    eyes(x, y - 4);
+    ctx.save(); ctx.strokeStyle = "#7fd3ff"; ctx.shadowColor = "#7fd3ff"; ctx.shadowBlur = 12; ctx.lineWidth = 2; ctx.beginPath();
+    let px = x - 30; ctx.moveTo(px, y - 34); for (let i = 1; i <= 6; i++) { px += 10; ctx.lineTo(px, y - 40 - Math.random() * 14); } ctx.stroke(); ctx.restore();
+  } else {                   // ESP32: плата с металлическим экраном, антенна-зигзаг, дымок
+    ctx.fillStyle = "#1b1b1b"; rr(x - 50, y - 38, 100, 76, 4); ctx.fill();
+    ctx.fillStyle = "#b9bec4"; rr(x - 40, y - 18, 80, 48, 3); ctx.fill();
+    ctx.strokeStyle = "#c9a227"; ctx.lineWidth = 3; ctx.beginPath(); ctx.moveTo(x - 40, y - 26);
+    for (let i = 0; i < 8; i++) ctx.lineTo(x - 40 + i * 10 + 5, y - (i % 2 ? 26 : 34)); ctx.stroke();
+    ctx.fillStyle = "#b9bec4"; for (let i = 0; i < 9; i++) { ctx.fillRect(x - 48 + i * 11, y + 38, 4, 6); }
+    eyes(x, y + 4);
+    ctx.fillStyle = "rgba(140,140,140,.45)"; [0, 1, 2].forEach(i => { const k = (B.t * 0.7 + i / 3) % 1; ctx.beginPath(); ctx.arc(x + 30 + k * 12, y - 40 - k * 40, 5 + k * 9, 0, Math.PI * 2); ctx.fill(); });
+  }
+  if (B.flash > 0) { ctx.globalAlpha = Math.min(1, B.flash * 4) * 0.7; ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(x, y, 62, 0, Math.PI * 2); ctx.fill(); }
+  if (B.dead) { ctx.globalAlpha = 1; ctx.fillStyle = "#ff8a3a"; for (let i = 0; i < 6; i++) { const a = i + B.dead * 5, r = (1.6 - B.dead) * 70; ctx.beginPath(); ctx.arc(B.x + Math.cos(a) * r, B.y + Math.sin(a) * r, 8 * B.dead, 0, Math.PI * 2); ctx.fill(); } }
+  ctx.restore();
+}
+// Молния от собранного заряда к боссу
+function drawBolts() {
+  const B = run.boss; if (!B) return;
+  ctx.save(); ctx.strokeStyle = "#ffd23e"; ctx.shadowColor = "#ffd23e"; ctx.shadowBlur = 14; ctx.lineWidth = 3;
+  run.fx.forEach(f => {
+    ctx.globalAlpha = f.t / 0.3; ctx.beginPath(); ctx.moveTo(f.x1, f.y1);
+    for (let i = 1; i < 7; i++) { const k = i / 7; ctx.lineTo(f.x1 + (B.x - f.x1) * k + (Math.random() - 0.5) * 24, f.y1 + (B.y - f.y1) * k + (Math.random() - 0.5) * 24); }
+    ctx.lineTo(B.x, B.y); ctx.stroke();
+  });
+  ctx.restore();
 }
 // Герой: резистор-«косточка» с полосами, глазками и ножками-выводами
 function drawPlayer() {
@@ -3363,8 +3483,10 @@ function draw() {
   ctx.fillStyle = C.accent; ctx.globalAlpha = 0.55;
   for (let x = -(sc % 90); x < W + 10; x += 90) { ctx.beginPath(); ctx.arc(x, GR + 24, 5, 0, Math.PI * 2); ctx.fill(); ctx.fillRect(x + 5, GR + 22, 40, 4); }
   ctx.globalAlpha = 1;
+  if (run.boss) drawBoss(run.boss);
   run.cn.forEach(drawCoin);
   run.obs.forEach(drawObs);
+  drawBolts();
   if (!(run.inv > 0 && Math.floor(run.inv * 10) % 2)) drawPlayer();
   ctx.font = "600 20px 'IBM Plex Mono', monospace";
   ctx.textAlign = "right"; ctx.fillStyle = C.fg; ctx.fillText(String(Math.floor(run.score)).padStart(5, "0"), W - 16, 32);
@@ -3373,6 +3495,24 @@ function draw() {
   if (run.shield > 0) { ctx.font = "16px sans-serif"; ctx.fillText("🛡".repeat(run.shield), 16, 56); }
   ctx.textAlign = "center"; ctx.font = "600 14px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.muted;
   ctx.fillText(`уровень ${run.on || run.over ? level() : 1}`, W / 2, 26);
+  if (run.boss && !run.boss.dead) { // имя и полоска здоровья босса
+    const B = run.boss, bw = 240, bx = W / 2 - bw / 2;
+    ctx.font = "700 13px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.warn; ctx.fillText(B.name, W / 2, 46);
+    ctx.fillStyle = C.line; rr(bx, 52, bw, 9, 4); ctx.fill();
+    ctx.fillStyle = C.warn; rr(bx, 52, bw * Math.max(0, B.hp) / B.max, 9, 4); ctx.fill();
+  }
+  if (run.bossBanner > 0) {
+    ctx.globalAlpha = Math.min(1, run.bossBanner); ctx.font = "700 30px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.warn;
+    ctx.fillText(`БОСС: ${run.boss ? run.boss.name : ""}!`, W / 2, 100);
+    ctx.font = "600 15px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.fg; ctx.fillText("Собирай жёлтые заряды ⚡ — они бьют его молнией", W / 2, 124);
+    ctx.globalAlpha = 1;
+  }
+  if (run.bossWin) {
+    ctx.globalAlpha = Math.min(1, run.bossWin.t); ctx.font = "700 28px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.result;
+    ctx.fillText("Босс повержен! 🏆", W / 2, 100);
+    ctx.font = "600 15px 'IBM Plex Mono', monospace"; ctx.fillStyle = C.fg; ctx.fillText(`+${run.bossWin.e} e⁻ · +${run.bossWin.s} очков`, W / 2, 124);
+    ctx.globalAlpha = 1;
+  }
   if (run.banner > 0) {
     ctx.globalAlpha = Math.min(1, run.banner); ctx.font = "700 30px 'Chakra Petch', sans-serif"; ctx.fillStyle = C.accent;
     ctx.fillText(`Уровень ${run.lvl}!`, W / 2, 92);
@@ -3380,7 +3520,7 @@ function draw() {
     ctx.globalAlpha = 1;
   }
   if (!run.on && !run.over) overlay([["Бегущий резистор", 34, C.fg], ["Пробел, ↑ или тап — старт", 18, C.muted]]);
-  else if (run.over) overlay([["Сгорел! 💥", 36, C.warn], [`Очки ${Math.floor(run.score)} · электронов +${run.coins}`, 20, C.fg], ["Пробел или тап — ещё раз", 16, C.muted]]);
+  else if (run.over) overlay([["Сгорел! 💥", 36, C.warn], [`Очки ${Math.floor(run.score)} · электронов +${run.coins}` + (run.kills ? ` · боссов: ${run.kills}` : ""), 20, C.fg], ["Пробел или тап — ещё раз", 16, C.muted]]);
   else if (run.paused) overlay([["Пауза", 34, C.fg], ["P или тап — дальше", 16, C.muted]]);
 }
 
