@@ -414,6 +414,12 @@ label.check input { width: auto; accent-color: var(--accent); }
 .ksvg .hd { font: 600 13px var(--font-mono); fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
 .ksvg .hv { font: 700 13px var(--font-mono); fill: var(--accent); }
 .ksvg .grp { fill: none; stroke-width: 3; pointer-events: none; }
+/* На телефоне ответ карты и длинные кнопки сужаются и переносятся, а не распирают страницу */
+#lgKarn .pincols > .stack { grid-template-columns: minmax(0, 1fr); }
+#lgKarn .tool { white-space: normal; text-align: left; }
+.ksvg .kbr { fill: none; stroke: var(--accent); stroke-width: 2; stroke-linecap: round; }
+.ksvg.zm .kc.v1 rect { fill: var(--panel); } .ksvg.zm .kc.v0 rect { fill: var(--accent-soft); }
+.ksvg.zm .kc.v1 text:not(.mi) { fill: var(--muted); font-weight: 500; } .ksvg.zm .kc.v0 text:not(.mi) { fill: var(--fg); font-weight: 700; }
 .kchip { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 3px solid; margin-right: 6px; vertical-align: -1px; }
 .out .cs-go { justify-self: start; margin-top: 8px; }
 .cs-big { display: flex; flex-wrap: wrap; gap: 0 28px; }
@@ -1075,14 +1081,15 @@ label.check input { width: auto; accent-color: var(--accent); }
       </div>
       <!-- Карта Карно: таблица истинности, разложенная так, чтобы соседние клетки отличались одной переменной -->
       <div class="stack" id="lgKarn" hidden>
-        <p class="hint" style="margin:0">Нажимай на клетки: 0 → 1 → X (не важно, что там) → 0. Карта сама найдёт самые большие группы из 1, 2, 4, 8… клеток и упростит функцию. Группы могут переходить через край карты — она «свёрнута в бублик».</p>
+        <p class="hint" style="margin:0" id="kHint"></p>
         <div class="kbar">
           <div class="seg" role="group" aria-label="Число переменных" id="kN"><button type="button" data-n="2">2 перем.</button><button type="button" data-n="3">3 перем.</button><button type="button" data-n="4">4 перем.</button></div>
           <div class="seg" role="group" aria-label="Что ищем" id="kMode"><button type="button" data-m="1">МДНФ — группы из единиц</button><button type="button" data-m="0">МКНФ — группы из нулей</button></div>
         </div>
         <div class="plinks"><button type="button" class="tool" id="kFromE">Взять из «Своего выражения»</button><button type="button" class="tool" id="kEx">Пример</button><button type="button" class="tool" id="kClr">Очистить</button></div>
         <div class="pincols">
-          <div class="pinw"><svg class="ksvg" id="kSvg" role="group" aria-label="Карта Карно, нажми на клетку"></svg></div>
+          <div class="stack"><div class="pinw"><svg class="ksvg" id="kSvg" role="group" aria-label="Карта Карно, нажми на клетку"></svg></div>
+            <p class="hint" style="margin:0">Скобка показывает, где переменная равна 1; вне скобки она равна 0.</p></div>
           <div class="stack">
             <div class="out" id="kOut"></div>
             <div class="plinks"><button type="button" class="tool" id="kToE">Проверить во вкладке «Своё выражение»</button></div>
@@ -2523,23 +2530,40 @@ function kTerm(t, n, names, sop) {
   if (!L.length) return sop ? "1" : "0";
   return sop ? L.join("·") : (L.length > 1 ? `(${L.join(" + ")})` : L[0]);
 }
+// Разметка как в учебнике (диаграмма Вейча): переменные подписаны скобками, а не кодами.
+// Столбцы — переменные 1-я и 3-я: первая (A) = 1 в двух левых столбцах, третья (C) = 1 в двух средних.
+// Строки — 2-я и 4-я: вторая (B) = 1 в двух средних строках, четвёртая (D) = 1 в двух верхних.
+// Соседние клетки (и через край) всё равно отличаются ровно одной переменной
 function kLayout(n) {
-  const rb = n === 4 ? 2 : 1, cb = n - rb;
-  return { rb, cb, R: GRAY[rb], C: GRAY[cb] };
+  const cols = n === 2 ? [{ 0: 1 }, { 0: 0 }] : [{ 0: 1, 2: 0 }, { 0: 1, 2: 1 }, { 0: 0, 2: 1 }, { 0: 0, 2: 0 }];
+  const rows = n === 4 ? [{ 1: 0, 3: 1 }, { 1: 1, 3: 1 }, { 1: 1, 3: 0 }, { 1: 0, 3: 0 }] : [{ 1: 0 }, { 1: 1 }];
+  // Номер клетки (минтерм): переменная i — бит n−1−i
+  const cell = (r, c) => Object.entries({ ...rows[r], ...cols[c] }).reduce((m, [i, b]) => m | (b << (n - 1 - i)), 0);
+  // Скобки: где каждая переменная равна 1 — сторона и номера столбцов/строк
+  const marks = [[0, "top", [0, 1]], [1, "left", [1]], [2, "bottom", [1, 2]], [3, "right", [0, 1]]].filter(([i]) => i < n);
+  if (n === 4) marks[1][2] = [1, 2];
+  return { rows, cols, cell, marks };
 }
 function drawKarn() {
-  const { n, names, v, mode } = kz, { rb, cb, R, C } = kLayout(n);
+  const { n, names, v, mode } = kz, { rows, cols, cell, marks } = kLayout(n);
   const want = mode ? 1 : 0, cells = v.slice(0, 2 ** n);
   const ones = cells.map((x, m) => (x === want ? m : -1)).filter(m => m >= 0), dc = cells.map((x, m) => (x === 2 ? m : -1)).filter(m => m >= 0);
   const groups = kMinimize(n, ones, dc);
-  const S = 58, X0 = 74, Y0 = 62, W = X0 + C.length * S + 10, H = Y0 + R.length * S + 10;
-  const bits = (x, k) => x.toString(2).padStart(k, "0");
-  let s = `<line x1="10" y1="10" x2="${X0 - 4}" y2="${Y0 - 4}" style="stroke:var(--line);stroke-width:1.5"/>
-    <text class="hd hv" x="${X0 - 18}" y="18" text-anchor="end">${names.slice(rb).join("")}</text><text class="hd hv" x="16" y="${Y0 - 14}" text-anchor="start">${names.slice(0, rb).join("")}</text>`;
-  C.forEach((g, c) => { s += `<text class="hd" x="${X0 + c * S + S / 2}" y="${Y0 - 16}">${bits(g, cb)}</text>`; });
-  R.forEach((g, r) => { s += `<text class="hd" x="${X0 - 22}" y="${Y0 + r * S + S / 2}">${bits(g, rb)}</text>`; });
-  R.forEach((gr, r) => C.forEach((gc, c) => {
-    const m = (gr << cb) | gc, x = X0 + c * S, y = Y0 + r * S, val = cells[m];
+  const S = 58, X0 = 50, Y0 = 50, W = X0 + cols.length * S + 50, H = Y0 + rows.length * S + 50;
+  let s = "";
+  // Скобка вдоль стороны карты над теми столбцами/строками, где переменная = 1, и её буква
+  marks.forEach(([i, side, at]) => {
+    const a = Math.min(...at), b = Math.max(...at) + 1, t = 7;
+    if (side === "top" || side === "bottom") {
+      const x0 = X0 + a * S + 4, x1 = X0 + b * S - 4, y = side === "top" ? Y0 - 8 : Y0 + rows.length * S + 8, d = side === "top" ? -1 : 1;
+      s += `<path class="kbr" d="M${x0} ${y} q0 ${d * t} ${t} ${d * t} H${x1 - t} q${t} 0 ${t} ${-d * t}"/><text class="hd hv" x="${(x0 + x1) / 2}" y="${y + d * (t + 14)}">${names[i]}</text>`;
+    } else {
+      const y0 = Y0 + a * S + 4, y1 = Y0 + b * S - 4, x = side === "left" ? X0 - 8 : X0 + cols.length * S + 8, d = side === "left" ? -1 : 1;
+      s += `<path class="kbr" d="M${x} ${y0} q${d * t} 0 ${d * t} ${t} V${y1 - t} q0 ${t} ${-d * t} ${t}"/><text class="hd hv" x="${x + d * (t + 14)}" y="${(y0 + y1) / 2}">${names[i]}</text>`;
+    }
+  });
+  rows.forEach((_, r) => cols.forEach((_, c) => {
+    const m = cell(r, c), x = X0 + c * S, y = Y0 + r * S, val = cells[m];
     s += `<g class="kc v${val === 2 ? "x" : val}" data-m="${m}" tabindex="0" role="button" aria-label="Клетка ${m}: ${val === 2 ? "X" : val}">
       <rect x="${x}" y="${y}" width="${S}" height="${S}"/><text x="${x + S / 2}" y="${y + S / 2 + 2}">${val === 2 ? "X" : val}</text><text class="mi" x="${x + 4}" y="${y + 11}">${m}</text></g>`;
   }));
@@ -2548,15 +2572,21 @@ function drawKarn() {
     const out = []; pos.forEach(p => { const l = out[out.length - 1]; if (l && p === l[1] + 1) l[1] = p; else out.push([p, p]); });
     return out;
   };
+  const inT = (t, m) => ((m ^ t.v) & ~t.x) === 0;
   groups.forEach((t, gi) => {
-    const rowSel = R.map((g, r) => (((g ^ (t.v >> cb)) & ~(t.x >> cb)) === 0 ? r : -1)).filter(r => r >= 0);
-    const colSel = C.map((g, c) => (((g ^ (t.v & (2 ** cb - 1))) & ~(t.x & (2 ** cb - 1))) === 0 ? c : -1)).filter(c => c >= 0);
+    // Группа — это все клетки «строки × столбцы»: берём строки и столбцы, где есть хоть одна её клетка
+    const rowSel = rows.map((_, r) => (cols.some((_, c) => inT(t, cell(r, c))) ? r : -1)).filter(r => r >= 0);
+    const colSel = cols.map((_, c) => (rows.some((_, r) => inT(t, cell(r, c))) ? c : -1)).filter(c => c >= 0);
     const pad = 5 + (gi % 4) * 3, col = K_COLORS[gi % K_COLORS.length];
     runs(rowSel).forEach(([r0, r1]) => runs(colSel).forEach(([c0, c1]) => {
       s += `<rect class="grp" x="${X0 + c0 * S + pad}" y="${Y0 + r0 * S + pad}" width="${(c1 - c0 + 1) * S - 2 * pad}" height="${(r1 - r0 + 1) * S - 2 * pad}" rx="12" style="stroke:${col}"/>`;
     }));
   });
   const sv = $("kSvg"); sv.setAttribute("viewBox", `0 0 ${W} ${H}`); sv.innerHTML = s;
+  sv.classList.toggle("zm", !mode); // в режиме нулей подсвечиваем нули
+  $("kHint").textContent = mode
+    ? "Нажимай на клетки: 0 → 1 → X (не важно, что там) → 0. Карта сама найдёт самые большие группы из 1, 2, 4, 8… клеток и упростит функцию. Группы могут переходить через край карты — она «свёрнута в бублик»."
+    : "Режим нулей: все клетки сначала 1, нажимай туда, где функция равна 0: 1 → 0 → X (не важно) → 1. Карта сама объединит нули в самые большие группы, в том числе через край.";
   // Ответ
   const sop = !!mode, terms = groups.map(t => kTerm(t, n, names, sop));
   const all = ones.length + dc.length === 2 ** n && ones.length > 0;
@@ -2575,15 +2605,23 @@ function drawKarn() {
   try { localStorage.setItem("calc-karnaugh", JSON.stringify(kz)); } catch (e) {}
 }
 const lits = (t, n) => n - [...Array(n).keys()].filter(b => t.x >> b & 1).length;
-const kSet = i => { kz.v[i] = (kz.v[i] + 1) % 3; drawKarn(); };
+// Единицы: 0 → 1 → X → 0. Нули: 1 → 0 → X → 1
+const kSet = i => { kz.v[i] = kz.mode ? (kz.v[i] + 1) % 3 : { 1: 0, 0: 2, 2: 1 }[kz.v[i]]; drawKarn(); };
+const kBlank = () => Array(16).fill(kz.mode ? 0 : 1); // пустая карта: в режиме нулей вся в единицах
 $("kSvg").addEventListener("click", e => { const g = e.target.closest(".kc"); if (g) kSet(+g.dataset.m); });
 $("kSvg").addEventListener("keydown", e => { const g = e.target.closest(".kc"); if (g && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); kSet(+g.dataset.m); setTimeout(() => $("kSvg").querySelector(`[data-m="${g.dataset.m}"]`).focus(), 0); } });
 $("kN").addEventListener("click", e => {
   const b = e.target.closest("button[data-n]"); if (!b) return;
-  kz.n = +b.dataset.n; kz.names = ["A", "B", "C", "D"].slice(0, kz.n); kz.v = Array(16).fill(0); drawKarn();
+  kz.n = +b.dataset.n; kz.names = ["A", "B", "C", "D"].slice(0, kz.n); kz.v = kBlank(); drawKarn();
 });
-$("kMode").addEventListener("click", e => { const b = e.target.closest("button[data-m]"); if (b) { kz.mode = +b.dataset.m; drawKarn(); } });
-$("kClr").onclick = () => { kz.v = Array(16).fill(0); drawKarn(); };
+$("kMode").addEventListener("click", e => {
+  const b = e.target.closest("button[data-m]"); if (!b) return;
+  const m = +b.dataset.m;
+  // Карта ещё пустая (все 0 для единиц или все 1 для нулей) — заполняем под новый режим; иначе оставляем, что нарисовано
+  if (m !== kz.mode && kz.v.slice(0, 2 ** kz.n).every(x => x === (m ? 1 : 0))) kz.v = Array(16).fill(m ? 0 : 1);
+  kz.mode = m; drawKarn();
+});
+$("kClr").onclick = () => { kz.v = kBlank(); drawKarn(); };
 // Пример из учебников: f = Σm(0, 2, 5, 7, 8, 10, 13, 15) — два «квадрата», один из них через углы
 $("kEx").onclick = () => { kz.n = 4; kz.names = ["A", "B", "C", "D"]; kz.v = Array(16).fill(0); [0, 2, 5, 7, 8, 10, 13, 15].forEach(m => { kz.v[m] = 1; }); drawKarn(); };
 // Выражение → карта: берём его переменные (до 4) и заполняем клетки по таблице истинности
