@@ -717,7 +717,7 @@ label.check input { width: auto; accent-color: var(--accent); }
         <button type="button" class="qstart" id="gStart">Играть</button>
         <span class="gbal">Электроны<b id="gCoins">0</b></span>
       </div>
-      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 125, 375, 750, 1250… очков — каждый быстрее и злее: с уровнем чаще идут группы из 2–3 деталей, которые надо перепрыгнуть одним прыжком; появляются светодиоды и реле. На 5, 10, 15… уровне — <b>босс</b>: перепрыгивай капли припоя, пробегай под разрядами и собирай жёлтые заряды ⚡ — каждый бьёт босса молнией. Каждый следующий босс сильнее.</p>
+      <p class="hint" style="margin:0">Прыжок — пробел, ↑ или тап по экрану. Пауза — P. Летящие искры пропускай над собой, через искру по земле (с 3-го уровня) — прыгай. Уровни на 90, 270, 545, 910… очков — каждый быстрее и злее: с уровнем чаще идут группы из 2–3 деталей, которые надо перепрыгнуть одним прыжком; появляются светодиоды и реле. На 5, 10, 15… уровне — <b>босс</b>: перепрыгивай капли припоя, пробегай под разрядами и собирай жёлтые заряды ⚡ — каждый бьёт босса молнией. Каждый следующий босс сильнее.</p>
       <p class="qfeed" id="gMsg"></p>
       <div class="cols">
         <div class="stack"><h3 class="gh">Магазин бафов</h3><div class="shop" id="gShop"></div></div>
@@ -3105,7 +3105,7 @@ const jumpV = () => 790 * (1 + 0.1 * gs.upg.jump);
 const best = () => (gs.board.length ? gs.board[0].s : 0);
 // Прогресс = пройденный путь / 10 (сложность зависит от него, а не от очков)
 const prog = () => run.scroll / 10;
-// Уровень N начинается с прогресса 250·N·(N−1): 500, 1500, 3000… (в очках: 125, 375, 750, 1250…)
+// Уровень N начинается с прогресса 250·N·(N−1): 500, 1500, 3000… (в очках: 90, 270, 545, 910…)
 const level = () => Math.floor((1 + Math.sqrt(1 + (4 * prog()) / 250)) / 2);
 const airTime = () => (2 * jumpV()) / G.GRAV; // сколько секунд резистор в воздухе
 const feetY = () => G.GROUND + run.y;
@@ -3139,7 +3139,7 @@ function togglePause() {
 // Электроны кладём только туда, где их реально можно взять:
 // низкий ряд — на высоте тела бегущего резистора, в свободном промежутке
 function coinRow(a, b) {
-  const n = Math.min(5, Math.floor((b - a) / 34) + 1);
+  const n = Math.min(4, Math.floor((b - a) / 34) + 1);
   if (n < 3) return;
   for (let i = 0; i < n; i++) run.cn.push({ x: a + i * 34, y: G.GROUND - 28 });
 }
@@ -3147,7 +3147,7 @@ function coinRow(a, b) {
 function coinArc(ox, ow) {
   const jv = jumpV(), air = (2 * jv) / G.GRAV;
   const D = Math.max(0, (run.speed * air) / 2 - 32 - ow / 2); // за сколько до препятствия оттолкнуться
-  [0.2, 0.35, 0.5, 0.65, 0.8].forEach(f => {
+  [0.3, 0.5, 0.7].forEach(f => {
     const t = air * f;
     run.cn.push({ x: ox + run.speed * t - 32 - D, y: G.GROUND - (30 + jv * t - 0.5 * G.GRAV * t * t) });
   });
@@ -3174,16 +3174,24 @@ function spawnObs(gap) {
   // Группа из 2–3 деталей подряд: с уровнем чаще и длиннее. Ставим следующую, только если всю группу
   // ещё можно перелететь одним прыжком: время над самой высокой деталью × скорость − длина резистора, с запасом 20 %
   const clear = H => { const jv = jumpV(), d = jv * jv - 2 * G.GRAV * (H + 4); return d > 0 ? run.speed * (2 * Math.sqrt(d) / G.GRAV) - 64 : 0; };
-  const maxN = L >= 4 ? 3 : L >= 2 || s > 400 ? 2 : 1;
-  for (let n = 1; n < maxN && Math.random() < Math.min(0.75, 0.3 + 0.07 * (L - 1)); n++) {
+  const maxN = L >= 7 ? 4 : L >= 4 ? 3 : L >= 2 || s > 400 ? 2 : 1;
+  for (let n = 1; n < maxN && Math.random() < Math.min(0.85, 0.35 + 0.08 * (L - 1)); n++) {
     const [k2, w2, h2] = pick(kinds), gap2 = rnd(4, 10);
     if (total + gap2 + w2 > 0.8 * clear(Math.max(top, h2))) break;
     run.obs.push({ k: k2, x: x0 + total + gap2, w: w2, h: h2, y: G.GROUND - h2 });
     total += gap2 + w2; top = Math.max(top, h2);
   }
-  // Дуга над деталью или ряд в промежутке после неё (с запасом на приземление и следующий прыжок)
-  if (Math.random() < 0.55) coinArc(x0, total);
-  else if (Math.random() < 0.7) coinRow(x0 + total + run.speed * 0.45, x0 + gap - run.speed * 0.35);
+  // С 3-го уровня — летающая искра в промежутке, где бежишь по земле: под ней надо пробежать, не прыгая.
+  // Окно: после приземления с этой группы и до толчка к следующей, с запасом по 100 пикселей
+  const half = run.speed * airTime() / 2, a = x0 + total / 2 + half + 100, b = x0 + gap + total - half - 100;
+  let zapped = false;
+  if (L >= 3 && b - a > 40 && Math.random() < Math.min(0.6, 0.15 + 0.06 * (L - 3))) {
+    run.obs.push({ k: "zap", x: a + Math.random() * (b - a - 38), w: 38, h: 18, y: G.GROUND - rnd(78, 110) });
+    zapped = true;
+  }
+  // Дуга над деталью или ряд в промежутке после неё (с запасом на приземление и следующий прыжок); электронов стало меньше
+  if (Math.random() < 0.4) coinArc(x0, total);
+  else if (!zapped && Math.random() < 0.5) coinRow(x0 + total + run.speed * 0.45, x0 + gap - run.speed * 0.35);
   return total;
 }
 /* --- Боссы: на 5, 10, 15… уровне. Каждый следующий сильнее: больше здоровья, атаки чаще и хитрее --- */
@@ -3229,12 +3237,12 @@ function bossUpdate(dt) {
 // Собрал заряд — молния в босса
 function bossHit(c) {
   const B = run.boss;
-  if (!B || B.dead) { run.coins += 3; return; }
+  if (!B || B.dead) { run.coins += 1; return; }
   B.hp--; B.flash = 0.25;
   run.fx.push({ t: 0.3, x1: c.x, y1: c.y });
   if (B.hp <= 0) {
     B.dead = 1.6; run.kills++;
-    const bonusE = 15 * B.b, bonusS = 60 * B.b;
+    const bonusE = 8 * B.b, bonusS = 40 * B.b;
     run.coins += bonusE; run.score += bonusS;
     run.bossWin = { t: 2.5, e: bonusE, s: bonusS };
     run.obs = run.obs.filter(o => o.k !== "blob" || o.y + o.h >= G.GROUND - 1); // летящие капли исчезают
@@ -3252,7 +3260,7 @@ function update(dt) {
   run.speed = Math.min(950 + 35 * (L - 1), 1250, baseSpeed() + 8 * run.t);
   const dx = run.speed * dt;
   run.scroll += dx;
-  run.score += (dx / 40) * (1 + 0.05 * gs.upg.speed);   // очки в 4 раза медленнее пути; баф скорости даёт +5% за уровень
+  run.score += (dx / 55) * (1 + 0.05 * gs.upg.speed);   // очки в 5,5 раза медленнее пути; баф скорости даёт +5% за уровень
   // Прыжок: скорость вверх гасится гравитацией, y < 0 — в воздухе
   run.vy += G.GRAV * dt;
   run.y += run.vy * dt;
@@ -3260,8 +3268,8 @@ function update(dt) {
   if (run.boss) bossUpdate(dt); else run.nextObs -= dx;
   if (!run.boss && run.nextObs <= 0) {
     // Минимальный промежуток = время прыжка + запас на реакцию; с уровнем убираются только «лёгкие» длинные промежутки
-    const spread = Math.max(0.15, 0.9 - 0.1 * (L - 1));
-    run.nextObs = run.speed * (airTime() + 0.15 + Math.random() * spread);
+    const spread = Math.max(0.12, 0.9 - 0.1 * (L - 1)), react = Math.max(0.1, 0.15 - 0.005 * (L - 1)); // запас на реакцию тоже чуть тает
+    run.nextObs = run.speed * (airTime() + react + Math.random() * spread);
     run.nextObs += spawnObs(run.nextObs); // широкая/сдвоенная деталь — промежуток длиннее
   }
   const f = feetY(), me = { x: PX - 4, y: f - 42, w: 64, h: 40 };
@@ -3436,34 +3444,60 @@ function drawBolts() {
 }
 // Герой: резистор-«косточка» с полосами, глазками и ножками-выводами
 function drawPlayer() {
-  const x = PX, f = feetY(), cy = f - 30, air = run.y < 0;
-  const sw = air ? 0 : Math.sin(run.on ? run.scroll / 16 : 0) * 7, foot = air ? cy + 14 : f;
-  ctx.strokeStyle = "#a9adb2"; ctx.lineWidth = 3; ctx.lineCap = "round"; ctx.lineJoin = "round";
-  ctx.beginPath(); ctx.moveTo(x + 4, cy); ctx.lineTo(x - 6, cy); ctx.lineTo(x - 6 + sw, foot); ctx.lineTo(x - 12 + sw, foot); ctx.stroke();
-  ctx.beginPath(); ctx.moveTo(x + 52, cy); ctx.lineTo(x + 62, cy); ctx.lineTo(x + 62 - sw, foot); ctx.lineTo(x + 68 - sw, foot); ctx.stroke();
+  const x = PX, f = feetY(), cy = f - 30, air = run.y < 0, cx = x + 28;
+  const ph = run.on ? run.scroll / 16 : 0, sw = air ? 0 : Math.sin(ph) * 7, foot = air ? cy + 14 : f;
+  // Тень на плате: в прыжке меньше и бледнее
+  const hgt = Math.min(1, -run.y / 140);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.globalAlpha = 1 - 0.6 * hgt;
+  ctx.beginPath(); ctx.ellipse(cx, G.GROUND + 4, 34 * (1 - 0.4 * hgt), 5, 0, 0, Math.PI * 2); ctx.fill(); ctx.globalAlpha = 1;
+  // Ножки-выводы с «коленками» и ботинками из припоя
+  const leg = (hx, kx, fx) => {
+    ctx.strokeStyle = "#7c8187"; ctx.lineWidth = 4.5; ctx.lineCap = "round"; ctx.lineJoin = "round";
+    const path = () => { ctx.beginPath(); ctx.moveTo(hx, cy); ctx.lineTo(kx, cy + 2); ctx.lineTo(fx, foot - 2); ctx.stroke(); };
+    path(); ctx.strokeStyle = "#d7dbe0"; ctx.lineWidth = 2.2; path();
+    const g = ctx.createRadialGradient(fx - 2, foot - 4, 1, fx, foot - 2, 8); g.addColorStop(0, "#ffffff"); g.addColorStop(0.4, "#c3c8ce"); g.addColorStop(1, "#6d747b");
+    ctx.fillStyle = g; ctx.beginPath(); ctx.ellipse(fx + 1, foot - 3, 7, 4.5, 0, 0, Math.PI * 2); ctx.fill();
+  };
+  leg(x + 4, x - 6, x - 9 + sw); leg(x + 52, x + 62, x + 65 - sw);
+  // Корпус: наклон по скорости прыжка, на бегу чуть подпрыгивает
+  ctx.save();
+  ctx.translate(cx, cy); ctx.rotate(Math.max(-0.22, Math.min(0.22, run.vy / 3200)));
+  const sq = air ? 1 : 1 + 0.035 * Math.sin(ph * 2); ctx.scale(2 - sq, sq);
   const body = () => {
     ctx.beginPath();
-    ctx.moveTo(x + 21, cy); ctx.ellipse(x + 10, cy, 11, 13, 0, 0, Math.PI * 2);
-    ctx.moveTo(x + 57, cy); ctx.ellipse(x + 46, cy, 11, 13, 0, 0, Math.PI * 2);
-    ctx.rect(x + 10, cy - 10, 36, 20);
+    ctx.moveTo(-6.5, 0); ctx.ellipse(-18, 0, 11.5, 13.5, 0, 0, Math.PI * 2);
+    ctx.moveTo(29.5, 0); ctx.ellipse(18, 0, 11.5, 13.5, 0, 0, Math.PI * 2);
+    ctx.rect(-18, -10, 36, 20);
   };
-  const g = ctx.createLinearGradient(0, cy - 13, 0, cy + 13);
-  g.addColorStop(0, "#b98c58"); g.addColorStop(0.3, "#f2d8ab"); g.addColorStop(0.5, "#e3c08c"); g.addColorStop(1, "#8f6738");
+  const g = ctx.createLinearGradient(0, -14, 0, 14);
+  g.addColorStop(0, "#a87a46"); g.addColorStop(0.25, "#f6dfb4"); g.addColorStop(0.5, "#e6c38d"); g.addColorStop(1, "#86602f");
   ctx.fillStyle = g; body(); ctx.fill();
   ctx.save(); body(); ctx.clip();
-  [[x + 6, "#7a4a24"], [x + 17, "#1b1b1b"], [x + 25, "#d32f2f"], [x + 34, "#c9a227"]].forEach(([bx, c]) => { ctx.fillStyle = c; ctx.fillRect(bx, cy - 14, 5, 28); });
-  const sh = ctx.createLinearGradient(0, cy - 13, 0, cy + 13);
-  sh.addColorStop(0, "rgba(255,255,255,.35)"); sh.addColorStop(0.45, "rgba(255,255,255,0)"); sh.addColorStop(1, "rgba(0,0,0,.3)");
-  ctx.fillStyle = sh; ctx.fillRect(x - 2, cy - 14, 62, 28);
+  // Полосы 1 кОм ±5 %: коричневый, чёрный, красный, золотой — чуть выгнутые, как на настоящем корпусе
+  [[-22, "#7a4a24"], [-11, "#1b1b1b"], [-3, "#d32f2f"], [7, "#d4af37"]].forEach(([bx, c]) => {
+    ctx.fillStyle = c; ctx.beginPath(); ctx.moveTo(bx, -15); ctx.quadraticCurveTo(bx + 2, 0, bx, 15); ctx.lineTo(bx + 5, 15); ctx.quadraticCurveTo(bx + 7, 0, bx + 5, -15); ctx.closePath(); ctx.fill();
+  });
+  const sh = ctx.createLinearGradient(0, -14, 0, 14);
+  sh.addColorStop(0, "rgba(255,255,255,.4)"); sh.addColorStop(0.4, "rgba(255,255,255,0)"); sh.addColorStop(1, "rgba(0,0,0,.35)");
+  ctx.fillStyle = sh; ctx.fillRect(-32, -15, 64, 30);
+  ctx.fillStyle = "rgba(255,255,255,.55)"; rr(-20, -10, 30, 3.5, 2); ctx.fill(); // блик
   ctx.restore();
-  // Глазки и рот: в прыжке рот «О»
-  ctx.fillStyle = "#fff";
-  [44, 51].forEach(ex => { ctx.beginPath(); ctx.arc(x + ex, cy - 4, 3.4, 0, Math.PI * 2); ctx.fill(); });
-  ctx.fillStyle = "#111";
-  [45, 52].forEach(ex => { ctx.beginPath(); ctx.arc(x + ex, cy - 4, 1.7, 0, Math.PI * 2); ctx.fill(); });
+  ctx.strokeStyle = "rgba(70,45,15,.75)"; ctx.lineWidth = 1.4; body(); ctx.stroke();
+  // Мордочка на правом «плече»: глаза моргают раз в ~3 с, в прыжке удивлённые
+  const blink = !air && (run.t % 3.2) < 0.12, ey = -4;
+  [14, 22].forEach(ex => {
+    if (blink) { ctx.strokeStyle = "#2a1a0a"; ctx.lineWidth = 1.6; ctx.beginPath(); ctx.moveTo(ex - 3, ey); ctx.lineTo(ex + 3, ey); ctx.stroke(); return; }
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.ellipse(ex, ey, 3.6, air ? 4.6 : 4, 0, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#111"; ctx.beginPath(); ctx.arc(ex + 1.2, ey + (air ? -0.5 : 0.4), 2, 0, Math.PI * 2); ctx.fill();
+    ctx.fillStyle = "#fff"; ctx.beginPath(); ctx.arc(ex + 1.8, ey - 0.8, 0.7, 0, Math.PI * 2); ctx.fill();
+  });
+  ctx.fillStyle = "rgba(230,90,90,.45)"; [12, 25].forEach(bx => { ctx.beginPath(); ctx.ellipse(bx, 3, 2.6, 1.6, 0, 0, Math.PI * 2); ctx.fill(); }); // румянец
   ctx.strokeStyle = "#5a3a1a"; ctx.lineWidth = 1.5; ctx.beginPath();
-  if (air) ctx.arc(x + 48, cy + 4, 2, 0, Math.PI * 2); else ctx.arc(x + 48, cy + 1, 3, 0.15 * Math.PI, 0.85 * Math.PI);
-  ctx.stroke();
+  if (air) { ctx.fillStyle = "#5a2a1a"; ctx.ellipse(18, 5, 2, 2.6, 0, 0, Math.PI * 2); ctx.fill(); }
+  else { ctx.arc(18, 1.5, 3.4, 0.15 * Math.PI, 0.85 * Math.PI); ctx.stroke(); }
+  ctx.restore();
+  // Предохранитель в запасе — лёгкое голубое свечение
+  if (run.shield > 0) { ctx.save(); ctx.globalAlpha = 0.18 + 0.08 * Math.sin(run.t * 5); ctx.fillStyle = C.blue; ctx.beginPath(); ctx.ellipse(cx, cy, 42, 24, 0, 0, Math.PI * 2); ctx.fill(); ctx.restore(); }
 }
 function overlay(lines) {
   ctx.fillStyle = C.bg; ctx.globalAlpha = 0.78; ctx.fillRect(0, 0, G.W, G.H); ctx.globalAlpha = 1;
